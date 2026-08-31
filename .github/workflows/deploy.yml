@@ -24,6 +24,7 @@ jobs:
           lfs: false
 
       - name: Godot headless export (Web)
+        id: godot
         uses: firebelley/godot-export@v8.0.0
         with:
           godot_executable_download_url: https://github.com/godotengine/godot/releases/download/4.6.3-stable/Godot_v4.6.3-stable_linux.x86_64.zip
@@ -37,7 +38,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: build/web
+          path: ${{ steps.godot.outputs.build_directory }}
 
   deploy:
     environment:
