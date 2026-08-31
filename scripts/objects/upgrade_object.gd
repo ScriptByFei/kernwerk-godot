@@ -1,14 +1,12 @@
 class_name UpgradeObject
 extends LaneObject
 ## Grünes Upgrade-Träger-Objekt: zerstörbar, beim Zerstören wirksamwerden.
-## Text auf dem Objekt zeigt den Bonus (z.B. "+10 DMG", "x2 RATE", "+1 SOLDIER").
+## Text auf dem Objekt zeigt den tatsächlichen Bonus aus WaveData.
 
 signal upgrade_collected(upgrade: UpgradeObject)
 
 var upgrade_type := "damage"    # "damage" | "firerate" | "soldier"
-var upgrade_label_text := "+10 DMG"
-
-# Treffer-Erkennung großzügiger: Hitbox ±100 px (X) / ±110 px (Y) — Upgrades fühlen
+# Treffer-Erkennung großzügiger: Hitbox ±100 px (X) / ±90 px (Y) — Upgrades fühlen
 # sich so deutlich einsammelbarer an, ohne dass der Spieler pixelgenau zielen muss.
 const HITBOX_HALF_W := 100.0
 const HITBOX_HALF_H := 90.0
@@ -37,9 +35,9 @@ func _build_visual() -> void:
 func _display_text() -> String:
 	match upgrade_type:
 		"damage":
-			return "+10 DMG"
+			return "+%d DMG" % WaveData.DMG_UPGRADE
 		"firerate":
-			return "x2 RATE"
+			return "+%.1f RATE" % WaveData.RATE_UPGRADE
 		"soldier":
 			return "+1 SOLDIER"
 	return "?"

@@ -14,6 +14,7 @@ func _check(cond: bool, msg: String) -> void:
 func _init() -> void:
 	var world := Node2D.new()
 	get_root().add_child(world)
+	await process_frame
 
 	# --- WaveData Struktur ---
 	_check(WaveData.wave_count() == 6, "6 Wellen definiert")
@@ -53,9 +54,17 @@ func _init() -> void:
 	_check(boss_fired[0] == 1, "Boss bei Wave 6 (boss_appeared 1×)")
 	_check(absf(sp.hp_factor - 2.2) < 0.01, "Boss-Welle: hp_factor 2.2 am Spawner")
 
-	# Eine weitere "Dauer" → Level komplett
+	# Zeit allein beendet die Boss-Welle NICHT.
 	wm._physics_process(30.0)
-	_check(wm.is_level_done and complete_fired[0] == 1, "nach Boss-Welle: level_completed 1×")
+	_check(not wm.is_level_done and complete_fired[0] == 0, "Boss-Welle wartet auf Boss-Kill")
+	var boss: Enemy = null
+	for c in world.get_children():
+		if c is Enemy and c.is_boss:
+			boss = c
+	_check(boss != null, "Boss-Instanz vorhanden")
+	if boss:
+		boss.take_damage(WaveData.BOSS_HP)
+	_check(wm.is_level_done and complete_fired[0] == 1, "Boss-Kill beendet Level genau 1×")
 
 	# --- SpawnParams wirken: hp_factor skaliert Gegner-HP ---
 	sp.hp_factor = 1.8

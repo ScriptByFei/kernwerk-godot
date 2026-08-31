@@ -18,7 +18,6 @@ func _init() -> void:
 	get_root().add_child(root_node)
 
 	var player := Node2D.new()
-	player.set_script(load("res://scripts/player/player.gd"))
 	root_node.add_child(player)
 	# _ready braucht TouchInput/WeaponController children — ohne Szene vereinfachen:
 	# Wir testen nur die Koordinaten-Mathematik des WeaponControllers:
@@ -26,10 +25,9 @@ func _init() -> void:
 	root_node.add_child(wc)
 
 	# Fake-Player: nur global_position wichtig
-	var fake := Node2D.new()
-	root_node.add_child(fake)
+	var fake := Player.new()
 	fake.position = Vector2(GameConfig.lane_x(1, 1080.0), GameConfig.player_y(1920.0))
-	wc.setup(fake as Player)
+	wc.setup(fake)
 
 	# Player bei y=1650. Muss spawn: bullet bei ~1570 (global), NICHT 3300.
 	var origin: Vector2 = fake.global_position + Vector2(0, -80)
@@ -51,6 +49,7 @@ func _init() -> void:
 	b2.position = origin  # <-- alter Fehler: globale Koords ueber 'position' zugewiesen
 	_check(b2.global_position.y > 3000.0, "Alter Bug wuerde global y>3000 erzeugen (bestaetigt Bug-Ursache)")
 	b2.free()
+	fake.free()
 
 	if fails == 0:
 		print("BUGFIX TESTS: ALLE OK")

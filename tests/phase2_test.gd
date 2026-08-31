@@ -14,17 +14,19 @@ func _check(cond: bool, msg: String) -> void:
 func _init() -> void:
 	# WeaponController instanziieren ohne Szene
 	var wc = WeaponController.new()
-	_check(wc.damage == GameConfig.DAMAGE, "Startschaden = Config")
-	_check(wc.fire_rate == GameConfig.FIRE_RATE, "Feuerrate = Config")
+	_check(wc._damage() == GameConfig.DAMAGE, "Startschaden = Config")
+	_check(wc._fire_rate() == GameConfig.FIRE_RATE, "Feuerrate = Config")
 	_check(is_equal_approx(wc._cooldown, 0.0), "Cooldown startet bei 0")
-	_check(wc.bullet_count == 1, "MVP: 1 Projektil pro Schuss")
+	_check(wc._soldiers() == GameConfig.BULLET_COUNT, "MVP: 1 Projektil pro Schuss")
 	# Setup ohne Player: kein Crash im _physics_process? (Erst wenn parent gesetzt)
 	wc.setup(null)  # bewusst null → guard greift
 	print("  ✓ Setup mit null-Player crasht nicht (guard)")
 	# Feuerrate-Mathematik
 	var wc2 = WeaponController.new()
-	wc2.fire_rate = 4.0
-	_check(is_equal_approx(1.0 / wc2.fire_rate, 0.25), "Cooldown = 1/Rate (0.25s)")
+	var stats := PlayerStats.new()
+	stats.fire_rate = 4.0
+	wc2.stats = stats
+	_check(is_equal_approx(1.0 / wc2._fire_rate(), 0.25), "Cooldown = 1/Rate (0.25s)")
 	# Bullet-Basics
 	var b = Bullet.new()
 	b.setup(55, 999.0)
@@ -32,6 +34,8 @@ func _init() -> void:
 	_check(is_equal_approx(b.speed, 999.0), "Bullet-Speed übernommen")
 	b.free()
 	wc.free()
+	wc2.free()
+	stats.free()
 	# Bullet despawnt über Bildschirmrand
 	var b2 = Bullet.new()
 	b2.position = Vector2(540, -100)

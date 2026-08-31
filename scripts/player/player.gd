@@ -6,12 +6,14 @@ signal lane_changed(lane: int)
 
 var current_lane := 1
 var _switch_tween: Tween
+var _last_viewport_size := Vector2.ZERO
 
 @onready var touch: TouchInput = $TouchInput
 @onready var weapon: WeaponController = $WeaponController
 
 func _ready() -> void:
 	_apply_layout()
+	_last_viewport_size = get_viewport_rect().size
 	touch.swiped.connect(move_lane)
 	touch.tapped_lane.connect(move_to_lane)
 	weapon.setup(self)
@@ -19,10 +21,12 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	# Viewport kann sich im Web-Export dynamisch ändern (iOS-URL-Bar, Rotation).
-	# Statt Notifications zu vertrauen: Position jedes Frame neu setzen, wenn abweichend.
-	var target := Vector2(_lane_x(current_lane), _player_y())
-	if position.distance_squared_to(target) > 1.0:
-		position = target
+	# Größe jedes Frame prüfen, aber nur bei echter Änderung neu layouten. Dadurch
+	# bleibt der Lane-Tween intakt und wird nicht im nächsten Frame weggesnappt.
+	var viewport_size := get_viewport_rect().size
+	if viewport_size != _last_viewport_size:
+		_last_viewport_size = viewport_size
+		_apply_layout()
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Desktop/Entwicklung
@@ -60,6 +64,8 @@ func _player_y() -> float:
 	return GameConfig.player_y(get_viewport_rect().size.y)
 
 func _apply_layout() -> void:
+	if _switch_tween and _switch_tween.is_valid():
+		_switch_tween.kill()
 	position = Vector2(_lane_x(current_lane), _player_y())
 
 func _notification(what: int) -> void:

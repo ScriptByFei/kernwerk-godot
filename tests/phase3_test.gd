@@ -14,6 +14,7 @@ func _check(cond: bool, msg: String) -> void:
 func _init() -> void:
 	var world := Node2D.new()
 	get_root().add_child(world)
+	await process_frame
 
 	# --- Enemy: HP, Damage, Kill ---
 	var e := Enemy.new()

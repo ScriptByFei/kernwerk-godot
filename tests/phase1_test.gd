@@ -5,10 +5,15 @@ extends SceneTree
 var fails := 0
 
 func _init() -> void:
-	var player := Node2D.new()
-	player.set_script(load("res://scripts/player/player.gd"))
-	# Kein Baum nötig: Logik-Tests ohne _ready/TouchNode
-	var p = player as Player
+	var p := Player.new()
+	var touch := TouchInput.new()
+	touch.name = "TouchInput"
+	p.add_child(touch)
+	var weapon := WeaponController.new()
+	weapon.name = "WeaponController"
+	p.add_child(weapon)
+	get_root().add_child(p)
+	await process_frame
 	p.current_lane = 1
 
 	# clamp-Bounds: Links/Rechts limitiert
@@ -36,6 +41,8 @@ func _init() -> void:
 		print("PHASE1 TESTS: ALLE OK")
 	else:
 		print("PHASE1 TESTS: %d FEHLER" % fails)
+	p.queue_free()
+	await process_frame
 	quit(1 if fails > 0 else 0)
 
 func _check(cond: bool, msg: String) -> void:

@@ -1,4 +1,4 @@
-name: Build & Deploy (GitHub Pages)
+name: Test, Build & Deploy (GitHub Pages)
 
 on:
   push:
@@ -6,17 +6,60 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.6.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Godot
+        shell: bash
+        run: |
+          curl --fail --location --silent --show-error \
+            --output godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip
+          chmod +x "Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+
+      - name: Run headless suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot_bin="$PWD/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          for suite in tests/*_test.gd; do
+            echo "===== $suite ====="
+            output="$(timeout 60s "$godot_bin" --headless --path . -s "$suite" 2>&1)"
+            echo "$output"
+            if grep -Eq 'SCRIPT ERROR|^ERROR:' <<<"$output"; then
+              echo "Godot reported an engine or script error in $suite" >&2
+              exit 1
+            fi
+          done
+
+      - name: Smoke-test main scene
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot_bin="$PWD/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          output="$(timeout 30s "$godot_bin" --headless --path . --quit-after 120 2>&1)"
+          echo "$output"
+          if grep -Eq 'SCRIPT ERROR|^ERROR:' <<<"$output"; then
+            echo "Godot reported an engine or script error while starting the game" >&2
+            exit 1
+          fi
+
   build:
     runs-on: ubuntu-latest
+    needs: test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,21 +75,10 @@ jobs:
           relative_project_path: ./
           archive_output: false
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Publish gh-pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: ${{ steps.godot.outputs.build_directory }}
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ${{ steps.godot.outputs.build_directory }}
+          publish_branch: gh-pages
+          force_orphan: true

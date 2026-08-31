@@ -47,6 +47,7 @@ func _init() -> void:
 	# --- PlayerHealth: Damage + iFrames ---
 	var ph := PlayerHealth.new()
 	world.add_child(ph)
+	ph.setup(gm)
 	_check(ph.hp == GameConfig.MAX_HEALTH, "Start-HP MAX")
 	ph.take_hit(30)
 	_check(ph.hp == GameConfig.MAX_HEALTH - 30, "take_hit 30 → HP-30")
@@ -56,12 +57,13 @@ func _init() -> void:
 	# --- PlayerHealth: Tod ---
 	var died := [0]
 	ph.player_died.connect(func(): died[0] += 1)
-	ph.hp = 10
+	gm.player_hp = 10
 	ph.iframes_hard_clear()
 	ph.take_hit(20)
 	_check(died[0] == 1, "HP 0 → player_died 1×")
 
 	# --- PlayerHealth reset ---
+	gm.reset()
 	ph.reset()
 	_check(ph.hp == GameConfig.MAX_HEALTH and not ph._game_over, "reset → volle HP, lebendig")
 

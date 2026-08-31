@@ -10,11 +10,10 @@ var _kills_label: Label
 
 func _ready() -> void:
 	visible = false
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	size = get_viewport().get_visible_rect().size
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.7)
-	dim.size = size
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
 	var vp := get_viewport().get_visible_rect().size
 	var cx := vp.x / 2.0
@@ -30,13 +29,13 @@ func _ready() -> void:
 	_kills_label = Label.new()
 	_kills_label.add_theme_font_size_override("font_size", 40)
 	_kills_label.add_theme_color_override("font_color", Color(0.8, 0.85, 1.0))
-	_kills_label.position = Vector2(cx - 240, cy - 120)
+	_kills_label.position = Vector2(cx - 240, cy - 100)
 	_kills_label.size = Vector2(480, 50)
 	_kills_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_kills_label)
 	_score_label = Label.new()
 	_score_label.add_theme_font_size_override("font_size", 42)
-	_score_label.position = Vector2(cx - 240, cy - 130)
+	_score_label.position = Vector2(cx - 240, cy - 30)
 	_score_label.size = Vector2(480, 60)
 	_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_score_label)

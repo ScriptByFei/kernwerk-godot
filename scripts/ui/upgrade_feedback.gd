@@ -1,7 +1,7 @@
 class_name UpgradeFeedback
 extends Node2D
 ## Zeigt aufgesammelte Upgrades als sanft aufsteigenden Text über dem Spieler
-## ("DAMAGE +10", "FIRE RATE x1.5", "+1 SOLDIER") — kein HUD-Permanenttext.
+## ("DAMAGE +15", "FIRE RATE +0.1", "+1 SOLDIER") — kein HUD-Permanenttext.
 
 func popup(text: String, at: Vector2) -> void:
 	var label := Label.new()
@@ -16,15 +16,15 @@ func popup(text: String, at: Vector2) -> void:
 	# sanft nach oben schweben + ausblenden
 	t.tween_property(label, "position:y", label.position.y - 120.0, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	t.tween_property(label, "modulate:a", 0.0, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	t.chain().tween_callback(queue_free)
+	t.chain().tween_callback(label.queue_free)
 
 func popup_for(upgrade: UpgradeObject, player: Player) -> void:
 	var text := ""
 	match upgrade.upgrade_type:
 		"damage":
-			text = "DAMAGE +10"
+			text = "DAMAGE +%d" % WaveData.DMG_UPGRADE
 		"firerate":
-			text = "FIRE RATE UP"
+			text = "FIRE RATE +%.1f" % WaveData.RATE_UPGRADE
 		"soldier":
 			text = "+1 SOLDIER"
 	var at := Vector2(player.global_position.x, player.global_position.y - 140.0)

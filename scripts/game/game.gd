@@ -32,6 +32,7 @@ func _ready() -> void:
 	game_manager = GameManager.new()
 	game_manager.name = "GameManager"
 	add_child(game_manager)
+	game_manager.game_over.connect(_on_player_died)
 
 	# Spieler-Stats (Phase 5) — WeaponController liest daraus
 	player_stats = PlayerStats.new()
@@ -43,7 +44,7 @@ func _ready() -> void:
 	player_health = PlayerHealth.new()
 	player_health.name = "PlayerHealth"
 	add_child(player_health)
-	player_health.player_died.connect(_on_player_died)
+	player_health.setup(game_manager)
 
 	# Game Over UI (unsichtbar bis Tod)
 	game_over_ui = GameOverUI.new()
@@ -81,6 +82,7 @@ func _ready() -> void:
 	wave_manager.attach(self, spawner)
 	wave_manager.level_completed.connect(_on_level_completed)
 	spawner.upgrade_collected_from_world.connect(_on_upgrade_collected)  # Phase-5-Kette (WaveManager-Refactor)
+	spawner.enemy_killed_from_world.connect(_on_enemy_killed)
 	wave_manager.start_level()
 
 func _physics_process(_delta: float) -> void:
@@ -93,20 +95,24 @@ func _check_enemy_reach() -> void:
 	var reach_y := get_viewport_rect().size.y * 0.82
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e is Enemy and e.global_position.y >= reach_y:
-			player_health.take_hit(ENEMY_DAMAGE)
+			var damage := GameConfig.MAX_HEALTH if e.is_boss else ENEMY_DAMAGE
+			player_health.take_hit(damage)
 			e.set_physics_process(false)
 			e.queue_free()
 
 func _on_level_completed() -> void:
 	if not game_manager.is_running():
 		return
-	game_manager.state = GameManager.State.GAME_OVER  # Gameplay einfrieren (kein game_over-Signal → kein "GAME OVER"-Overlay)
+	game_manager.complete_level()
 	level_complete_ui.show_stats(game_manager.score, game_manager.kills)
-	spawner.set_physics_process(false)
+	_set_gameplay_active(false)
 
 func _on_player_died() -> void:
 	game_over_ui.show_stats(game_manager.score, game_manager.kills)
-	spawner.set_physics_process(false)
+	_set_gameplay_active(false)
+
+func _on_enemy_killed(_enemy: Enemy) -> void:
+	game_manager.add_kill()
 
 func _on_upgrade_collected(u: UpgradeObject) -> void:
 	player_stats.apply_upgrade(u.upgrade_type)
@@ -114,6 +120,20 @@ func _on_upgrade_collected(u: UpgradeObject) -> void:
 
 func _restart() -> void:
 	get_tree().reload_current_scene()
+
+func _set_gameplay_active(active: bool) -> void:
+	spawner.set_spawning_enabled(active)
+	spawner.set_physics_process(active)
+	wave_manager.set_physics_process(active)
+	var player := $Player as Player
+	player.weapon.set_physics_process(active)
+	player.touch.set_process_input(active)
+	player.set_process_unhandled_input(active)
+	for obj in get_tree().get_nodes_in_group("lane_objects"):
+		if obj is LaneObject:
+			obj.set_physics_process(active)
+	for bullet in _collect_bullets():
+		bullet.set_physics_process(active)
 
 func _collect_bullets() -> Array:
 	var out: Array = []

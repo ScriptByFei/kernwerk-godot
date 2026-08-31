@@ -3,20 +3,18 @@ extends Control
 ## Game-Over-Overlay: Score, Kills, Restart-Button. Restart ohne Seiten-Reload
 ## (Szene wird per Restart-Signal von Game neu aufgebaut).
 
-signal restart_requested
+signal restart_pressed
 
 var _score_label: Label
 var _kills_label: Label
 
 func _ready() -> void:
 	visible = false
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	size = get_viewport().get_visible_rect().size
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	# Abdunkelung
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.72)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.size = size
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
 	var vp := get_viewport().get_visible_rect().size
 	var cx := vp.x / 2.0
@@ -51,8 +49,6 @@ func _ready() -> void:
 	add_child(btn)
 	# Tap irgendwo außer dem Button restartet auch:
 	gui_input.connect(_on_gui)
-
-signal restart_pressed
 
 func _on_gui(event: InputEvent) -> void:
 	if event is InputEventScreenTouch and event.pressed:

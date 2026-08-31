@@ -7,6 +7,7 @@ signal health_changed(enemy: Enemy, new_hp: int)
 
 var max_hp := 50
 var current_hp := 50
+var is_boss := false
 
 var _flash_rect: Polygon2D
 var _hp_label: Label
@@ -17,19 +18,21 @@ func _ready() -> void:
 	add_to_group("enemies")
 	_build_visual()
 
-func configure(p_lane: int, hp: int, speed: float) -> void:
+func configure(p_lane: int, hp: int, speed: float, p_is_boss: bool = false) -> void:
 	setup_lane(p_lane)
 	max_hp = hp
 	current_hp = hp
 	move_speed = speed
+	is_boss = p_is_boss
 
 var configure_label := false  # Headless-Tests ohne Szene: Labels optional
 
 func _build_visual() -> void:
 	# Roter Platzhalter-Körper
 	var body := Polygon2D.new()
-	body.color = Color(0.85, 0.25, 0.3)
-	body.polygon = PackedVector2Array([Vector2(-55, -55), Vector2(55, -55), Vector2(55, 55), Vector2(-55, 55)])
+	body.color = Color(0.65, 0.15, 0.75) if is_boss else Color(0.85, 0.25, 0.3)
+	var half_size := 85.0 if is_boss else 55.0
+	body.polygon = PackedVector2Array([Vector2(-half_size, -half_size), Vector2(half_size, -half_size), Vector2(half_size, half_size), Vector2(-half_size, half_size)])
 	add_child(body)
 	build_label()
 

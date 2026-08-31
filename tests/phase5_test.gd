@@ -14,6 +14,7 @@ func _check(cond: bool, msg: String) -> void:
 func _init() -> void:
 	var world := Node2D.new()
 	get_root().add_child(world)
+	await process_frame
 
 	# --- PlayerStats: Startwerte ---
 	var s := PlayerStats.new()
@@ -95,10 +96,7 @@ func _init() -> void:
 	# --- WeaponController liest Stats (Soldiers = echte Feuerkraft) ---
 	var wc := WeaponController.new()
 	world.add_child(wc)
-	var p := Node2D.new()
-	p.set_script(load("res://scripts/player/player.gd"))
-	world.add_child(p)
-	# p._ready braucht TouchInput etc. — im Headless testen wir nur die Werte-Funktionen:
+	# Ohne Player testen wir nur die nil-sicheren Werte-Funktionen:
 	wc.setup(null)
 	_check(wc._fire_rate() == GameConfig.FIRE_RATE, "WC ohne Stats → Config-Fallback")
 

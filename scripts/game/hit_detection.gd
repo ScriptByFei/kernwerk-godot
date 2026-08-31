@@ -7,6 +7,7 @@ static func process_hits(bullets: Array, enemies: Array, upgrades: Array = []) -
 	for b in bullets:
 		if not is_instance_valid(b):
 			continue
+		var consumed := false
 		# Gegner
 		for e in enemies:
 			if not is_instance_valid(e):
@@ -15,13 +16,16 @@ static func process_hits(bullets: Array, enemies: Array, upgrades: Array = []) -
 					and absf(b.global_position.y - e.global_position.y) < 70.0:
 				e.take_damage(b.damage)
 				b.queue_free()
+				consumed = true
 				break
+		if consumed:
+			continue
 		# Upgrade-Objekte (großzügigere Hitbox als Gegner: ±100x80 — einfacher einzusammeln)
 		for u in upgrades:
 			if not is_instance_valid(u):
 				continue
-			if absf(b.global_position.x - u.global_position.x) < 100.0 \
-					and absf(b.global_position.y - u.global_position.y) < 100.0:
+			if absf(b.global_position.x - u.global_position.x) < UpgradeObject.HITBOX_HALF_W \
+					and absf(b.global_position.y - u.global_position.y) < UpgradeObject.HITBOX_HALF_H:
 				u.collect()
 				b.queue_free()
 				break

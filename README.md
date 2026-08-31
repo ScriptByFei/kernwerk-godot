@@ -58,23 +58,24 @@ scripts/
     upgrade_object.gd         # grüner Träger, Text, collect()
   projectiles/bullet.gd
   managers/
-    game_manager.gd           # Score/Kills/State/Genehmigungen (keine Gameplay-Logik)
+    game_manager.gd           # einzige Quelle für HP/i-Frames/Score/Kills/Endzustand
     spawn_manager.gd          # Timing, Lane-Roulette, Konfiguration der Gegner
     wave_manager.gd           # Phasen-Driver, liest WaveData, Wellen-Ende + Boss
     wave_data.gd              # ALLE Wellen- + Balancing-Konstanten (Tune hier!)
   ui/
     hud.gd, game_over_ui.gd, level_complete_ui.gd, upgrade_feedback.gd
-tests/phase{1..6}_test.gd + layout/bugfix/flight suites   # headless, alle grün
-scripts/deploy-pages.sh           # gh-pages-Deploy (Legacy-Pages, siehe unten)
+tests/phase{1..6}_test.gd + layout/bugfix/flight/stabilization suites
 ```
 
-**State-Verkettung:** `Spawner.upgrade_collected_from_world → Game._on_upgrade_collected → PlayerStats.apply_upgrade + Feedback.popup_for`. Enemy-Kills feuern `enemy_killed` → Game → `game_manager.add_kill()` (+10 Score).
+**State-Verkettung:** `Spawner.upgrade_collected_from_world → Game._on_upgrade_collected → PlayerStats.apply_upgrade + Feedback.popup_for`. Enemy-Kills laufen über `SpawnManager.enemy_killed_from_world → Game → GameManager.add_kill()` (+10 Score). HP, i-Frames, Game Over und Level Complete gehören ausschließlich dem `GameManager`.
 
 ## Tests
 
 ```bash
-godot4 --headless -s tests/<suite>_test.gd   # phase1..6, layout, phase2_bugfix, phase2_flight
+godot4 --headless --path . -s tests/<suite>_test.gd
 ```
+
+Suites: `phase1..6`, `layout`, `phase2_bugfix`, `phase2_flight`, `stabilization`. CI wertet zusätzlich Godot-Fehlerzeilen aus, weil Godot bei manchen Scriptfehlern trotzdem Exitcode 0 liefert.
 
 **Playbook — Bugs, die wir bereits einmal hatten (nicht wiederholen):**
 1. Bullets spawn always with `world.add_child()` + `global_position = …` AFTER `add_child` (never as Player child — double-offset → bullets below screen)
@@ -89,12 +90,13 @@ godot4 --headless -s tests/<suite>_test.gd   # phase1..6, layout, phase2_bugfix,
 
 ## Deployment
 
-**Produktiv (live!):** push → `main`; Pages-Deploy via `./scripts/deploy-pages.sh` (gh-pages-branch) → https://scriptbyfei.github.io/kernwerk-godot/
-⚠ CDN cached 404s hart — nach Deploy immer POST `repos/.../pages/builds` retriggern und URL checken.
+**Produktiv:** Push auf `main` → alle Headless-Tests + Main-Scene-Smoke → Web-Export → atomarer Publish auf `gh-pages` → https://scriptbyfei.github.io/kernwerk-godot/
+
+Es gibt nur noch diesen CI-Deployweg. Die GitHub-Pages-Quelle bleibt auf `gh-pages / (root)`; lokale Deploy-Skripte und der konkurrierende Actions-Pages-Deploy wurden entfernt.
 
 **Lokal:** `godot4 --headless --export-release Web build/web/index.html` + `python3 -m http.server 8080 --directory build/web` + `tailscale serve --bg 8080`.
 
-**CI** (.github/workflows/deploy.yml): firebelley/godot-export@v8.0.0, nutzt `build_directory` output. (Pages-Lieferung läuft über gh-pages — der Workflow-Weg war wegen des master→main-Remixes inkonsistent.)
+**CI** (`.github/workflows/deploy.yml`): lädt Godot 4.6.3 für Tests, führt jede Suite einzeln mit Timeout aus, startet die Main Scene headless, exportiert anschließend mit `firebelley/godot-export@v8.0.0` und veröffentlicht ausschließlich nach `gh-pages`.
 
 ## Multi-Agent-Workflow
 
