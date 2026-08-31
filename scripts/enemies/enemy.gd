@@ -11,7 +11,6 @@ var current_hp := 50
 var _flash_rect: Polygon2D
 var _hp_label: Label
 var _wobble_tween: Tween
-var _base_x := 0.0
 
 func _ready() -> void:
 	super._ready()
@@ -71,14 +70,14 @@ func _hit_feedback() -> void:
 	_flash_rect.color = Color(1, 1, 1, 0.55)
 	var t := create_tween()
 	t.tween_property(_flash_rect, "color:a", 0.0, 0.15)
-	# Wackeln
+	# Wackeln UM DIE AKTUELLE POSITION — kein Sprung zu x=0 (das war der "nach links weg"-Bug)
 	if _wobble_tween and _wobble_tween.is_valid():
 		_wobble_tween.kill()
-	_base_x = 0.0
+	var base_x := position.x
 	_wobble_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	_wobble_tween.tween_property(self, "position:x", _base_x + 14.0, 0.05)
-	_wobble_tween.tween_property(self, "position:x", _base_x - 10.0, 0.07)
-	_wobble_tween.tween_property(self, "position:x", _base_x, 0.06)
+	_wobble_tween.tween_property(self, "position:x", base_x + 14.0, 0.05)
+	_wobble_tween.tween_property(self, "position:x", base_x - 10.0, 0.07)
+	_wobble_tween.tween_property(self, "position:x", base_x, 0.06)
 
 func _die() -> void:
 	# Sanftes Auflösen: schrumpfen + ausfaden, kein harter Pop
