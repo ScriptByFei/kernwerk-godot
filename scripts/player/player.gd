@@ -8,11 +8,13 @@ var current_lane := 1
 var _switch_tween: Tween
 
 @onready var touch: TouchInput = $TouchInput
+@onready var weapon: WeaponController = $WeaponController
 
 func _ready() -> void:
 	position = Vector2(GameConfig.LANE_X[current_lane], GameConfig.PLAYER_Y)
 	touch.swiped.connect(move_lane)
 	touch.tapped_lane.connect(move_to_lane)
+	weapon.setup(self)
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Desktop/Entwicklung

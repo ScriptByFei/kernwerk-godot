@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://scripts/game/lane_markers.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="3"]
 [ext_resource type="Script" path="res://scripts/player/touch_input.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/player/weapon_controller.gd" id="5"]
 
 [node name="Game" type="Node2D"]
 script = ExtResource("1")
@@ -25,3 +26,6 @@ polygon = PackedVector2Array(-60, -70, 60, -70, 60, 70, -60, 70)
 
 [node name="TouchInput" type="Node" parent="Player"]
 script = ExtResource("4")
+
+[node name="WeaponController" type="Node" parent="Player"]
+script = ExtResource("5")
