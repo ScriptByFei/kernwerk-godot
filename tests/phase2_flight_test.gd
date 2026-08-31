@@ -17,9 +17,9 @@ func _init() -> void:
 	var world := Node2D.new()
 	get_root().add_child(world)
 
-	# Spieler-Position wie im Spiel (Mitte, unten)
+	# Spieler-Position wie im Spiel (Mitte, unten) — neues relatives Layout
 	var player := Node2D.new()
-	player.position = Vector2(GameConfig.LANE_X[1], GameConfig.PLAYER_Y)
+	player.position = Vector2(GameConfig.lane_x(1, 1080.0), GameConfig.player_y(1920.0))
 	world.add_child(player)
 
 	# Bullet wie im gefixten WeaponController: Kind der Welt + global spawnen
@@ -27,7 +27,7 @@ func _init() -> void:
 	world.add_child(b)
 	b.global_position = player.global_position + Vector2(0, -80)
 	var start_y: float = b.global_position.y
-	_check(absf(start_y - (GameConfig.PLAYER_Y - 80.0)) < 0.01, "Start bei y=%.0f (über Spieler)" % start_y)
+	_check(absf(start_y - (GameConfig.player_y(1920.0) - 80.0)) < 0.01, "Start bei y=%.0f (über Spieler)" % start_y)
 
 	# 1 Sekunde simulieren: 60 Physics-Ticks à speed/60 px
 	for i in 60:
@@ -44,7 +44,7 @@ func _init() -> void:
 	for i in 8:  # 8 Ticks
 		b2._physics_process(1.0 / 60.0)
 	_check(b2.position.y < -60.0, "Alter Bug: Bullet (im Player) despawnt bereits nach 8 Ticks (lokal %.0f)" % b2.position.y)
-	_check(b2.global_position.y > GameConfig.PLAYER_Y - 300.0, "...und war global immer noch nahe beim Spieler (User-Symptom!)")
+	_check(b2.global_position.y > GameConfig.player_y(1920.0) - 300.0, "...und war global immer noch nahe beim Spieler (User-Symptom!)")
 	b2.free()
 
 	# Neue Physik: Kind der Welt → despawnt erst, wenn GLOBAL oben raus

@@ -28,12 +28,12 @@ func _init() -> void:
 	# Fake-Player: nur global_position wichtig
 	var fake := Node2D.new()
 	root_node.add_child(fake)
-	fake.position = Vector2(GameConfig.LANE_X[1], GameConfig.PLAYER_Y)
+	fake.position = Vector2(GameConfig.lane_x(1, 1080.0), GameConfig.player_y(1920.0))
 	wc.setup(fake as Player)
 
 	# Player bei y=1650. Muss spawn: bullet bei ~1570 (global), NICHT 3300.
 	var origin: Vector2 = fake.global_position + Vector2(0, -80)
-	_check(absf(origin.y - (GameConfig.PLAYER_Y - 80.0)) < 0.01, "Spawn-Origin = Player-Y - 80 (global)")
+	_check(absf(origin.y - (GameConfig.player_y(1920.0) - 80.0)) < 0.01, "Spawn-Origin = Player-Y - 80 (global)")
 
 	# Kritisch: nach add_child + global_position Zuweisung ist die lokale
 	# Position NICHT mehr 2x versetzt (das war der Bug: position statt global)
@@ -47,7 +47,7 @@ func _init() -> void:
 	# Negativ-Test: Alter Bug — position statt global als Kind eines platzierten Parents
 	var b2 = Bullet.new()
 	player.add_child(b2)  # Parent = Player (Player-Script ohne children, position default 0,0)
-	player.position = Vector2(GameConfig.LANE_X[1], GameConfig.PLAYER_Y)
+	player.position = Vector2(GameConfig.lane_x(1, 1080.0), GameConfig.player_y(1920.0))
 	b2.position = origin  # <-- alter Fehler: globale Koords ueber 'position' zugewiesen
 	_check(b2.global_position.y > 3000.0, "Alter Bug wuerde global y>3000 erzeugen (bestaetigt Bug-Ursache)")
 	b2.free()

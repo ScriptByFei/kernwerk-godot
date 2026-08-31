@@ -11,7 +11,7 @@ var _switch_tween: Tween
 @onready var weapon: WeaponController = $WeaponController
 
 func _ready() -> void:
-	position = Vector2(GameConfig.LANE_X[current_lane], GameConfig.PLAYER_Y)
+	_apply_layout()
 	touch.swiped.connect(move_lane)
 	touch.tapped_lane.connect(move_to_lane)
 	weapon.setup(self)
@@ -38,9 +38,23 @@ func move_to_lane(lane: int) -> void:
 		return
 	current_lane = target
 	lane_changed.emit(current_lane)
-	var target_x: float = GameConfig.LANE_X[current_lane]
+	var target_x := _lane_x(current_lane)
 	if _switch_tween and _switch_tween.is_valid():
 		_switch_tween.kill()
 	# Weicher Lane-Wechsel: sanfte Ease-Out-Bewegung, kein harter Snap
 	_switch_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	_switch_tween.tween_property(self, "position:x", target_x, GameConfig.LANE_SWITCH_TIME)
+
+func _lane_x(lane: int) -> float:
+	return GameConfig.lane_x(lane, get_viewport_rect().size.x)
+
+func _player_y() -> float:
+	return GameConfig.player_y(get_viewport_rect().size.y)
+
+func _apply_layout() -> void:
+	position = Vector2(_lane_x(current_lane), _player_y())
+
+func _notification(what: int) -> void:
+	# Bei Größenänderung (Rotation/Resize) Position neu anpassen
+	if what == NOTIFICATION_WM_SIZE_CHANGED and is_inside_tree():
+		_apply_layout()

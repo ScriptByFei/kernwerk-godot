@@ -28,9 +28,9 @@ func _init() -> void:
 	_check(sig_count[0] == 1, "echter Lane-Wechsel → 1 Signal")
 	_check(p.current_lane == 1, "current_lane aktualisiert")
 
-	# Lane-X Werte plausibel
-	_check(GameConfig.LANE_X.size() == 3, "3 Lanes definiert")
-	_check(GameConfig.LANE_X[0] < GameConfig.LANE_X[1] and GameConfig.LANE_X[1] < GameConfig.LANE_X[2], "Lane-X aufsteigend")
+	# Lane-X Werte plausibel (neues relatives Layout)
+	_check(GameConfig.lane_x(1, 1080.0) == 540.0, "Lane 1 (Mitte) bei 9:16-Referenz = 540")
+	_check(GameConfig.lane_x(0, 1080.0) == 270.0 and GameConfig.lane_x(2, 1080.0) == 810.0, "Lane-X aufsteigend bei Referenzbreite")
 
 	if fails == 0:
 		print("PHASE1 TESTS: ALLE OK")
