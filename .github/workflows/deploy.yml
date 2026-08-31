@@ -94,6 +94,6 @@ jobs:
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ${{ steps.godot.outputs.build_directory }}
+          publish_dir: ${{ steps.godot.outputs.build_directory }}/Web
           publish_branch: gh-pages
           force_orphan: true
