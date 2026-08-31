@@ -1,5 +1,5 @@
 extends Node2D
-## Game-Szene: Wurzel. Phase 2 — Bewegung + Auto-Fire.
+## Game-Szene: Wurzel. Phase 3 — Bewegung + Auto-Fire + Gegner + Treffer.
 
 func _ready() -> void:
 	# Hintergrund dynamisch: überdeckt IMMER den ganzen Viewport (kein fixed 1080x1920)
@@ -14,6 +14,25 @@ func _ready() -> void:
 
 	var player := $Player as Player
 	player.lane_changed.connect(_on_lane_changed)
+
+	# Phase 3: SpawnManager + HitDetection
+	var spawner := SpawnManager.new()
+	spawner.name = "SpawnManager"
+	add_child(spawner)
+	spawner.setup(self)
+	# Phase 6 macht Differenzierung → jetzt linear
+	spawner.set_difficulty(1.0)
+
+func _physics_process(_delta: float) -> void:
+	# Bullet→Enemy-Kollision zentral abwickeln (keine Physik-Engine)
+	HitDetection.process_hits(_collect_bullets(), get_tree().get_nodes_in_group("enemies"))
+
+func _collect_bullets() -> Array:
+	var out: Array = []
+	for c in get_children():
+		if c is Bullet:
+			out.append(c)
+	return out
 
 func _layout_bg() -> void:
 	var bg := get_node_or_null("Background") as ColorRect
