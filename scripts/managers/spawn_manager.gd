@@ -33,9 +33,10 @@ func _spawn_enemy() -> void:
 	var speed := 150.0 * difficulty
 	var lane := randi_range(0, GameConfig.LANE_COUNT - 1)
 	enemy.configure(lane, hp, speed)
-	# Spawn: leicht über dem oberen Rand
-	enemy.position = Vector2(enemy.lane_x_now(), -80.0)
 	_world.add_child(enemy)
+	# Spawn-Position NACH add_child setzen — erst im Baum ist das Viewport-Rect
+	# verfügbar (davor liefert lane_x_now() 0 → Gegner klebten am linken Rand).
+	enemy.position = Vector2(enemy.lane_x_now(), -80.0)
 	enemy.enemy_killed.connect(_on_enemy_killed)
 	enemy_spawned.emit(enemy)
 
