@@ -12,6 +12,7 @@ func configure_upgrade(p_lane: int, p_type: String, speed: float) -> void:
 	setup_lane(p_lane)
 	upgrade_type = p_type
 	move_speed = speed
+	add_to_group("upgrades")  # HitDetection sammelt genau diese Gruppe
 	_build_visual()
 
 func _build_visual() -> void:
