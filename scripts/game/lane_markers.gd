@@ -4,7 +4,7 @@ extends Node2D
 ## Stil: sehr dezente Gradient-Linien (wie Last War) — oben/dunten ausblendend,
 ## damit die Spielfeld-Kanten nicht wie "Wände" wirken.
 
-var visible_lines := true
+var visible_lines := false  # Lane-Linien aus — Timo-Entscheidung: cleaner Look ohne Linien
 
 func _process(_delta: float) -> void:
 	queue_redraw()
