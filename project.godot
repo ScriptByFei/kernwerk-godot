@@ -1,0 +1,23 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+
+config/name="Kernwerk"
+config/description="Native-App-Spike: Archero-Style Auto-Shoot, Portrait"
+run/main_scene="res://scenes/spike.tscn"
+config/features=PackedStringArray("4.6", "GL Compatibility")
+
+[display]
+
+window/size/viewport_width=405
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+window/handheld/orientation=1
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
