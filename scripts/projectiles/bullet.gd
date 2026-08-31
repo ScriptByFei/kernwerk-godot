@@ -16,8 +16,8 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	position.y -= speed * delta
-	# Bildschirmrand (Referenz 1920 hoch) — despawan
-	if position.y < -60.0:
+	# Despawn: global prüfen — Bullet ist Kind der Welt (kein relativer Offset mehr relevant)
+	if global_position.y < -60.0:
 		queue_free()
 
 func setup(dmg: int, spd: float) -> void:

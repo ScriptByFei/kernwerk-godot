@@ -1,5 +1,5 @@
 extends Node2D
-## Game-Szene: Wurzel, Phase 1 nur Bewegung + Debug-Info.
+## Game-Szene: Wurzel. Phase 2 — Bewegung + Auto-Fire.
 
 func _ready() -> void:
 	var player := $Player as Player
