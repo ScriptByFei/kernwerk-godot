@@ -33,6 +33,7 @@ func _fire() -> void:
 		var offset_x := 0.0
 		if bullet_count > 1:
 			offset_x = (float(i) - (bullet_count - 1) / 2.0) * 60.0 + (randf() - 0.5) * spread
-		b.position = origin + Vector2(offset_x, 0)
+		#global statt lokal: Parent ist der Player → sonst Doppel-Offset
 		get_parent().add_child(b)
+		b.global_position = origin + Vector2(offset_x, 0)
 		bullet_fired.emit(b)
