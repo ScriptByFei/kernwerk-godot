@@ -13,9 +13,9 @@ var soldiers := 1  # 1 = nur Basis-Soldat; jedes Upgrade +1 echte Feuerkraft
 func apply_upgrade(type: String) -> void:
 	match type:
 		"damage":
-			damage += 10
+			damage += WaveData.DMG_UPGRADE
 		"firerate":
-			fire_rate = fire_rate * 1.5
+			fire_rate = fire_rate * WaveData.RATE_MULTIPLIER
 		"soldier":
 			soldiers += 1
 			soldier_count_changed.emit(soldiers)

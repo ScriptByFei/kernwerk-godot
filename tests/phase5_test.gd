@@ -25,7 +25,7 @@ func _init() -> void:
 	var changed := [0]
 	s.stats_changed.connect(func(): changed[0] += 1)
 	s.apply_upgrade("damage")
-	_check(s.damage == GameConfig.DAMAGE + 10, "damage +10")
+	_check(s.damage == GameConfig.DAMAGE + WaveData.DMG_UPGRADE, "damage +15 (Balancing)")
 	_check(changed[0] == 1, "stats_changed gefeuert")
 
 	# --- FireRate-Upgrade ---

@@ -9,8 +9,10 @@ var player_stats: PlayerStats
 var player_health: PlayerHealth
 var game_over_ui: GameOverUI
 var spawner: SpawnManager
+var wave_manager: WaveManager
 var feedback: UpgradeFeedback
 var hud: Hud
+var level_complete_ui: LevelCompleteUI
 
 func _ready() -> void:
 	# Hintergrund dynamisch: überdeckt IMMER den ganzen Viewport (kein fixed 1080x1920)
@@ -49,6 +51,13 @@ func _ready() -> void:
 	add_child(game_over_ui)
 	game_over_ui.restart_pressed.connect(_restart)
 
+	# Level Complete UI (nach letzter Welle / Boss-Kill)
+	level_complete_ui = LevelCompleteUI.new()
+	level_complete_ui.name = "LevelCompleteUI"
+	add_child(level_complete_ui)
+	level_complete_ui.continue_pressed.connect(_restart)  # MVP: Continue = neue Runde
+	level_complete_ui.retry_pressed.connect(_restart)
+
 	# Upgrade-Feedback (aufsteigender Text über dem Spieler)
 	feedback = UpgradeFeedback.new()
 	feedback.name = "UpgradeFeedback"
@@ -64,9 +73,15 @@ func _ready() -> void:
 	spawner.name = "SpawnManager"
 	add_child(spawner)
 	spawner.setup(self)
-	spawner.set_difficulty(1.0)
-	# SpawnManager leitet upgrade_collected weiter (Objekte spawnt er selbst)
-	spawner.upgrade_collected_from_world.connect(_on_upgrade_collected)
+
+	# Phase 6: Wellen steuern Spawnparameter + Levelende
+	wave_manager = WaveManager.new()
+	wave_manager.name = "WaveManager"
+	add_child(wave_manager)
+	wave_manager.attach(self, spawner)
+	wave_manager.level_completed.connect(_on_level_completed)
+	spawner.upgrade_collected_from_world.connect(_on_upgrade_collected)  # Phase-5-Kette (WaveManager-Refactor)
+	wave_manager.start_level()
 
 func _physics_process(_delta: float) -> void:
 	if not game_manager.is_running():
@@ -81,6 +96,13 @@ func _check_enemy_reach() -> void:
 			player_health.take_hit(ENEMY_DAMAGE)
 			e.set_physics_process(false)
 			e.queue_free()
+
+func _on_level_completed() -> void:
+	if not game_manager.is_running():
+		return
+	game_manager.state = GameManager.State.GAME_OVER  # Gameplay einfrieren (kein game_over-Signal → kein "GAME OVER"-Overlay)
+	level_complete_ui.show_stats(game_manager.score, game_manager.kills)
+	spawner.set_physics_process(false)
 
 func _on_player_died() -> void:
 	game_over_ui.show_stats(game_manager.score, game_manager.kills)

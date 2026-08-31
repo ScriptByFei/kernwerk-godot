@@ -39,7 +39,7 @@ func _fire() -> void:
 		b.setup(_damage(), GameConfig.BULLET_SPEED)
 		var offset_x := 0.0
 		if count > 1:
-			offset_x = (float(i) - (count - 1) / 2.0) * 80.0
+			offset_x = (float(i) - (count - 1) / 2.0) * WaveData.SOLDIER_OFFSET_X
 		# Bullet in die Welt (Game-Root) hängen, NICHT in den Player:
 		# sonst würde es beim Lanewechsel mitwandern und in Spieler-Koordinaten despawnen.
 		var world := _player.get_parent()

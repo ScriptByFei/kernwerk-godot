@@ -1,15 +1,17 @@
 class_name SpawnManager
 extends Node
 ## Zentraler Spawner: entscheidet Lane, Timing und Objekt-Typ (Gegner vs. Upgrade).
-## Gegner/Upgrades spawnt sich nie selbst. Phase 6 ersetzt Intervall durch datengetriebene Waves.
+## Gegner/Upgrades spawnt sich nie selbst. WaveManager steuert Parameter pro Welle.
 
 signal enemy_spawned(enemy: Enemy)
 signal upgrade_spawned(upgrade: UpgradeObject)
 signal upgrade_collected_from_world(upgrade: UpgradeObject)  # Game hookt Effekt + Feedback
+signal boss_spawned(boss: Enemy)
 
-var spawn_interval := 1.6   # Sekunden zwischen Spawns
-var upgrade_chance := 0.22  # 22% der Spawns sind Upgrade-Träger
-var difficulty := 1.0
+var spawn_interval := 1.6   # Sekunden zwischen Spawns (vom WaveManager gesteuert)
+var upgrade_chance := 0.22  # Anteil Upgrade-Spawns
+var hp_factor := 1.0        # von WaveManager gesetzt
+var speed_factor := 1.0
 var _timer := 0.0
 var _world: Node2D
 
@@ -27,16 +29,32 @@ func _physics_process(delta: float) -> void:
 		return
 	_timer -= delta
 	if _timer <= 0.0:
-		_timer = spawn_interval / maxf(difficulty, 0.1)
+		_timer = spawn_interval
 		if randf() < upgrade_chance:
 			_spawn_upgrade()
 		else:
 			_spawn_enemy()
 
+func set_wave_params(interval: float, chance: float, hp_f: float, speed_f: float) -> void:
+	## Kompletter Parameter-Satz einer Welle (aus WaveData), zentral gesetzt.
+	spawn_interval = maxf(interval, 0.4)
+	upgrade_chance = clampf(chance, 0.0, 1.0)
+	hp_factor = maxf(hp_f, 0.1)
+	speed_factor = maxf(speed_f, 0.1)
+
+func spawn_boss() -> void:
+	# Phase 6 MVP-Boss: viel HP, langsam, Spawn oben in zufälliger Lane
+	var boss := Enemy.new()
+	var lane := randi_range(0, GameConfig.LANE_COUNT - 1)
+	boss.configure(lane, int(WaveData.BOSS_HP), WaveData.BOSS_SPEED)
+	_world.add_child(boss)
+	boss.position = Vector2(boss.lane_x_now(), -140.0)
+	boss_spawned.emit(boss)
+
 func _spawn_enemy() -> void:
 	var enemy := Enemy.new()
-	var hp := int(50 * difficulty)
-	var speed := 150.0 * difficulty
+	var hp := int(50.0 * hp_factor)
+	var speed := 150.0 * speed_factor
 	var lane := randi_range(0, GameConfig.LANE_COUNT - 1)
 	enemy.configure(lane, hp, speed)
 	_world.add_child(enemy)
@@ -51,7 +69,7 @@ func _spawn_upgrade() -> void:
 	var up := UpgradeObject.new()
 	var lane := randi_range(0, GameConfig.LANE_COUNT - 1)
 	var type: String = UPGRADE_TYPES[randi_range(0, UPGRADE_TYPES.size() - 1)]
-	up.configure_upgrade(lane, type, 150.0 * difficulty)
+	up.configure_upgrade(lane, type, 150.0 * speed_factor)
 	_world.add_child(up)
 	up.position = Vector2(up.lane_x_now(), -80.0)
 	up.upgrade_collected.connect(_on_upgrade_collected)
@@ -65,6 +83,3 @@ func _on_upgrade_collected(u: UpgradeObject) -> void:
 
 func _on_enemy_killed(_enemy: Enemy) -> void:
 	pass
-
-func set_difficulty(d: float) -> void:
-	difficulty = maxf(d, 0.1)
