@@ -6,7 +6,10 @@ func _ready() -> void:
 	var bg := ColorRect.new()
 	bg.name = "Background"
 	bg.color = Color(0.07, 0.08, 0.12)
+	# KRITISCH: Hintergrund muss das ERSTE Child sein — sonst überdeckt er
+	# Player & LaneMarkers (die in der Szene VOR ihm liegen). Genau das war der Bug.
 	add_child(bg)
+	move_child(bg, 0)
 	_layout_bg()
 
 	var player := $Player as Player
