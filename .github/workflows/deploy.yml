@@ -19,7 +19,7 @@ jobs:
       GODOT_VERSION: 4.6.3
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Godot
         shell: bash
@@ -30,6 +30,19 @@ jobs:
           unzip -q godot.zip
           chmod +x "Godot_v${GODOT_VERSION}-stable_linux.x86_64"
 
+      - name: Import project and register global classes
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot_bin="$PWD/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          exit_code=0
+          output="$(timeout 60s "$godot_bin" --headless --editor --path . --quit 2>&1)" || exit_code=$?
+          echo "$output"
+          if [ "$exit_code" -ne 0 ] || grep -Eq 'SCRIPT ERROR|^ERROR:' <<<"$output"; then
+            echo "Godot project import failed (exit=$exit_code)" >&2
+            exit 1
+          fi
+
       - name: Run headless suites
         shell: bash
         run: |
@@ -37,10 +50,11 @@ jobs:
           godot_bin="$PWD/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
           for suite in tests/*_test.gd; do
             echo "===== $suite ====="
-            output="$(timeout 60s "$godot_bin" --headless --path . -s "$suite" 2>&1)"
+            exit_code=0
+            output="$(timeout 60s "$godot_bin" --headless --path . -s "$suite" 2>&1)" || exit_code=$?
             echo "$output"
-            if grep -Eq 'SCRIPT ERROR|^ERROR:' <<<"$output"; then
-              echo "Godot reported an engine or script error in $suite" >&2
+            if [ "$exit_code" -ne 0 ] || grep -Eq 'SCRIPT ERROR|^ERROR:' <<<"$output"; then
+              echo "Godot test failed in $suite (exit=$exit_code)" >&2
               exit 1
             fi
           done
@@ -50,10 +64,11 @@ jobs:
         run: |
           set -euo pipefail
           godot_bin="$PWD/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
-          output="$(timeout 30s "$godot_bin" --headless --path . --quit-after 120 2>&1)"
+          exit_code=0
+          output="$(timeout 30s "$godot_bin" --headless --path . --quit-after 120 2>&1)" || exit_code=$?
           echo "$output"
-          if grep -Eq 'SCRIPT ERROR|^ERROR:' <<<"$output"; then
-            echo "Godot reported an engine or script error while starting the game" >&2
+          if [ "$exit_code" -ne 0 ] || grep -Eq 'SCRIPT ERROR|^ERROR:' <<<"$output"; then
+            echo "Godot main-scene smoke failed (exit=$exit_code)" >&2
             exit 1
           fi
 
@@ -62,7 +77,7 @@ jobs:
     needs: test
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           lfs: false
 
