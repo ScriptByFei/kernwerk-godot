@@ -7,6 +7,11 @@ config/name="Kernwerk"
 config/description="3-Lane Auto-Shooter: Swipe zwischen Lanes, Waffe feuert automatisch"
 run/main_scene="res://scenes/game/game.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
+boot_splash/bg_color=Color(0.055, 0.065, 0.105, 1)
+config/icon="res://assets/splash/boot_splash.png"
+boot_splash/image="res://assets/splash/boot_splash.png"
+boot_splash/fullsize=false
+boot_splash/use_filter=true
 
 [display]
 
