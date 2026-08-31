@@ -1,0 +1,53 @@
+class_name UpgradeObject
+extends LaneObject
+## Grünes Upgrade-Träger-Objekt: zerstörbar, beim Zerstören wirksamwerden.
+## Text auf dem Objekt zeigt den Bonus (z.B. "+10 DMG", "x2 RATE", "+1 SOLDIER").
+
+signal upgrade_collected(upgrade: UpgradeObject)
+
+var upgrade_type := "damage"    # "damage" | "firerate" | "soldier"
+var upgrade_label_text := "+10 DMG"
+
+func configure_upgrade(p_lane: int, p_type: String, speed: float) -> void:
+	setup_lane(p_lane)
+	upgrade_type = p_type
+	move_speed = speed
+	_build_visual()
+
+func _build_visual() -> void:
+	var body := Polygon2D.new()
+	body.color = Color(0.2, 0.8, 0.4)
+	body.polygon = PackedVector2Array([Vector2(-55, -55), Vector2(55, -55), Vector2(55, 55), Vector2(-55, 55)])
+	add_child(body)
+	var label := Label.new()
+	label.text = _display_text()
+	label.position = Vector2(-70, -20)
+	label.size = Vector2(140, 40)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_color_override("font_color", Color(1, 1, 1, 0.95))
+	label.add_theme_font_size_override("font_size", 24)
+	add_child(label)
+
+func _display_text() -> String:
+	match upgrade_type:
+		"damage":
+			return "+10 DMG"
+		"firerate":
+			return "x2 RATE"
+		"soldier":
+			return "+1 SOLDIER"
+	return "?"
+
+var _collected := false  # Doppel-collect-Schutz
+
+func collect() -> void:
+	if _collected:
+		return
+	_collected = true
+	# Sanftes Einlösen: kurzes Aufleuchten + Schrumpfen
+	set_physics_process(false)
+	var t := create_tween().set_parallel()
+	t.tween_property(self, "scale", Vector2(1.4, 1.4), 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(self, "modulate:a", 0.0, 0.15)
+	t.chain().tween_callback(queue_free)
+	upgrade_collected.emit(self)

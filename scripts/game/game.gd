@@ -1,14 +1,16 @@
 extends Node2D
-## Game-Szene: Wurzel. Phase 4 — Bewegung + Auto-Fire + Gegner + Treffer + HP + Game Over.
+## Game-Szene: Wurzel. Phase 5 — Bewegung + Auto-Fire + Gegner + Treffer + HP + Game Over + Upgrades.
 
-# Gameplay-Konstanten Phase 4
 const ENEMY_DAMAGE := 10       # Schaden pro durchgekommenem Gegner
 const ENEMY_REACH_Y_RATIO := 0.82  # Gegner-Unterkante ab hier = "erreicht Spieler"
 
 var game_manager: GameManager
+var player_stats: PlayerStats
 var player_health: PlayerHealth
 var game_over_ui: GameOverUI
 var spawner: SpawnManager
+var feedback: UpgradeFeedback
+var hud: Hud
 
 func _ready() -> void:
 	# Hintergrund dynamisch: überdeckt IMMER den ganzen Viewport (kein fixed 1080x1920)
@@ -29,6 +31,12 @@ func _ready() -> void:
 	game_manager.name = "GameManager"
 	add_child(game_manager)
 
+	# Spieler-Stats (Phase 5) — WeaponController liest daraus
+	player_stats = PlayerStats.new()
+	player_stats.name = "PlayerStats"
+	add_child(player_stats)
+	player.weapon.stats = player_stats
+
 	# Spieler-HP-System
 	player_health = PlayerHealth.new()
 	player_health.name = "PlayerHealth"
@@ -41,22 +49,32 @@ func _ready() -> void:
 	add_child(game_over_ui)
 	game_over_ui.restart_pressed.connect(_restart)
 
-	# Phase 3: SpawnManager
+	# Upgrade-Feedback (aufsteigender Text über dem Spieler)
+	feedback = UpgradeFeedback.new()
+	feedback.name = "UpgradeFeedback"
+	add_child(feedback)
+	# HUD (Score/Kills oben, Werte unten)
+	hud = Hud.new()
+	hud.name = "Hud"
+	add_child(hud)
+	hud.setup(player_stats, game_manager)
+
+	# SpawnManager
 	spawner = SpawnManager.new()
 	spawner.name = "SpawnManager"
 	add_child(spawner)
 	spawner.setup(self)
 	spawner.set_difficulty(1.0)
+	# SpawnManager leitet upgrade_collected weiter (Objekte spawnt er selbst)
+	spawner.upgrade_collected_from_world.connect(_on_upgrade_collected)
 
 func _physics_process(_delta: float) -> void:
 	if not game_manager.is_running():
 		return
-	# Bullet→Enemy-Kollision zentral abwickeln (keine Physik-Engine)
-	HitDetection.process_hits(_collect_bullets(), get_tree().get_nodes_in_group("enemies"))
+	HitDetection.process_hits(_collect_bullets(), get_tree().get_nodes_in_group("enemies"), get_tree().get_nodes_in_group("upgrades"))
 	_check_enemy_reach()
 
 func _check_enemy_reach() -> void:
-	# Gegner, die den Spieler-Bereich erreichen, verursachen Schaden und lösen sich auf
 	var reach_y := get_viewport_rect().size.y * 0.82
 	for e in get_tree().get_nodes_in_group("enemies"):
 		if e is Enemy and e.global_position.y >= reach_y:
@@ -68,8 +86,11 @@ func _on_player_died() -> void:
 	game_over_ui.show_stats(game_manager.score, game_manager.kills)
 	spawner.set_physics_process(false)
 
+func _on_upgrade_collected(u: UpgradeObject) -> void:
+	player_stats.apply_upgrade(u.upgrade_type)
+	feedback.popup_for(u, $Player as Player)
+
 func _restart() -> void:
-	# Szene neu laden (kein Web-Reload — Godot wechselt intern die Szene)
 	get_tree().reload_current_scene()
 
 func _collect_bullets() -> Array:

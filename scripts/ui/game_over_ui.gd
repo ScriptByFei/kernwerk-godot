@@ -11,14 +11,14 @@ var _kills_label: Label
 func _ready() -> void:
 	visible = false
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	size = get_viewport_rect().size
+	size = get_viewport().get_visible_rect().size
 	# Abdunkelung
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.72)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.size = size
 	add_child(dim)
-	var vp := get_viewport_rect().size
+	var vp := get_viewport().get_visible_rect().size
 	var cx := vp.x / 2.0
 	var cy := vp.y / 2.0
 	var title := Label.new()
