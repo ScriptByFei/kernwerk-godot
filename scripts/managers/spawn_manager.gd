@@ -37,8 +37,12 @@ func _spawn_enemy() -> void:
 	# Spawn-Position NACH add_child setzen — erst im Baum ist das Viewport-Rect
 	# verfügbar (davor liefert lane_x_now() 0 → Gegner klebten am linken Rand).
 	enemy.position = Vector2(enemy.lane_x_now(), -80.0)
+	enemy.reached_bottom.connect(_on_enemy_reached_bottom)
 	enemy.enemy_killed.connect(_on_enemy_killed)
 	enemy_spawned.emit(enemy)
+
+func _on_enemy_reached_bottom(_enemy: LaneObject) -> void:
+	pass  # Schaden passiert in Game._check_enemy_reach (Spieler-Bereich, nichtViewportrand)
 
 func _on_enemy_killed(_enemy: Enemy) -> void:
 	pass  # Score/Coins in Phase 4/5 — Signal-Kette steht schon
