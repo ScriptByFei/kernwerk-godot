@@ -22,7 +22,14 @@ func _draw() -> void:
 		xs.append(GameConfig.lane_x(lane, w))
 	xs.append(w)
 	for x in xs:
+		# Rand-Linien 3px einrücken: bei exakt 0/w würde die halbe Strichbreite
+		# geclippt und die Kante wir unsichtbar (User-Feedback: linke Linie fehlte).
+		var draw_x := x
+		if x < 1.0:
+			draw_x = 3.0
+		elif x > w - 1.0:
+			draw_x = w - 3.0
 		# Verlauf: oben transparent → Mitte sichtbar → unten transparent
-		draw_line(Vector2(x, 0), Vector2(x, fade), Color(1, 1, 1, 0.02), 4.0)
-		draw_line(Vector2(x, fade), Vector2(x, h - fade), Color(1, 1, 1, 0.07), 4.0)
-		draw_line(Vector2(x, h - fade), Vector2(x, h), Color(1, 1, 1, 0.02), 4.0)
+		draw_line(Vector2(draw_x, 0), Vector2(draw_x, fade), Color(1, 1, 1, 0.02), 4.0)
+		draw_line(Vector2(draw_x, fade), Vector2(draw_x, h - fade), Color(1, 1, 1, 0.07), 4.0)
+		draw_line(Vector2(draw_x, h - fade), Vector2(draw_x, h), Color(1, 1, 1, 0.02), 4.0)
