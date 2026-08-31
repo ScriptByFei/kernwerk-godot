@@ -16,12 +16,12 @@ static func process_hits(bullets: Array, enemies: Array, upgrades: Array = []) -
 				e.take_damage(b.damage)
 				b.queue_free()
 				break
-		# Upgrade-Objekte (Bullet zerstört den Träger → Upgrade wickelt Game-Seite an)
+		# Upgrade-Objekte (großzügigere Hitbox als Gegner: ±100x80 — einfacher einzusammeln)
 		for u in upgrades:
 			if not is_instance_valid(u):
 				continue
-			if absf(b.global_position.x - u.global_position.x) < 60.0 \
-					and absf(b.global_position.y - u.global_position.y) < 70.0:
+			if absf(b.global_position.x - u.global_position.x) < 100.0 \
+					and absf(b.global_position.y - u.global_position.y) < 100.0:
 				u.collect()
 				b.queue_free()
 				break

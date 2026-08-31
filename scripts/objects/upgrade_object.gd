@@ -8,6 +8,11 @@ signal upgrade_collected(upgrade: UpgradeObject)
 var upgrade_type := "damage"    # "damage" | "firerate" | "soldier"
 var upgrade_label_text := "+10 DMG"
 
+# Treffer-Erkennung großzügiger: Hitbox ±100 px (X) / ±110 px (Y) — Upgrades fühlen
+# sich so deutlich einsammelbarer an, ohne dass der Spieler pixelgenau zielen muss.
+const HITBOX_HALF_W := 100.0
+const HITBOX_HALF_H := 90.0
+
 func configure_upgrade(p_lane: int, p_type: String, speed: float) -> void:
 	setup_lane(p_lane)
 	upgrade_type = p_type

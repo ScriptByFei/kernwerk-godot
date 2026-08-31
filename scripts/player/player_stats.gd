@@ -15,7 +15,7 @@ func apply_upgrade(type: String) -> void:
 		"damage":
 			damage += WaveData.DMG_UPGRADE
 		"firerate":
-			fire_rate = fire_rate * WaveData.RATE_MULTIPLIER
+			fire_rate = fire_rate + WaveData.RATE_UPGRADE
 		"soldier":
 			soldiers += 1
 			soldier_count_changed.emit(soldiers)

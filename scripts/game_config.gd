@@ -7,7 +7,7 @@ const SWIPE_MIN_DRAG_PX := 60.0  # Mindestdrag (Referenz-Px) für Swiperkennung
 
 # Waffen-Startwerte (später per Upgrade veränderbar)
 const DAMAGE := 10
-const FIRE_RATE := 4.0  # Schüsse/Sekunde
+const FIRE_RATE := 1.2  # Schüsse/Sekunde — drastisch reduziert (war 4.0, fühlte sich wie Dauerfeuer)
 const BULLET_SPEED := 1200.0
 const BULLET_COUNT := 1
 const SPREAD := 0.0

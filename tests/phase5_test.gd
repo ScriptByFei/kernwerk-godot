@@ -30,9 +30,9 @@ func _init() -> void:
 
 	# --- FireRate-Upgrade ---
 	s.apply_upgrade("firerate")
-	_check(absf(s.fire_rate - GameConfig.FIRE_RATE * 1.5) < 0.01, "fire_rate x1.5")
+	_check(absf(s.fire_rate - (GameConfig.FIRE_RATE + WaveData.RATE_UPGRADE)) < 0.01, "fire_rate +0.1")
 	s.apply_upgrade("firerate")
-	_check(absf(s.fire_rate - GameConfig.FIRE_RATE * 2.25) < 0.01, "FireRate kumulativ (x1.5²)")
+	_check(absf(s.fire_rate - (GameConfig.FIRE_RATE + 2*WaveData.RATE_UPGRADE)) < 0.01, "FireRate kumulativ (+0.2)")
 
 	# --- Soldier-Upgrade ---
 	var sold_events := [0]

@@ -53,7 +53,7 @@ const WAVES := [
 
 # --- Balancing (Phase 5/6, zentral) ---
 const DMG_UPGRADE := 15        # pro Damage-Upgrade (Gegner-HP wächst ~30%/Welle)
-const RATE_MULTIPLIER := 1.5
+const RATE_UPGRADE := 0.1      # +0.1 Schüsse/s pro Upgrade (lineare, gut dosierbare Kurve)
 const SOLDIER_OFFSET_X := 90.0
 const BOSS_HP := 600
 const BOSS_SPEED := 90.0

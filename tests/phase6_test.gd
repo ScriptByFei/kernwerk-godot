@@ -68,7 +68,7 @@ func _init() -> void:
 
 	# --- Balancing-Konstanten konsistent ---
 	_check(WaveData.DMG_UPGRADE == 15, "Damage-Upgrade +15 (Balancing-Pass)")
-	_check(WaveData.RATE_MULTIPLIER == 1.5, "Rate-Multiplikator 1.5")
+	_check(WaveData.RATE_UPGRADE == 0.1, "Rate-Upgrade +0.1 (Balancing)")
 	_check(WaveData.BOSS_HP == 600, "Boss-HP 600")
 
 	# --- UpgradeObject + WaveData-Typen deckungsgleich ---
