@@ -15,6 +15,14 @@ func _ready() -> void:
 	touch.swiped.connect(move_lane)
 	touch.tapped_lane.connect(move_to_lane)
 	weapon.setup(self)
+	set_process(true)
+
+func _process(_delta: float) -> void:
+	# Viewport kann sich im Web-Export dynamisch ändern (iOS-URL-Bar, Rotation).
+	# Statt Notifications zu vertrauen: Position jedes Frame neu setzen, wenn abweichend.
+	var target := Vector2(_lane_x(current_lane), _player_y())
+	if position.distance_squared_to(target) > 1.0:
+		position = target
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Desktop/Entwicklung
