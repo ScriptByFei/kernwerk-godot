@@ -3,6 +3,10 @@ extends Node2D
 
 const ScoreFeedbackScript = preload("res://scripts/ui/score_feedback.gd")
 const ScreenShakeScript = preload("res://scripts/game/screen_shake.gd")
+const ParticleBurstScript = preload("res://scripts/effects/particle_burst.gd")
+
+const UPGRADE_PARTICLE_COLOR := Color(0.4, 1.0, 0.55)
+const BOSS_PHASE_TWO_PARTICLE_COLOR := Color(0.68, 0.34, 0.82)
 
 @export var run_seed := -1  # -1 = echter Zufall; >=0 = reproduzierbarer QA-Lauf
 
@@ -121,6 +125,10 @@ func _on_enemy_reached_player(enemy: Enemy) -> void:
 
 func _on_boss_spawned(boss: Boss) -> void:
 	boss.lane_pulse_fired.connect(_on_boss_lane_pulse)
+	boss.phase_two_entered.connect(_on_boss_phase_two_entered.bind(boss))
+
+func _on_boss_phase_two_entered(boss: Boss) -> void:
+	ParticleBurstScript.burst(self, boss.global_position, BOSS_PHASE_TWO_PARTICLE_COLOR, 15, 0.8)
 
 func _on_boss_lane_pulse(lane: int) -> void:
 	if not game_manager.is_running():
@@ -142,10 +150,13 @@ func _on_player_died() -> void:
 func _on_enemy_killed(enemy: Enemy) -> void:
 	game_manager.add_kill(enemy.score_reward)
 	score_feedback.popup_for(enemy)
+	var color := EnemyArchetypeData.get_definition(enemy.enemy_type)["color"] as Color
+	ParticleBurstScript.burst(self, enemy.global_position, color, 20 if enemy.is_boss else 10, 0.6 if enemy.is_boss else 0.35)
 
 func _on_upgrade_collected(u: UpgradeObject) -> void:
 	player_stats.apply_upgrade(u.upgrade_type)
 	feedback.popup_for(u, $Player as Player)
+	ParticleBurstScript.burst(self, u.global_position, UPGRADE_PARTICLE_COLOR, 8, 0.3)
 
 func _restart() -> void:
 	get_tree().reload_current_scene()

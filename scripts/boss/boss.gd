@@ -4,6 +4,7 @@ extends Enemy
 
 signal lane_pulse_fired(lane: int)
 signal summon_requested(summon_lanes: Array, enemy_type: String)
+signal phase_two_entered
 
 var is_phase_two := false
 var _pulse_timer := 0.0
@@ -169,6 +170,7 @@ func _enter_phase_two() -> void:
 	scale = Vector2(1.12, 1.12)
 	modulate = _base_modulate()
 	_pulse_flash()
+	phase_two_entered.emit()
 
 func _draw() -> void:
 	if _pulse_telegraph_remaining <= 0.0:
