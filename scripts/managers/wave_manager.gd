@@ -56,7 +56,8 @@ func _next_wave() -> void:
 		float(data["spawn_interval"]),
 		float(data["upgrade_chance"]),
 		float(data["hp_factor"]),
-		float(data["speed_factor"])
+		float(data["speed_factor"]),
+		next
 	)
 	wave_started.emit(next)
 	if bool(data.get("boss", false)):

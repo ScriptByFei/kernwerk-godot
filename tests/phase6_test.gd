@@ -45,7 +45,7 @@ func _init() -> void:
 
 	wm.start_level()
 	_check(wm.current_wave == 1, "Start → Welle 1")
-	_check(sp.spawn_interval == 1.8 and sp.hp_factor == 1.0, "Wave-1-Params am SpawnManager")
+	_check(sp.spawn_interval == 2.7 and sp.hp_factor == 1.0, "Wave-1-Params am SpawnManager")
 
 	# Alle Wellen durchspringen (jeweils Dauer überschreiten)
 	for i in 10:

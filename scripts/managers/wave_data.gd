@@ -1,49 +1,49 @@
 class_name WaveData
 extends RefCounted
 ## Datengetriebene Wellen-Definition (Phase 6).
-## Eine Welle = Dauer, Spawn-Intervall, Gegner-Stats-Faktoren, Upgrade-Chance, optional Boss.
+## Eine Welle = Dauer, Reihen-Intervall, Gegner-Stats-Faktoren, Upgrade-Gewicht, optional Boss.
 ## Als Dictionary: lesbar, mergebar, später aus JSON ladbar.
 
 # Level = 6 Wellen à ~18-22s → ~120s total (Auftrag: 60-120s)
 const WAVES := [
 	{  # Wave 1: warm up
 		"duration": 16.0,
-		"spawn_interval": 1.8,
+		"spawn_interval": 2.7,
 		"hp_factor": 1.0,
 		"speed_factor": 1.0,
 		"upgrade_chance": 0.20,
 	},
 	{  # Wave 2: mehr Gegner
 		"duration": 18.0,
-		"spawn_interval": 1.5,
+		"spawn_interval": 2.5,
 		"hp_factor": 1.3,
 		"speed_factor": 1.05,
 		"upgrade_chance": 0.22,
 	},
 	{  # Wave 3: dichter + erste zähere
 		"duration": 20.0,
-		"spawn_interval": 1.3,
+		"spawn_interval": 2.3,
 		"hp_factor": 1.6,
 		"speed_factor": 1.1,
 		"upgrade_chance": 0.30,
 	},
 	{  # Wave 4: stärker + schneller
 		"duration": 20.0,
-		"spawn_interval": 1.2,
+		"spawn_interval": 2.15,
 		"hp_factor": 1.8,
 		"speed_factor": 1.2,
 		"upgrade_chance": 0.28,
 	},
 	{  # Wave 5: Finale vor Boss
 		"duration": 22.0,
-		"spawn_interval": 1.0,
+		"spawn_interval": 2.0,
 		"hp_factor": 2.1,
 		"speed_factor": 1.15,
 		"upgrade_chance": 0.25,
 	},
 	{  # Wave 6: Boss
 		"duration": 20.0,
-		"spawn_interval": 2.2,
+		"spawn_interval": 2.4,
 		"hp_factor": 2.2,
 		"speed_factor": 1.1,
 		"upgrade_chance": 0.35,

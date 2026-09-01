@@ -10,7 +10,7 @@ Ein Soldat unten, drei Spuren, die Waffe feuert automatisch — der Spieler ents
 
 ---
 
-## Aktueller Stand (31.08.2026 — Stand nach Session 1 Godot-Port)
+## Aktueller Stand (01.09.2026)
 
 | Phase | Inhalt | Status |
 |---|---|---|
@@ -23,6 +23,7 @@ Ein Soldat unten, drei Spuren, die Waffe feuert automatisch — der Spieler ents
 | 6 | WaveManager (6 datengetriebene Wellen, Level ~119s, Boss-Flag, Difficulty-Kurve) | ✅ |
 | — | **Balancing-Pass:** Fire Rate 4→1.2/s, Rate-Upgrade linear +0.1, Upgrade-Hitbox ±100px | ✅ |
 | S1 | **Stabilitätsfundament:** Pause/Focus-Lifecycle, Safe-Area-HUD, Modal-Schichtung, seedbare Spawns | ✅ |
+| S2 | **Lane-Entscheidungen:** faire Drei-Spur-Muster, 0.6-s-Telegraph, Grunt/Runner/Tank, Rollen-Score | ✅ |
 | 7 | Boss-Verhalten (Angriffsmuster, Lane-Wechsel, Beschwörungen — Boss bisher nur 600 HP Block) | **nächste** |
 | 8 | Polish (Partikel, Sounds, Screen Shake, bessere Sprites, Score-Popups) | offen |
 
@@ -34,6 +35,8 @@ Old TS-version als Referenz archiviert: `~/projects/kernwerk` (separate codebase
 - Soldat bei 86 % Höhe, Lanes bei 25/50/75 % der Breite — viewport-relative auf jedem Aspect Ratio
 - **Steuerung:** Swipe links/rechts = Lane · Tap = direkte Lane · Desktop: A/←, D/→, 1/2/3
 - **Waffe feuert automatisch** — 1,2 Schüsse/s (bewusst langsam, „Schüsse zählen"), Damage 10 Baseline
+- **Spawn-Reihen statt Lane-Roulette:** maximal zwei Gegner pro Reihe, immer mindestens eine Lane ohne Gegner; farbige Pfeil-Telegraphen warnen 0,6 s vor
+- **Drei Gegnerrollen:** Grunt = Standard (10 Punkte), Runner = schnell/leicht (15), Tank = langsam/zäh (20); Runner ab Welle 2, Tank ab Welle 3
 - **Upgrade-Pfad:** grüne Träger (22–35 % Spawn-Chance) abschießen → `+15 DMG` / `+0.1 RATE` / `+1 SOLDIER` (Soldiers = echte Additional-Bullets ±90px-Formation)
 - **HP 100**, Gegner erreicht 82%-Höhe → 10 Schaden, 0.8 s i-frames, rote Vignette sanft
 - **Level = 6 Wellen ≈ 119 s**, Welle 6 spawnt Boss (600 HP), danach Level Complete (Continue/Retry)
@@ -53,22 +56,25 @@ scripts/
     weapon_controller.gd      # Auto-Fire, liest PlayerStats
     player_stats.gd           # damage/fire_rate/soldiers + apply_upgrade
     player_health.gd          # HP, i-frames, Vignette, Bar
-  enemies/enemy.gd            # HP-Label, Hit-Flash, Wobble, Death-Fade
+  enemies/
+    enemy.gd                  # Rollensilhouette, HP, Hit-Flash, Wobble, Death-Fade
+    enemy_archetype_data.gd   # HP-/Speed-Faktoren, Farbe und Score je Rolle
   objects/
     lane_object.gd            # Basis: Lane + Bewegung + reached_bottom (once-guard)
     upgrade_object.gd         # grüner Träger, Text, collect()
   projectiles/bullet.gd
   managers/
     game_manager.gd           # einzige Quelle für HP/i-Frames/Score/Kills/Endzustand
-    spawn_manager.gd          # Timing, Lane-Roulette, Konfiguration der Gegner
+    spawn_manager.gd          # seedbare Musterwahl, Telegraph und Reihen-Spawn
+    spawn_pattern_data.gd     # freigeschaltete, validierbare Drei-Lane-Muster
     wave_manager.gd           # Phasen-Driver, liest WaveData, Wellen-Ende + Boss
     wave_data.gd              # ALLE Wellen- + Balancing-Konstanten (Tune hier!)
   ui/
-    hud.gd, game_over_ui.gd, level_complete_ui.gd, upgrade_feedback.gd
-tests/phase{1..6}_test.gd + layout/bugfix/flight/stabilization suites
+    hud.gd, spawn_telegraph.gd, game_over_ui.gd, level_complete_ui.gd, upgrade_feedback.gd
+tests/phase{1..6}_test.gd + layout/bugfix/flight/stabilization/foundation/pattern suites
 ```
 
-**State-Verkettung:** `Spawner.upgrade_collected_from_world → Game._on_upgrade_collected → PlayerStats.apply_upgrade + Feedback.popup_for`. Enemy-Kills laufen über `SpawnManager.enemy_killed_from_world → Game → GameManager.add_kill()` (+10 Score). HP, i-Frames, Game Over und Level Complete gehören ausschließlich dem `GameManager`.
+**State-Verkettung:** `Spawner.upgrade_collected_from_world → Game._on_upgrade_collected → PlayerStats.apply_upgrade + Feedback.popup_for`. Enemy-Kills laufen über `SpawnManager.enemy_killed_from_world → Game → GameManager.add_kill()` (10/15/20 Punkte nach Rolle). HP, i-Frames, Game Over und Level Complete gehören ausschließlich dem `GameManager`.
 
 ## Tests
 
@@ -76,9 +82,11 @@ tests/phase{1..6}_test.gd + layout/bugfix/flight/stabilization suites
 godot4 --headless --path . -s tests/<suite>_test.gd
 ```
 
-Suites: `phase1..6`, `layout`, `phase2_bugfix`, `phase2_flight`, `stabilization`, `foundation`. CI wertet zusätzlich Godot-Fehlerzeilen aus, weil Godot bei manchen Scriptfehlern trotzdem Exitcode 0 liefert.
+Suites: `phase1..6`, `layout`, `phase2_bugfix`, `phase2_flight`, `stabilization`, `foundation`, `pattern`. CI wertet zusätzlich Godot-Fehlerzeilen aus, weil Godot bei manchen Scriptfehlern trotzdem Exitcode 0 liefert.
 
 `foundation` sichert den neuen Stabilitätsunterbau ab: explizite Pause-/Resume-Zustände, Safe-Area-Berechnung, UI-Canvas-Ebenen, einmalige Gegnerankunft und reproduzierbare Spawnfolgen per Seed.
+
+`pattern` prüft alle Reihen auf Fairness, Rollen-Freischaltungen und -Balance, die deterministische Muster-/Lane-Folge sowie die Verkettung Telegraph → Spawn → rollenabhängiger Score.
 
 **Playbook — Bugs, die wir bereits einmal hatten (nicht wiederholen):**
 1. Bullets spawn always with `world.add_child()` + `global_position = …` AFTER `add_child` (never as Player child — double-offset → bullets below screen)

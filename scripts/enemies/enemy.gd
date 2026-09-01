@@ -1,6 +1,6 @@
 class_name Enemy
 extends LaneObject
-## Basis-Gegner: rot, HP über dem Kopf, nimmt Schaden, stirbt mit sanftem Feedback.
+## Gegner mit klarer Rollen-Silhouette: Grunt, Runner, Tank oder Boss.
 
 signal enemy_killed(enemy: Enemy)
 signal health_changed(enemy: Enemy, new_hp: int)
@@ -8,6 +8,8 @@ signal health_changed(enemy: Enemy, new_hp: int)
 var max_hp := 50
 var current_hp := 50
 var is_boss := false
+var enemy_type := EnemyArchetypeData.GRUNT
+var score_reward := 10
 
 var _flash_rect: Polygon2D
 var _hp_label: Label
@@ -18,29 +20,45 @@ func _ready() -> void:
 	add_to_group("enemies")
 	_build_visual()
 
-func configure(p_lane: int, hp: int, speed: float, p_is_boss: bool = false) -> void:
+func configure(p_lane: int, hp: int, speed: float, p_is_boss: bool = false, p_enemy_type: String = EnemyArchetypeData.GRUNT) -> void:
 	setup_lane(p_lane)
 	max_hp = hp
 	current_hp = hp
 	move_speed = speed
 	is_boss = p_is_boss
+	enemy_type = EnemyArchetypeData.BOSS if is_boss else p_enemy_type
+	score_reward = int(EnemyArchetypeData.get_definition(enemy_type)["score_reward"])
 
 var configure_label := false  # Headless-Tests ohne Szene: Labels optional
 
 func _build_visual() -> void:
-	# Roter Platzhalter-Körper
+	var definition := EnemyArchetypeData.get_definition(enemy_type)
 	var body := Polygon2D.new()
-	body.color = Color(0.65, 0.15, 0.75) if is_boss else Color(0.85, 0.25, 0.3)
-	var half_size := 85.0 if is_boss else 55.0
-	body.polygon = PackedVector2Array([Vector2(-half_size, -half_size), Vector2(half_size, -half_size), Vector2(half_size, half_size), Vector2(-half_size, half_size)])
+	body.color = definition["color"]
+	match enemy_type:
+		EnemyArchetypeData.RUNNER:
+			# Raute = schnell und leicht.
+			body.polygon = PackedVector2Array([Vector2(0, -67), Vector2(48, 0), Vector2(0, 67), Vector2(-48, 0)])
+		EnemyArchetypeData.TANK:
+			# Breiter Block = langsam und widerstandsfähig.
+			body.polygon = PackedVector2Array([Vector2(-76, -51), Vector2(76, -51), Vector2(76, 51), Vector2(-76, 51)])
+		EnemyArchetypeData.BOSS:
+			body.polygon = PackedVector2Array([Vector2(-55, -85), Vector2(55, -85), Vector2(85, -55), Vector2(85, 55), Vector2(55, 85), Vector2(-55, 85), Vector2(-85, 55), Vector2(-85, -55)])
+		_:
+			body.polygon = PackedVector2Array([Vector2(-55, -55), Vector2(55, -55), Vector2(55, 55), Vector2(-55, 55)])
 	add_child(body)
+	if enemy_type == EnemyArchetypeData.TANK:
+		var armor := Polygon2D.new()
+		armor.color = Color(0.92, 0.42, 0.30, 0.9)
+		armor.polygon = PackedVector2Array([Vector2(-58, -9), Vector2(58, -9), Vector2(58, 9), Vector2(-58, 9)])
+		add_child(armor)
 	build_label()
 
 func build_label() -> void:
 	# HP-Label über dem Kopf — nil-safe (Headless-Tests ohne Rendering)
 	_hp_label = Label.new()
 	_hp_label.text = str(maxi(current_hp, 0))
-	_hp_label.position = Vector2(-40, -110)
+	_hp_label.position = Vector2(-40, -128 if is_boss else -105)
 	_hp_label.size = Vector2(80, 40)
 	_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hp_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.85))

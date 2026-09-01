@@ -114,8 +114,8 @@ func _on_level_completed() -> void:
 func _on_player_died() -> void:
 	game_over_ui.show_stats(game_manager.score, game_manager.kills)
 
-func _on_enemy_killed(_enemy: Enemy) -> void:
-	game_manager.add_kill()
+func _on_enemy_killed(enemy: Enemy) -> void:
+	game_manager.add_kill(enemy.score_reward)
 
 func _on_upgrade_collected(u: UpgradeObject) -> void:
 	player_stats.apply_upgrade(u.upgrade_type)

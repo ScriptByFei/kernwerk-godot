@@ -49,11 +49,11 @@ func add_score(points: int) -> void:
 	score += points
 	score_changed.emit(score)
 
-func add_kill() -> void:
+func add_kill(score_reward: int = 10) -> void:
 	if state != State.RUNNING:
 		return
 	kills += 1
-	add_score(10)
+	add_score(score_reward)
 
 func damage_player(dmg: int) -> bool:
 	if state != State.RUNNING or dmg <= 0 or _iframes > 0.0:
