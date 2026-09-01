@@ -134,6 +134,6 @@ Es gibt nur noch diesen CI-Deployweg. Die GitHub-Pages-Quelle bleibt auf `gh-pag
 
 ## Offene Punkte
 
-- **Boss-Kurve v2 deployed (01.09.)** — Playtest-Feedback: Telegraph 0.8→1.2s (mehr Reaktionszeit), Phase 2: Pulse 2.6→2.0s + Lane-Wechsel 2.8→2.4s (echter Druck). **Nächster iPhone-Playtest: spielt sich Phase 2 jetzt richtig an?** Tuning via `boss_data.gd`
+- **Playtest-Fixes v2 deployed (01.09.)** — ✅ Soldaten-Salven GEBÜNDELT auf Spieler-Lane (kein ±90px-Offset → nichts ging mehr am Gegner vorbei); ✅ **Boss-HP skaliert mit DPS** (`BossData.scaled_hp`, Wurzel-Kurve, Floor 500) → kein „Instant-Kill“ bei max. Upgrades mehr. **Nächster iPhone-Playtest: trifft die Salve zuverlässig? Fühlt sich der Boss mit Max-Build richtig zäh an?** Tuning via `boss_data.gd` / `weapon_controller.gd`
 - Object Pooling für Bullets (aktuell ~15-20 Nodes/Run — noch kein Flaschenhals bei 60 FPS)
 - Optional: Minimax-Kredit aufladen für eigene KI-Sprites (Katalog hat kein Bildmodell, Direkt-API ohne Guthaben)
