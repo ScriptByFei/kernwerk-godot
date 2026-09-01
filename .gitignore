@@ -1,3 +1,16 @@
+# Godot Cache
 .godot/
 build/
 *.tmp
+
+# Web-Export-Artefakte, die nur in build/web/ gehören (nicht in die Root)
+/index.html
+/index.js
+/index.wasm
+/index.pck
+/index*.png
+/index*.js
+/index*.import
+/docs-spike.png
+/docs-spike-beispiel.png
+/docs-spike*.png
