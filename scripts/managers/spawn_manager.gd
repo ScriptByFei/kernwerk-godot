@@ -8,6 +8,7 @@ signal upgrade_spawned(upgrade: UpgradeObject)
 signal upgrade_collected_from_world(upgrade: UpgradeObject)  # Game hookt Effekt + Feedback
 signal boss_spawned(boss: Boss)
 signal enemy_killed_from_world(enemy: Enemy)
+signal enemy_damaged_from_world(enemy: Enemy, new_hp: int)
 signal boss_defeated(boss: Enemy)
 signal enemy_reached_player(enemy: Enemy)
 signal pattern_telegraphed(pattern_id: String, slots: Array)
@@ -80,6 +81,7 @@ func spawn_boss() -> void:
 	boss.position = Vector2(boss.lane_x_now(), -140.0)
 	boss.reached_bottom.connect(_on_enemy_reached_bottom)
 	boss.enemy_killed.connect(_on_enemy_killed)
+	boss.health_changed.connect(_on_enemy_health_changed)
 	boss.summon_requested.connect(_on_boss_summon_requested)
 	_boss_alive = true
 	boss_spawned.emit(boss)
@@ -121,6 +123,7 @@ func _spawn_enemy(lane_override: int = -1, p_enemy_type: String = EnemyArchetype
 	enemy.position = Vector2(enemy.lane_x_now(), -80.0)
 	enemy.reached_bottom.connect(_on_enemy_reached_bottom)
 	enemy.enemy_killed.connect(_on_enemy_killed)
+	enemy.health_changed.connect(_on_enemy_health_changed)
 	enemy_spawned.emit(enemy)
 
 func _spawn_upgrade(lane_override: int = -1) -> void:
@@ -145,6 +148,10 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	if enemy.is_boss:
 		_boss_alive = false
 		boss_defeated.emit(enemy)
+
+func _on_enemy_health_changed(enemy: Enemy, new_hp: int) -> void:
+	if new_hp > 0:
+		enemy_damaged_from_world.emit(enemy, new_hp)
 
 func _roll_lane() -> int:
 	return _rng.randi_range(0, GameConfig.LANE_COUNT - 1)

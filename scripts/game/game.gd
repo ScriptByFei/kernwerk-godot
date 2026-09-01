@@ -4,6 +4,7 @@ extends Node2D
 const ScoreFeedbackScript = preload("res://scripts/ui/score_feedback.gd")
 const ScreenShakeScript = preload("res://scripts/game/screen_shake.gd")
 const ParticleBurstScript = preload("res://scripts/effects/particle_burst.gd")
+const SfxScript = preload("res://scripts/audio/sfx.gd")
 
 const UPGRADE_PARTICLE_COLOR := Color(0.4, 1.0, 0.55)
 const BOSS_PHASE_TWO_PARTICLE_COLOR := Color(0.68, 0.34, 0.82)
@@ -22,6 +23,7 @@ var score_feedback
 var hud: Hud
 var level_complete_ui: LevelCompleteUI
 var pause_ui: PauseUI
+var sfx
 var _paused_by_focus := false
 
 func _ready() -> void:
@@ -37,6 +39,10 @@ func _ready() -> void:
 
 	var player := $Player as Player
 	player.lane_changed.connect(_on_lane_changed)
+	sfx = SfxScript.new()
+	sfx.name = "Sfx"
+	add_child(sfx)
+	player.weapon.bullet_fired.connect(_on_bullet_fired)
 
 	# GameManager
 	game_manager = GameManager.new()
@@ -61,7 +67,7 @@ func _ready() -> void:
 	player_health = PlayerHealth.new()
 	player_health.name = "PlayerHealth"
 	add_child(player_health)
-	player_health.setup(game_manager, screen_shake)
+	player_health.setup(game_manager, screen_shake, sfx)
 
 	# Game Over UI (unsichtbar bis Tod)
 	game_over_ui = GameOverUI.new()
@@ -109,6 +115,8 @@ func _ready() -> void:
 	wave_manager.level_completed.connect(_on_level_completed)
 	spawner.upgrade_collected_from_world.connect(_on_upgrade_collected)  # Phase-5-Kette (WaveManager-Refactor)
 	spawner.enemy_killed_from_world.connect(_on_enemy_killed)
+	spawner.enemy_damaged_from_world.connect(_on_enemy_damaged)
+	wave_manager.wave_started.connect(_on_wave_started)
 	hud.attach_wave_manager(wave_manager)
 	game_manager.start_run()  # Startscreen folgt später; bis dahin sofortiger Start.
 	wave_manager.start_level()
@@ -134,6 +142,7 @@ func _on_boss_lane_pulse(lane: int) -> void:
 	if not game_manager.is_running():
 		return
 	screen_shake.shake(5.0, 0.12)
+	sfx.play("boss_pulse")
 	var player := $Player as Player
 	if player.current_lane == lane:
 		player_health.take_hit(BossData.PULSE_DAMAGE)
@@ -142,6 +151,7 @@ func _on_level_completed() -> void:
 	if not game_manager.is_running():
 		return
 	game_manager.complete_level()
+	sfx.play("level_complete")
 	level_complete_ui.show_stats(game_manager.score, game_manager.kills)
 
 func _on_player_died() -> void:
@@ -149,12 +159,14 @@ func _on_player_died() -> void:
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	game_manager.add_kill(enemy.score_reward)
+	sfx.play("kill")
 	score_feedback.popup_for(enemy)
 	var color := EnemyArchetypeData.get_definition(enemy.enemy_type)["color"] as Color
 	ParticleBurstScript.burst(self, enemy.global_position, color, 20 if enemy.is_boss else 10, 0.6 if enemy.is_boss else 0.35)
 
 func _on_upgrade_collected(u: UpgradeObject) -> void:
 	player_stats.apply_upgrade(u.upgrade_type)
+	sfx.play("upgrade")
 	feedback.popup_for(u, $Player as Player)
 	ParticleBurstScript.burst(self, u.global_position, UPGRADE_PARTICLE_COLOR, 8, 0.3)
 
@@ -218,6 +230,8 @@ func _notification(what: int) -> void:
 				game_manager.resume_run()
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey or event is InputEventMouseButton or event is InputEventScreenTouch:
+		sfx.unlock()
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		if game_manager.is_running():
 			_paused_by_focus = false
@@ -228,3 +242,12 @@ func _input(event: InputEvent) -> void:
 
 func _on_lane_changed(lane: int) -> void:
 	print("[Game] lane=%d" % lane)
+
+func _on_bullet_fired(_bullet: Bullet) -> void:
+	sfx.play("shoot")
+
+func _on_enemy_damaged(_enemy: Enemy, _new_hp: int) -> void:
+	sfx.play("enemy_hit")
+
+func _on_wave_started(_wave_index: int) -> void:
+	sfx.play("wave_start")
