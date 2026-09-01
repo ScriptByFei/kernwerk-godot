@@ -77,7 +77,7 @@ Platzhalter: Player=blauer Soldier, Gegner=rot, Upgrade=grün, Bullet=kleines Re
 5. Upgrades (Damage, Fire Rate, Soldier + UI-Feedback) ✅ (Hitbox großzügig ±100px)
 6. Waves (WaveManager, Muster, Progression) ✅
 7. Boss (2-Phasen: Hover, Lane-Pulse, Summons, Weaving) ✅
-8. Polish (Animationen, Partikel, Sounds, Screen Shake) ← **nächste**
+8. Polish (Score-Popups, Shake, Partikel, Sounds, Vektor-Sprites) ✅
 
 **Kern-Test:** Macht es Spaß, per Lane-Wahl Ziele/Upgrades zu wählen? Wenn nicht → kein weiteres System bauen.
 

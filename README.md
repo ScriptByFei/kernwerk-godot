@@ -25,7 +25,7 @@ Ein Soldat unten, drei Spuren, die Waffe feuert automatisch — der Spieler ents
 | S1 | **Stabilitätsfundament:** Pause/Focus-Lifecycle, Safe-Area-HUD, Modal-Schichtung, seedbare Spawns | ✅ |
 | S2 | **Lane-Entscheidungen:** faire Drei-Spur-Muster, 0.6-s-Telegraph, Grunt/Runner/Tank, Rollen-Score | ✅ |
 | 7 | Boss-Verhalten (2-Phasen-Kampf: Hover, Lane-Pulse mit Telegraph, Beschwörungen, Lane-Weaving, BossData-Tuning) | ✅ |
-| 8 | Polish (Partikel, Sounds, Screen Shake, bessere Sprites, Score-Popups) | **nächste** |
+| 8 | Polish (Score-Popups, Screen Shake, Partikel, CC0-Sounds mit Web-Audio-Unlock, Vektor-Sprite-Verfeinerung) | ✅ |
 
 **Housekeeping (01.09.2026):** Versehentlich im Projekt-Root eingecheckte Web-Export-Artefakte (`index.html/js/wasm/pck`, Spike-Screenshots) entfernt + `.gitignore` verschärft — nur noch `build/web/` darf Build-Output enthalten. Kein Verhaltensunterschied im Deployment (`deploy-pages.sh` liest ohnehin nur aus `build/web/`).
 
@@ -75,8 +75,11 @@ scripts/
   boss/
     boss.gd                   # 2-Phasen-Boss: Hover, Lane-Pulse, Summons, Weaving
     boss_data.gd              # ALLE Boss-Tuning-Konstanten (HP, Pulse, Summons)
+  effects/particle_burst.gd   # One-shot CPU-Partikel-Bursts (Kill, Upgrade, Boss)
+  audio/sfx.gd                # CC0-Sounds + Web-Audio-Unlock (erster Tap)
   ui/
-    hud.gd, spawn_telegraph.gd, game_over_ui.gd, level_complete_ui.gd, upgrade_feedback.gd
+    hud.gd, spawn_telegraph.gd, game_over_ui.gd, level_complete_ui.gd, upgrade_feedback.gd, score_feedback.gd
+  game/screen_shake.gd        # dezenter Welt-Offset-Shake (Player-Hit, Boss-Pulse)
 tests/phase{1..6}_test.gd + layout/bugfix/flight/stabilization/foundation/pattern suites
 ```
 
