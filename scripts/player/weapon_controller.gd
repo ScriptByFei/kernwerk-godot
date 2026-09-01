@@ -33,16 +33,16 @@ func _soldiers() -> int:
 func _fire() -> void:
 	var origin := _player.global_position + Vector2(0, -80)  # Waffenposition über Kopf
 	var count := _soldiers()
-	# Mehrere Soldaten = mehrere Projektile pro Schuss (echte Feuerkraft)
-	for i in count:
+	# Mehrere Soldaten = mehrere Projektile pro Schuss (echte Feuerkraft).
+	# ALLE Projektile starten auf der Spieler-Lane (gebündelt): ein fester
+	# Offset (±90px) ließ die Rand-Salven auf schmalen Handys zwischen den
+	# Lanes durchfliegen — der Spieler muss swipen, nicht die Lane wechseln.
+	for _i in count:
 		var b := Bullet.new()
 		b.setup(_damage(), GameConfig.BULLET_SPEED)
-		var offset_x := 0.0
-		if count > 1:
-			offset_x = (float(i) - (count - 1) / 2.0) * WaveData.SOLDIER_OFFSET_X
 		# Bullet in die Welt (Game-Root) hängen, NICHT in den Player:
 		# sonst würde es beim Lanewechsel mitwandern und in Spieler-Koordinaten despawnen.
 		var world := _player.get_parent()
 		world.add_child(b)
-		b.global_position = origin + Vector2(offset_x, 0)
+		b.global_position = origin
 		bullet_fired.emit(b)

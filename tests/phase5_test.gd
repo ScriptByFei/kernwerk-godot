@@ -100,6 +100,31 @@ func _init() -> void:
 	wc.setup(null)
 	_check(wc._fire_rate() == GameConfig.FIRE_RATE, "WC ohne Stats → Config-Fallback")
 
+	# --- WeaponController: Soldaten-Salven GEBÜNDELT auf Spieler-Lane (Playtest-Fix) ---
+	var game_scene := load("res://scenes/game/game.tscn") as PackedScene
+	var game := game_scene.instantiate() as Node2D
+	get_root().add_child(game)
+	await process_frame
+	var player := game.get_node("Player") as Player
+	game.player_stats.soldiers = 3
+	player.weapon.stats = game.player_stats
+	var bullets_before: Array = []
+	for child in game.get_children():
+		if child is Bullet:
+			bullets_before.append(child)
+	player.weapon._fire()
+	var fired_count := 0
+	var all_bundled := true
+	for child in game.get_children():
+		if child is Bullet and child not in bullets_before:  # nur NEUE Salve zählen
+			fired_count += 1
+			if child.global_position != player.global_position + Vector2(0, -80):  # origin = Spieler + (0,-80)
+				all_bundled = false
+	_check(fired_count == 3, "3 Soldaten → 3 Projektile pro Schuss")
+	_check(all_bundled, "Salve GEBÜNDELT auf Spieler-Lane (kein ±90px-Offset mehr)")
+	game.queue_free()
+	await process_frame
+
 	if fails == 0:
 		print("PHASE5 TESTS: ALLE OK")
 	else:

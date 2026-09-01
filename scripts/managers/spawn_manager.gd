@@ -26,6 +26,7 @@ var current_wave := 1
 var _pending_pattern: Dictionary = {}
 var _telegraph: SpawnTelegraph
 var _boss_alive := false  # true zwischen spawn_boss() und Boss-Tod (Summons-Guard)
+var player_stats: PlayerStats  # von Game gesetzt (Boss-HP-Skalierung)
 
 const UPGRADE_TYPES := ["damage", "firerate", "soldier"]
 const TELEGRAPH_DURATION := 0.6
@@ -76,7 +77,7 @@ func set_spawning_enabled(enabled: bool) -> void:
 func spawn_boss() -> void:
 	var boss := Boss.new()
 	var lane := _roll_lane()
-	boss.configure(lane)
+	boss.configure(lane, _boss_hp())
 	_world.add_child(boss)
 	boss.position = Vector2(boss.lane_x_now(), -140.0)
 	boss.reached_bottom.connect(_on_enemy_reached_bottom)
@@ -155,6 +156,20 @@ func _on_enemy_health_changed(enemy: Enemy, new_hp: int) -> void:
 
 func _roll_lane() -> int:
 	return _rng.randi_range(0, GameConfig.LANE_COUNT - 1)
+
+func _boss_hp() -> int:
+	## Boss-HP folgt der tatsächlichen Feuerkraft des Spielers:
+	## (DAMAGE×FIRE_RATE×SOLDIERS) / (Basis-DPS-Werte) → Wurzel-Kurve in BossData.
+	var damage := GameConfig.DAMAGE
+	var fire_rate := GameConfig.FIRE_RATE
+	var soldiers := 1
+	if player_stats:
+		damage = player_stats.damage
+		fire_rate = player_stats.fire_rate
+		soldiers = player_stats.soldiers
+	var dps := float(damage) * fire_rate * float(soldiers)
+	var base_dps := float(GameConfig.DAMAGE) * GameConfig.FIRE_RATE
+	return BossData.scaled_hp(dps / base_dps)
 
 func _roll_upgrade_type() -> String:
 	return UPGRADE_TYPES[_rng.randi_range(0, UPGRADE_TYPES.size() - 1)]

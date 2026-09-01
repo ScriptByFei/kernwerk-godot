@@ -122,6 +122,22 @@ func _init() -> void:
 			enemies_after_summon += 1
 	_check(enemies_after_summon == enemies_before_summon + 1, "Boss lebt → Summons spawnt Adds")
 
+	# --- Boss-HP-Skalierung (Playtest: \"Boss instant tot durch Upgrades\") ---
+	_check(BossData.scaled_hp(1.0) == BossData.BOSS_HP, "Ratio 1.0 → Basis-HP 500")
+	_check(BossData.scaled_hp(0.5) == BossData.BOSS_HP, "Ratio <1 → Floor 500")
+	_check(BossData.scaled_hp(4.0) == BossData.BOSS_HP * 2, "Ratio 4.0 (Wurzel) → 1000 HP")
+	_check(BossData.scaled_hp(9.0) == BossData.BOSS_HP * 3, "Ratio 9.0 (Wurzel) → 1500 HP")
+	_check(BossData.scaled_hp(9.0) > BossData.scaled_hp(4.0), "Mehr DPS → mehr Boss-HP (monoton)")
+	# SpawnManager nutzt player_stats für die Skalierung
+	var stats2 := PlayerStats.new()
+	world.add_child(stats2)
+	stats2.damage = 40  # 4× Base-Schaden → DPS-Ratio 4.0
+	spawner.player_stats = stats2
+	var scaled := spawner._boss_hp()
+	_check(scaled == BossData.BOSS_HP * 2, "SpawnManager._boss_hp() folgt PlayerStats (4× DPS → 1000)")
+	spawner.player_stats = null
+	_check(spawner._boss_hp() == BossData.BOSS_HP, "Ohne PlayerStats → Basis-HP (nil-safe)")
+
 	if fails == 0:
 		print("BOSS TESTS: ALLE OK")
 	else:

@@ -22,3 +22,9 @@ const LANE_SWITCH_INTERVAL_P1 := 4.0
 const LANE_SWITCH_INTERVAL_P2 := 2.4
 const LANE_SWITCH_DURATION := 0.5
 const PHASE2_THRESHOLD := 0.5
+
+## Boss-HP skaliert mit der DPS-Ratio des Spielers (aktuelle DPS / Basis-DPS).
+## Wurzel-Kurve dämpft die Explosion: 2× DPS → 1.41× HP, 4× → 2×, 9× → 3×.
+## Floor = BOSS_HP: auch mit 0 Upgrades nie schwächer als die Basis.
+static func scaled_hp(dps_ratio: float) -> int:
+	return maxi(BOSS_HP, int(BOSS_HP * sqrt(maxf(dps_ratio, 1.0))))

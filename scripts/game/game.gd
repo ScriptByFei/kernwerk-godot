@@ -104,6 +104,7 @@ func _ready() -> void:
 	spawner.name = "SpawnManager"
 	add_child(spawner)
 	spawner.setup(self, run_seed)
+	spawner.player_stats = player_stats
 	spawner.enemy_reached_player.connect(_on_enemy_reached_player)
 	spawner.boss_spawned.connect(_on_boss_spawned)
 

@@ -19,8 +19,10 @@ func _ready() -> void:
 	super._ready()
 	_rng.randomize()
 
-func configure(p_lane: int, _hp: int = BossData.BOSS_HP, _speed: float = BossData.BOSS_SPEED, _is_boss: bool = true, _enemy_type: String = EnemyArchetypeData.BOSS) -> void:
-	super.configure(p_lane, BossData.BOSS_HP, BossData.BOSS_SPEED, true, EnemyArchetypeData.BOSS)
+func configure(p_lane: int, p_hp: int = BossData.BOSS_HP, _speed: float = BossData.BOSS_SPEED, _is_boss: bool = true, _enemy_type: String = EnemyArchetypeData.BOSS) -> void:
+	# p_hp wird durchgereicht (SpawnManager übergibt skalierte HP), statt
+	# hart BOSS_HP zu nehmen — sonst wäre Boss-Skalierung wirkungslos.
+	super.configure(p_lane, p_hp, BossData.BOSS_SPEED, true, EnemyArchetypeData.BOSS)
 
 func _physics_process(delta: float) -> void:
 	if not _has_reached_hover_point():
