@@ -14,10 +14,12 @@ var score_reward := 10
 var _flash_rect: Polygon2D
 var _hp_label: Label
 var _wobble_tween: Tween
+var _sprite: Sprite2D
 
-const DETAIL_LIGHT := Color(1.0, 0.92, 0.9, 0.72)
-const TANK_ARMOR_COLOR := Color(0.92, 0.42, 0.30, 0.9)
-const BOSS_CORE_COLOR := Color(0.82, 0.56, 0.92, 0.78)
+const GRUNT_TEXTURE := preload("res://assets/sprites/grunt.png")
+const RUNNER_TEXTURE := preload("res://assets/sprites/runner.png")
+const TANK_TEXTURE := preload("res://assets/sprites/tank.png")
+const BOSS_TEXTURE := preload("res://assets/sprites/boss.png")
 
 func _ready() -> void:
 	super._ready()
@@ -36,41 +38,23 @@ func configure(p_lane: int, hp: int, speed: float, p_is_boss: bool = false, p_en
 var configure_label := false  # Headless-Tests ohne Szene: Labels optional
 
 func _build_visual() -> void:
-	var definition := EnemyArchetypeData.get_definition(enemy_type)
-	var body := Polygon2D.new()
-	body.color = definition["color"]
+	_sprite = Sprite2D.new()
+	_sprite.name = "Sprite"
 	match enemy_type:
 		EnemyArchetypeData.RUNNER:
-			# Raute mit seitlichen Flügeln = schnell und leicht.
-			body.polygon = PackedVector2Array([Vector2(0, -67), Vector2(48, 0), Vector2(0, 67), Vector2(-48, 0)])
+			_sprite.texture = RUNNER_TEXTURE
+			_sprite.scale = Vector2.ONE * 0.92
 		EnemyArchetypeData.TANK:
-			# Breiter Block = langsam und widerstandsfähig.
-			body.polygon = PackedVector2Array([Vector2(-76, -51), Vector2(76, -51), Vector2(76, 51), Vector2(-76, 51)])
+			_sprite.texture = TANK_TEXTURE
+			_sprite.scale = Vector2.ONE * 1.47
 		EnemyArchetypeData.BOSS:
-			body.polygon = PackedVector2Array([Vector2(-55, -85), Vector2(55, -85), Vector2(85, -55), Vector2(85, 55), Vector2(55, 85), Vector2(-55, 85), Vector2(-85, 55), Vector2(-85, -55)])
+			_sprite.texture = BOSS_TEXTURE
+			_sprite.scale = Vector2.ONE * 1.75
 		_:
-			# Die abgeschnittene Ecke macht den Standardgegner weniger generisch.
-			body.polygon = PackedVector2Array([Vector2(-38, -55), Vector2(55, -55), Vector2(55, 55), Vector2(-55, 55), Vector2(-55, -38)])
-	add_child(body)
-	match enemy_type:
-		EnemyArchetypeData.GRUNT:
-			_add_detail(PackedVector2Array([Vector2(14, -18), Vector2(24, -18), Vector2(24, -8), Vector2(14, -8)]), DETAIL_LIGHT)
-		EnemyArchetypeData.RUNNER:
-			_add_detail(PackedVector2Array([Vector2(-43, -18), Vector2(-67, 0), Vector2(-43, 18)]), DETAIL_LIGHT)
-			_add_detail(PackedVector2Array([Vector2(43, -18), Vector2(67, 0), Vector2(43, 18)]), DETAIL_LIGHT)
-		EnemyArchetypeData.TANK:
-			_add_detail(PackedVector2Array([Vector2(-58, -9), Vector2(58, -9), Vector2(58, 9), Vector2(-58, 9)]), TANK_ARMOR_COLOR)
-			for corner in [Vector2(-61, -36), Vector2(61, -36), Vector2(-61, 36), Vector2(61, 36)]:
-				_add_detail(PackedVector2Array([corner + Vector2(-6, -6), corner + Vector2(6, -6), corner + Vector2(6, 6), corner + Vector2(-6, 6)]), DETAIL_LIGHT)
-		EnemyArchetypeData.BOSS:
-			_add_detail(PackedVector2Array([Vector2(-19, -30), Vector2(19, -30), Vector2(30, -19), Vector2(30, 19), Vector2(19, 30), Vector2(-19, 30), Vector2(-30, 19), Vector2(-30, -19)]), BOSS_CORE_COLOR)
+			_sprite.texture = GRUNT_TEXTURE
+			_sprite.scale = Vector2.ONE * 1.18
+	add_child(_sprite)
 	build_label()
-
-func _add_detail(points: PackedVector2Array, detail_color: Color) -> void:
-	var detail := Polygon2D.new()
-	detail.polygon = points
-	detail.color = detail_color
-	add_child(detail)
 
 func build_label() -> void:
 	# HP-Label über dem Kopf — nil-safe (Headless-Tests ohne Rendering)
@@ -103,7 +87,8 @@ func _hit_feedback() -> void:
 	if _flash_rect == null:
 		_flash_rect = Polygon2D.new()
 		_flash_rect.color = Color(1, 1, 1, 0.0)
-		_flash_rect.polygon = PackedVector2Array([Vector2(-57, -57), Vector2(57, -57), Vector2(57, 57), Vector2(-57, 57)])
+		var half_size := _sprite.texture.get_size() * _sprite.scale * 0.5
+		_flash_rect.polygon = PackedVector2Array([Vector2(-half_size.x, -half_size.y), Vector2(half_size.x, -half_size.y), Vector2(half_size.x, half_size.y), Vector2(-half_size.x, half_size.y)])
 		add_child(_flash_rect)
 	# Blitz: kurz aufblitzen und ausfaden
 	_flash_rect.color = Color(1, 1, 1, 0.55)
