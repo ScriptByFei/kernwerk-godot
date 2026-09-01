@@ -116,6 +116,12 @@ func _shuffle_lanes(lanes: Array) -> void:
 		lanes[swap_index] = value
 
 func _update_lane_switch(delta: float) -> void:
+	# Kein Lane-Wechsel während eines laufenden Pulse-Telegraphen: die visuelle
+	# Warnung (Stripe + Flash) ist an die aktuelle Lane gebunden — ein Wechsel
+	# in dieser Phase würde den Spieler in der falschen Lane warnen.
+	# (Crash-Review-Fix 099ac2f → H-Finding.)
+	if _pulse_telegraph_remaining > 0.0:
+		return
 	_lane_switch_timer += delta
 	if _lane_switch_timer >= _lane_switch_interval():
 		_lane_switch_timer = 0.0

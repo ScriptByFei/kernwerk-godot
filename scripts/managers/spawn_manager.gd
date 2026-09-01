@@ -24,6 +24,7 @@ var _rng := RandomNumberGenerator.new()
 var current_wave := 1
 var _pending_pattern: Dictionary = {}
 var _telegraph: SpawnTelegraph
+var _boss_alive := false  # true zwischen spawn_boss() und Boss-Tod (Summons-Guard)
 
 const UPGRADE_TYPES := ["damage", "firerate", "soldier"]
 const TELEGRAPH_DURATION := 0.6
@@ -80,10 +81,11 @@ func spawn_boss() -> void:
 	boss.reached_bottom.connect(_on_enemy_reached_bottom)
 	boss.enemy_killed.connect(_on_enemy_killed)
 	boss.summon_requested.connect(_on_boss_summon_requested)
+	_boss_alive = true
 	boss_spawned.emit(boss)
 
 func _on_boss_summon_requested(summon_lanes: Array, enemy_type: String) -> void:
-	if _world == null:
+	if not is_instance_valid(_world):
 		return
 	var telegraph := SpawnTelegraph.new()
 	telegraph.name = "BossSummonTelegraph"
@@ -95,9 +97,13 @@ func _on_boss_summon_requested(summon_lanes: Array, enemy_type: String) -> void:
 	get_tree().create_timer(TELEGRAPH_DURATION).timeout.connect(_spawn_boss_summons.bind(summon_lanes.duplicate(), enemy_type, telegraph))
 
 func _spawn_boss_summons(summon_lanes: Array, enemy_type: String, telegraph: SpawnTelegraph) -> void:
+	# Boss tot / Level vorbei → keine Adds mehr nach dem Kampfende nachziehen.
+	# (Crash-Review-Fix 099ac2f → M-Finding.)
+	if not _boss_alive:
+		return
 	if is_instance_valid(telegraph):
 		telegraph.queue_free()
-	if _world == null:
+	if not is_instance_valid(_world):
 		return
 	for summon_lane in summon_lanes:
 		_spawn_enemy(int(summon_lane), enemy_type)
@@ -137,6 +143,7 @@ func _on_upgrade_collected(u: UpgradeObject) -> void:
 func _on_enemy_killed(enemy: Enemy) -> void:
 	enemy_killed_from_world.emit(enemy)
 	if enemy.is_boss:
+		_boss_alive = false
 		boss_defeated.emit(enemy)
 
 func _roll_lane() -> int:

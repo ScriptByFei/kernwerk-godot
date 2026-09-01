@@ -50,6 +50,23 @@ func _init() -> void:
 	boss._physics_process(10.0)
 	_check(absf(boss.position.y - boss.get_viewport_rect().size.y * BossData.HOVER_Y_RATIO) < 0.1, "Boss stoppt am viewport-relativen Hover-Punkt")
 
+	# --- Regression: kein Lane-Wechsel während Pulse-Telegraph (Review-Fix H) ---
+	var boss2 := Boss.new()
+	boss2.configure(0)
+	world.add_child(boss2)
+	boss2.position = Vector2(boss2.lane_x_now(), -140.0)
+	boss2._physics_process(10.0)
+	var boss2_lane_before := boss2.lane
+	boss2._lane_switch_timer = 999.0
+	boss2.begin_lane_pulse()
+	boss2._update_combat_timers(0.1)
+	_check(boss2.lane == boss2_lane_before, "Telegraph blockiert Lane-Wechsel")
+	boss2._update_combat_timers(BossData.PULSE_TELEGRAPH + 0.01)
+	boss2._lane_switch_timer = 999.0
+	boss2._update_combat_timers(0.1)
+	_check(boss2.lane != boss2_lane_before, "Nach Telegraph wechselt der Boss wieder die Lane")
+	boss2.queue_free()
+
 	var game_scene := load("res://scenes/game/game.tscn") as PackedScene
 	var game := game_scene.instantiate() as Node2D
 	get_root().add_child(game)
@@ -83,6 +100,25 @@ func _init() -> void:
 	if spawned_boss:
 		spawned_boss.take_damage(BossData.BOSS_HP)
 	_check(completed[0] == 1 and waves.is_level_done, "Boss-Kill läuft über SpawnManager zu WaveManager und beendet das Level")
+
+	# --- Regression: keine Adds nach Boss-Tod (Review-Fix M) ---
+	var enemies_before_summon := 0
+	for child in world.get_children():
+		if child is Enemy:
+			enemies_before_summon += 1
+	spawner._spawn_boss_summons([1], EnemyArchetypeData.GRUNT, null)
+	var enemies_after_summon := 0
+	for child in world.get_children():
+		if child is Enemy:
+			enemies_after_summon += 1
+	_check(enemies_after_summon == enemies_before_summon, "Boss tot → Nachzügler-Summons unterdrückt (Guard)")
+	spawner._boss_alive = true
+	spawner._spawn_boss_summons([1], EnemyArchetypeData.GRUNT, null)
+	enemies_after_summon = 0
+	for child in world.get_children():
+		if child is Enemy:
+			enemies_after_summon += 1
+	_check(enemies_after_summon == enemies_before_summon + 1, "Boss lebt → Summons spawnt Adds")
 
 	if fails == 0:
 		print("BOSS TESTS: ALLE OK")
