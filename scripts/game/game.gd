@@ -2,12 +2,14 @@ extends Node2D
 ## Game-Szene: Wurzel und Verkabelung der getrennten Gameplay-Systeme.
 
 const ScoreFeedbackScript = preload("res://scripts/ui/score_feedback.gd")
+const ScreenShakeScript = preload("res://scripts/game/screen_shake.gd")
 
 @export var run_seed := -1  # -1 = echter Zufall; >=0 = reproduzierbarer QA-Lauf
 
 var game_manager: GameManager
 var player_stats: PlayerStats
 var player_health: PlayerHealth
+var screen_shake: Node
 var game_over_ui: GameOverUI
 var spawner: SpawnManager
 var wave_manager: WaveManager
@@ -45,11 +47,17 @@ func _ready() -> void:
 	add_child(player_stats)
 	player.weapon.stats = player_stats
 
+	# Die Szene hat keine Camera2D; deshalb bewegt der Shake kurz die Spielwurzel.
+	screen_shake = ScreenShakeScript.new()
+	screen_shake.name = "ScreenShake"
+	add_child(screen_shake)
+	screen_shake.setup(self)
+
 	# Spieler-HP-System
 	player_health = PlayerHealth.new()
 	player_health.name = "PlayerHealth"
 	add_child(player_health)
-	player_health.setup(game_manager)
+	player_health.setup(game_manager, screen_shake)
 
 	# Game Over UI (unsichtbar bis Tod)
 	game_over_ui = GameOverUI.new()
@@ -115,8 +123,11 @@ func _on_boss_spawned(boss: Boss) -> void:
 	boss.lane_pulse_fired.connect(_on_boss_lane_pulse)
 
 func _on_boss_lane_pulse(lane: int) -> void:
+	if not game_manager.is_running():
+		return
+	screen_shake.shake(5.0, 0.12)
 	var player := $Player as Player
-	if game_manager.is_running() and player.current_lane == lane:
+	if player.current_lane == lane:
 		player_health.take_hit(BossData.PULSE_DAMAGE)
 
 func _on_level_completed() -> void:

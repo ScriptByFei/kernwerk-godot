@@ -13,14 +13,16 @@ var _bar: ColorRect
 var _bar_bg: ColorRect
 var _game_over := false
 var _game_manager: GameManager
+var _screen_shake: Node
 
 func _ready() -> void:
 	layer = UiLayout.DAMAGE_LAYER
 	_build_ui()
 	get_viewport().size_changed.connect(_layout_ui)
 
-func setup(game_manager: GameManager) -> void:
+func setup(game_manager: GameManager, screen_shake: Node = null) -> void:
 	_game_manager = game_manager
+	_screen_shake = screen_shake
 	hp = game_manager.player_hp
 	max_hp = GameConfig.MAX_HEALTH
 	game_manager.player_health_changed.connect(_on_health_changed)
@@ -62,7 +64,10 @@ func iframes_hard_clear() -> void:
 func take_hit(dmg: int) -> bool:
 	if _game_manager == null or _game_over:
 		return false
-	return _game_manager.damage_player(dmg)
+	var took_damage := _game_manager.damage_player(dmg)
+	if took_damage and _game_manager.player_hp > 0 and _screen_shake:
+		_screen_shake.shake(8.0, 0.18)
+	return took_damage
 
 func _on_health_changed(new_hp: int, new_max_hp: int) -> void:
 	hp = new_hp
