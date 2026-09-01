@@ -1,6 +1,8 @@
 extends Node2D
 ## Game-Szene: Wurzel und Verkabelung der getrennten Gameplay-Systeme.
 
+const ScoreFeedbackScript = preload("res://scripts/ui/score_feedback.gd")
+
 @export var run_seed := -1  # -1 = echter Zufall; >=0 = reproduzierbarer QA-Lauf
 
 var game_manager: GameManager
@@ -10,6 +12,7 @@ var game_over_ui: GameOverUI
 var spawner: SpawnManager
 var wave_manager: WaveManager
 var feedback: UpgradeFeedback
+var score_feedback
 var hud: Hud
 var level_complete_ui: LevelCompleteUI
 var pause_ui: PauseUI
@@ -69,6 +72,9 @@ func _ready() -> void:
 	feedback = UpgradeFeedback.new()
 	feedback.name = "UpgradeFeedback"
 	add_child(feedback)
+	score_feedback = ScoreFeedbackScript.new()
+	score_feedback.name = "ScoreFeedback"
+	add_child(score_feedback)
 	# HUD (Score/Kills oben, Werte unten)
 	hud = Hud.new()
 	hud.name = "Hud"
@@ -124,6 +130,7 @@ func _on_player_died() -> void:
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	game_manager.add_kill(enemy.score_reward)
+	score_feedback.popup_for(enemy)
 
 func _on_upgrade_collected(u: UpgradeObject) -> void:
 	player_stats.apply_upgrade(u.upgrade_type)
