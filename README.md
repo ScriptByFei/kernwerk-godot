@@ -134,6 +134,6 @@ Es gibt nur noch diesen CI-Deployweg. Die GitHub-Pages-Quelle bleibt auf `gh-pag
 
 ## Offene Punkte
 
-- **iPhone-Boss-Playtest** — Sound-Unlock ✅ verifiziert (01.09.), Look ✅ abgenommen; offen ist nur noch die Boss-Kurve (Pulse-Ausweichen, Phase-2-Tempo) — Balancing dann via `boss_data.gd`
+- **Boss-Kurve v2 deployed (01.09.)** — Playtest-Feedback: Telegraph 0.8→1.2s (mehr Reaktionszeit), Phase 2: Pulse 2.6→2.0s + Lane-Wechsel 2.8→2.4s (echter Druck). **Nächster iPhone-Playtest: spielt sich Phase 2 jetzt richtig an?** Tuning via `boss_data.gd`
 - Object Pooling für Bullets (aktuell ~15-20 Nodes/Run — noch kein Flaschenhals bei 60 FPS)
 - Optional: Minimax-Kredit aufladen für eigene KI-Sprites (Katalog hat kein Bildmodell, Direkt-API ohne Guthaben)
