@@ -15,6 +15,10 @@ var _flash_rect: Polygon2D
 var _hp_label: Label
 var _wobble_tween: Tween
 
+const DETAIL_LIGHT := Color(1.0, 0.92, 0.9, 0.72)
+const TANK_ARMOR_COLOR := Color(0.92, 0.42, 0.30, 0.9)
+const BOSS_CORE_COLOR := Color(0.82, 0.56, 0.92, 0.78)
+
 func _ready() -> void:
 	super._ready()
 	add_to_group("enemies")
@@ -37,7 +41,7 @@ func _build_visual() -> void:
 	body.color = definition["color"]
 	match enemy_type:
 		EnemyArchetypeData.RUNNER:
-			# Raute = schnell und leicht.
+			# Raute mit seitlichen Flügeln = schnell und leicht.
 			body.polygon = PackedVector2Array([Vector2(0, -67), Vector2(48, 0), Vector2(0, 67), Vector2(-48, 0)])
 		EnemyArchetypeData.TANK:
 			# Breiter Block = langsam und widerstandsfähig.
@@ -45,14 +49,28 @@ func _build_visual() -> void:
 		EnemyArchetypeData.BOSS:
 			body.polygon = PackedVector2Array([Vector2(-55, -85), Vector2(55, -85), Vector2(85, -55), Vector2(85, 55), Vector2(55, 85), Vector2(-55, 85), Vector2(-85, 55), Vector2(-85, -55)])
 		_:
-			body.polygon = PackedVector2Array([Vector2(-55, -55), Vector2(55, -55), Vector2(55, 55), Vector2(-55, 55)])
+			# Die abgeschnittene Ecke macht den Standardgegner weniger generisch.
+			body.polygon = PackedVector2Array([Vector2(-38, -55), Vector2(55, -55), Vector2(55, 55), Vector2(-55, 55), Vector2(-55, -38)])
 	add_child(body)
-	if enemy_type == EnemyArchetypeData.TANK:
-		var armor := Polygon2D.new()
-		armor.color = Color(0.92, 0.42, 0.30, 0.9)
-		armor.polygon = PackedVector2Array([Vector2(-58, -9), Vector2(58, -9), Vector2(58, 9), Vector2(-58, 9)])
-		add_child(armor)
+	match enemy_type:
+		EnemyArchetypeData.GRUNT:
+			_add_detail(PackedVector2Array([Vector2(14, -18), Vector2(24, -18), Vector2(24, -8), Vector2(14, -8)]), DETAIL_LIGHT)
+		EnemyArchetypeData.RUNNER:
+			_add_detail(PackedVector2Array([Vector2(-43, -18), Vector2(-67, 0), Vector2(-43, 18)]), DETAIL_LIGHT)
+			_add_detail(PackedVector2Array([Vector2(43, -18), Vector2(67, 0), Vector2(43, 18)]), DETAIL_LIGHT)
+		EnemyArchetypeData.TANK:
+			_add_detail(PackedVector2Array([Vector2(-58, -9), Vector2(58, -9), Vector2(58, 9), Vector2(-58, 9)]), TANK_ARMOR_COLOR)
+			for corner in [Vector2(-61, -36), Vector2(61, -36), Vector2(-61, 36), Vector2(61, 36)]:
+				_add_detail(PackedVector2Array([corner + Vector2(-6, -6), corner + Vector2(6, -6), corner + Vector2(6, 6), corner + Vector2(-6, 6)]), DETAIL_LIGHT)
+		EnemyArchetypeData.BOSS:
+			_add_detail(PackedVector2Array([Vector2(-19, -30), Vector2(19, -30), Vector2(30, -19), Vector2(30, 19), Vector2(19, 30), Vector2(-19, 30), Vector2(-30, 19), Vector2(-30, -19)]), BOSS_CORE_COLOR)
 	build_label()
+
+func _add_detail(points: PackedVector2Array, detail_color: Color) -> void:
+	var detail := Polygon2D.new()
+	detail.polygon = points
+	detail.color = detail_color
+	add_child(detail)
 
 func build_label() -> void:
 	# HP-Label über dem Kopf — nil-safe (Headless-Tests ohne Rendering)

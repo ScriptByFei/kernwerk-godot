@@ -10,6 +10,8 @@ var upgrade_type := "damage"    # "damage" | "firerate" | "soldier"
 # sich so deutlich einsammelbarer an, ohne dass der Spieler pixelgenau zielen muss.
 const HITBOX_HALF_W := 100.0
 const HITBOX_HALF_H := 90.0
+const UPGRADE_GREEN := Color(0.2, 0.8, 0.4)
+const GLOW_GREEN := Color(0.2, 0.8, 0.4, 0.35)
 
 func configure_upgrade(p_lane: int, p_type: String, speed: float) -> void:
 	setup_lane(p_lane)
@@ -19,8 +21,13 @@ func configure_upgrade(p_lane: int, p_type: String, speed: float) -> void:
 	_build_visual()
 
 func _build_visual() -> void:
+	# Das halbtransparente Außenquadrat bleibt als feiner Glow um den unveränderten Träger sichtbar.
+	var glow := Polygon2D.new()
+	glow.color = GLOW_GREEN
+	glow.polygon = PackedVector2Array([Vector2(-62, -62), Vector2(62, -62), Vector2(62, 62), Vector2(-62, 62)])
+	add_child(glow)
 	var body := Polygon2D.new()
-	body.color = Color(0.2, 0.8, 0.4)
+	body.color = UPGRADE_GREEN
 	body.polygon = PackedVector2Array([Vector2(-55, -55), Vector2(55, -55), Vector2(55, 55), Vector2(-55, 55)])
 	add_child(body)
 	var label := Label.new()

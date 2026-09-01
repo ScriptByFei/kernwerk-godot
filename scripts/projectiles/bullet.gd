@@ -7,12 +7,14 @@ var damage := GameConfig.DAMAGE
 var speed := GameConfig.BULLET_SPEED
 var _mark_for_free := false
 
+const BULLET_COLOR := Color(1.0, 0.94, 0.62, 0.94)
+
 func _ready() -> void:
-	# Kleines Rechteck als MVP-Platzhalter
-	var rect := Polygon2D.new()
-	rect.polygon = PackedVector2Array([Vector2(-8, -18), Vector2(8, -18), Vector2(8, 18), Vector2(-8, 18)])
-	rect.color = Color(1.0, 0.92, 0.35)
-	add_child(rect)
+	# Spitze nach oben: die Flugrichtung bleibt auch in Bewegung lesbar.
+	var tip := Polygon2D.new()
+	tip.polygon = PackedVector2Array([Vector2(0, -18), Vector2(9, 4), Vector2(0, 18), Vector2(-9, 4)])
+	tip.color = BULLET_COLOR
+	add_child(tip)
 
 func _physics_process(delta: float) -> void:
 	position.y -= speed * delta
