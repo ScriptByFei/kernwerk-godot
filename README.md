@@ -24,8 +24,8 @@ Ein Soldat unten, drei Spuren, die Waffe feuert automatisch — der Spieler ents
 | — | **Balancing-Pass:** Fire Rate 4→1.2/s, Rate-Upgrade linear +0.1, Upgrade-Hitbox ±100px | ✅ |
 | S1 | **Stabilitätsfundament:** Pause/Focus-Lifecycle, Safe-Area-HUD, Modal-Schichtung, seedbare Spawns | ✅ |
 | S2 | **Lane-Entscheidungen:** faire Drei-Spur-Muster, 0.6-s-Telegraph, Grunt/Runner/Tank, Rollen-Score | ✅ |
-| 7 | Boss-Verhalten (Angriffsmuster, Lane-Wechsel, Beschwörungen — Boss bisher nur 600 HP Block) | **nächste** |
-| 8 | Polish (Partikel, Sounds, Screen Shake, bessere Sprites, Score-Popups) | offen |
+| 7 | Boss-Verhalten (2-Phasen-Kampf: Hover, Lane-Pulse mit Telegraph, Beschwörungen, Lane-Weaving, BossData-Tuning) | ✅ |
+| 8 | Polish (Partikel, Sounds, Screen Shake, bessere Sprites, Score-Popups) | **nächste** |
 
 **Housekeeping (01.09.2026):** Versehentlich im Projekt-Root eingecheckte Web-Export-Artefakte (`index.html/js/wasm/pck`, Spike-Screenshots) entfernt + `.gitignore` verschärft — nur noch `build/web/` darf Build-Output enthalten. Kein Verhaltensunterschied im Deployment (`deploy-pages.sh` liest ohnehin nur aus `build/web/`).
 
@@ -41,7 +41,8 @@ Old TS-version als Referenz archiviert: `~/projects/kernwerk` (separate codebase
 - **Drei Gegnerrollen:** Grunt = Standard (10 Punkte), Runner = schnell/leicht (15), Tank = langsam/zäh (20); Runner ab Welle 2, Tank ab Welle 3
 - **Upgrade-Pfad:** grüne Träger (22–35 % Spawn-Chance) abschießen → `+15 DMG` / `+0.1 RATE` / `+1 SOLDIER` (Soldiers = echte Additional-Bullets ±90px-Formation)
 - **HP 100**, Gegner erreicht 82%-Höhe → 10 Schaden, 0.8 s i-frames, rote Vignette sanft
-- **Level = 6 Wellen ≈ 119 s**, Welle 6 spawnt Boss (600 HP), danach Level Complete (Continue/Retry)
+- **Level = 6 Wellen ≈ 120 s**, Welle 6 = Boss-Kampf: Boss hält bei 22 % Höhe, Pulse-Angriff (0.8 s Telegraph) trifft nur in seiner Lane, Lane-Weaving, Beschwörungen (Grunt/Runner), Phase 2 ab 50 % HP, danach Level Complete
+- **Boss-Tuning:** alle Zahlen in `scripts/boss/boss_data.gd` (HP 500, Pulse-Intervalle, Summons, Lane-Switch) — Tune hier!
 
 ## Architektur
 
@@ -71,6 +72,9 @@ scripts/
     spawn_pattern_data.gd     # freigeschaltete, validierbare Drei-Lane-Muster
     wave_manager.gd           # Phasen-Driver, liest WaveData, Wellen-Ende + Boss
     wave_data.gd              # ALLE Wellen- + Balancing-Konstanten (Tune hier!)
+  boss/
+    boss.gd                   # 2-Phasen-Boss: Hover, Lane-Pulse, Summons, Weaving
+    boss_data.gd              # ALLE Boss-Tuning-Konstanten (HP, Pulse, Summons)
   ui/
     hud.gd, spawn_telegraph.gd, game_over_ui.gd, level_complete_ui.gd, upgrade_feedback.gd
 tests/phase{1..6}_test.gd + layout/bugfix/flight/stabilization/foundation/pattern suites
