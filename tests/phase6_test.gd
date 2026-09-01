@@ -63,7 +63,7 @@ func _init() -> void:
 			boss = c
 	_check(boss != null, "Boss-Instanz vorhanden")
 	if boss:
-		boss.take_damage(WaveData.BOSS_HP)
+		boss.take_damage(BossData.BOSS_HP)
 	_check(wm.is_level_done and complete_fired[0] == 1, "Boss-Kill beendet Level genau 1×")
 
 	# --- SpawnParams wirken: hp_factor skaliert Gegner-HP ---
@@ -78,7 +78,7 @@ func _init() -> void:
 	# --- Balancing-Konstanten konsistent ---
 	_check(WaveData.DMG_UPGRADE == 15, "Damage-Upgrade +15 (Balancing-Pass)")
 	_check(WaveData.RATE_UPGRADE == 0.1, "Rate-Upgrade +0.1 (Balancing)")
-	_check(WaveData.BOSS_HP == 600, "Boss-HP 600")
+	_check(BossData.BOSS_HP == 500, "Boss-HP 500")
 
 	# --- UpgradeObject + WaveData-Typen deckungsgleich ---
 	var u := UpgradeObject.new()

@@ -81,6 +81,7 @@ func _ready() -> void:
 	add_child(spawner)
 	spawner.setup(self, run_seed)
 	spawner.enemy_reached_player.connect(_on_enemy_reached_player)
+	spawner.boss_spawned.connect(_on_boss_spawned)
 
 	# Phase 6: Wellen steuern Spawnparameter + Levelende
 	wave_manager = WaveManager.new()
@@ -102,8 +103,15 @@ func _physics_process(_delta: float) -> void:
 func _on_enemy_reached_player(enemy: Enemy) -> void:
 	if not game_manager.is_running():
 		return
-	var damage := GameConfig.MAX_HEALTH if enemy.is_boss else GameConfig.ENEMY_DAMAGE
-	player_health.take_hit(damage)
+	player_health.take_hit(GameConfig.ENEMY_DAMAGE)
+
+func _on_boss_spawned(boss: Boss) -> void:
+	boss.lane_pulse_fired.connect(_on_boss_lane_pulse)
+
+func _on_boss_lane_pulse(lane: int) -> void:
+	var player := $Player as Player
+	if game_manager.is_running() and player.current_lane == lane:
+		player_health.take_hit(BossData.PULSE_DAMAGE)
 
 func _on_level_completed() -> void:
 	if not game_manager.is_running():

@@ -6,7 +6,7 @@ extends Node
 signal enemy_spawned(enemy: Enemy)
 signal upgrade_spawned(upgrade: UpgradeObject)
 signal upgrade_collected_from_world(upgrade: UpgradeObject)  # Game hookt Effekt + Feedback
-signal boss_spawned(boss: Enemy)
+signal boss_spawned(boss: Boss)
 signal enemy_killed_from_world(enemy: Enemy)
 signal boss_defeated(boss: Enemy)
 signal enemy_reached_player(enemy: Enemy)
@@ -72,15 +72,35 @@ func set_spawning_enabled(enabled: bool) -> void:
 		_clear_pending_pattern()
 
 func spawn_boss() -> void:
-	# Phase 6 MVP-Boss: viel HP, langsam, Spawn oben in zufälliger Lane
-	var boss := Enemy.new()
+	var boss := Boss.new()
 	var lane := _roll_lane()
-	boss.configure(lane, int(WaveData.BOSS_HP), WaveData.BOSS_SPEED, true, EnemyArchetypeData.BOSS)
+	boss.configure(lane)
 	_world.add_child(boss)
 	boss.position = Vector2(boss.lane_x_now(), -140.0)
 	boss.reached_bottom.connect(_on_enemy_reached_bottom)
 	boss.enemy_killed.connect(_on_enemy_killed)
+	boss.summon_requested.connect(_on_boss_summon_requested)
 	boss_spawned.emit(boss)
+
+func _on_boss_summon_requested(summon_lanes: Array, enemy_type: String) -> void:
+	if _world == null:
+		return
+	var telegraph := SpawnTelegraph.new()
+	telegraph.name = "BossSummonTelegraph"
+	_world.add_child(telegraph)
+	var slots := [SpawnPatternData.EMPTY, SpawnPatternData.EMPTY, SpawnPatternData.EMPTY]
+	for summon_lane in summon_lanes:
+		slots[clampi(int(summon_lane), 0, GameConfig.LANE_COUNT - 1)] = enemy_type
+	telegraph.configure(slots)
+	get_tree().create_timer(TELEGRAPH_DURATION).timeout.connect(_spawn_boss_summons.bind(summon_lanes.duplicate(), enemy_type, telegraph))
+
+func _spawn_boss_summons(summon_lanes: Array, enemy_type: String, telegraph: SpawnTelegraph) -> void:
+	if is_instance_valid(telegraph):
+		telegraph.queue_free()
+	if _world == null:
+		return
+	for summon_lane in summon_lanes:
+		_spawn_enemy(int(summon_lane), enemy_type)
 
 func _spawn_enemy(lane_override: int = -1, p_enemy_type: String = EnemyArchetypeData.GRUNT) -> void:
 	var enemy := Enemy.new()
