@@ -1,22 +1,23 @@
 class_name PlayerHealth
-extends Node2D
-## Spieler-HP-Visualisierung: dezente Leiste unten + rote Vignette bei Schaden.
-## GameManager ist die einzige Quelle für HP, i-Frames und Game-Over-Zustand.
+extends CanvasLayer
+## Spieler-HP-Visualisierung: sichere Leiste unten + Vignette bei Schaden.
+## GameManager bleibt die einzige Quelle für HP, i-Frames und Game Over.
 
 signal player_died
 
 var hp := GameConfig.MAX_HEALTH
 var max_hp := GameConfig.MAX_HEALTH
+var _root: Control
 var _vignette: ColorRect
 var _bar: ColorRect
 var _bar_bg: ColorRect
 var _game_over := false
 var _game_manager: GameManager
-var _last_viewport_size := Vector2.ZERO
 
 func _ready() -> void:
+	layer = UiLayout.DAMAGE_LAYER
 	_build_ui()
-	_last_viewport_size = get_viewport_rect().size
+	get_viewport().size_changed.connect(_layout_ui)
 
 func setup(game_manager: GameManager) -> void:
 	_game_manager = game_manager
@@ -27,30 +28,26 @@ func setup(game_manager: GameManager) -> void:
 	_update_bar()
 
 func _build_ui() -> void:
-	var vp := get_viewport_rect().size
-	# Vignette: full-screen rot, unsichtbar, blendet bei Schaden kurz auf
+	_root = Control.new()
+	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_root)
+
 	_vignette = ColorRect.new()
 	_vignette.color = Color(0.8, 0.1, 0.1, 0.0)
-	_vignette.size = vp
+	_vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_vignette)
-	# HP-Leiste unten (dezente Kapsel)
+	_root.add_child(_vignette)
+
 	_bar_bg = ColorRect.new()
-	_bar_bg.color = Color(1, 1, 1, 0.12)
-	_bar_bg.position = Vector2(vp.x * 0.2, vp.y * 0.955)
-	_bar_bg.size = Vector2(vp.x * 0.6, 14)
-	add_child(_bar_bg)
+	_bar_bg.color = Color(1, 1, 1, 0.14)
+	_bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_bar_bg)
 	_bar = ColorRect.new()
 	_bar.color = Color(0.3, 0.85, 0.45)
-	_bar.position = _bar_bg.position + Vector2(2, 2)
-	_bar.size = Vector2(_bar_bg.size.x - 4, _bar_bg.size.y - 4)
-	add_child(_bar)
-
-func _process(_delta: float) -> void:
-	var viewport_size := get_viewport_rect().size
-	if viewport_size != _last_viewport_size:
-		_last_viewport_size = viewport_size
-		_layout_ui()
+	_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_bar)
+	_layout_ui()
 
 func reset() -> void:
 	_game_over = false
@@ -73,8 +70,8 @@ func _on_health_changed(new_hp: int, new_max_hp: int) -> void:
 	_update_bar()
 	if _vignette:
 		_vignette.color = Color(0.8, 0.1, 0.1, 0.35)
-		var t := create_tween()
-		t.tween_property(_vignette, "color:a", 0.0, 0.45)
+		var tween := create_tween()
+		tween.tween_property(_vignette, "color:a", 0.0, 0.45)
 
 func _on_game_over() -> void:
 	_game_over = true
@@ -82,18 +79,18 @@ func _on_game_over() -> void:
 
 func _update_bar() -> void:
 	if _bar and _bar_bg:
-		_bar.size.x = (_bar_bg.size.x - 4) * float(hp) / float(max_hp)
+		var ratio := clampf(float(hp) / float(maxi(max_hp, 1)), 0.0, 1.0)
+		_bar.size.x = (_bar_bg.size.x - 6.0) * ratio
 
 func _layout_ui() -> void:
 	if not _bar_bg:
 		return
-	var vp := get_viewport_rect().size
-	_vignette.size = vp
-	_bar_bg.position = Vector2(vp.x * 0.2, vp.y * 0.955)
-	_bar_bg.size = Vector2(vp.x * 0.6, 14)
-	_bar.position = _bar_bg.position + Vector2(2, 2)
+	var rect := UiLayout.content_rect(get_viewport().get_visible_rect().size)
+	var width := minf(rect.size.x * 0.62, 650.0)
+	var x := rect.position.x + (rect.size.x - width) * 0.5
+	var y := rect.end.y - 28.0
+	_bar_bg.position = Vector2(x, y)
+	_bar_bg.size = Vector2(width, 20)
+	_bar.position = _bar_bg.position + Vector2(3, 3)
+	_bar.size.y = 14
 	_update_bar()
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_SIZE_CHANGED and _bar_bg:
-		_layout_ui()

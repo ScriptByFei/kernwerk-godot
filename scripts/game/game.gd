@@ -1,8 +1,7 @@
 extends Node2D
-## Game-Szene: Wurzel. Phase 5 — Bewegung + Auto-Fire + Gegner + Treffer + HP + Game Over + Upgrades.
+## Game-Szene: Wurzel und Verkabelung der getrennten Gameplay-Systeme.
 
-const ENEMY_DAMAGE := 10       # Schaden pro durchgekommenem Gegner
-const ENEMY_REACH_Y_RATIO := 0.82  # Gegner-Unterkante ab hier = "erreicht Spieler"
+@export var run_seed := -1  # -1 = echter Zufall; >=0 = reproduzierbarer QA-Lauf
 
 var game_manager: GameManager
 var player_stats: PlayerStats
@@ -13,6 +12,8 @@ var wave_manager: WaveManager
 var feedback: UpgradeFeedback
 var hud: Hud
 var level_complete_ui: LevelCompleteUI
+var pause_ui: PauseUI
+var _paused_by_focus := false
 
 func _ready() -> void:
 	# Hintergrund dynamisch: überdeckt IMMER den ganzen Viewport (kein fixed 1080x1920)
@@ -33,6 +34,7 @@ func _ready() -> void:
 	game_manager.name = "GameManager"
 	add_child(game_manager)
 	game_manager.game_over.connect(_on_player_died)
+	game_manager.state_changed.connect(_on_state_changed)
 
 	# Spieler-Stats (Phase 5) — WeaponController liest daraus
 	player_stats = PlayerStats.new()
@@ -58,6 +60,10 @@ func _ready() -> void:
 	add_child(level_complete_ui)
 	level_complete_ui.continue_pressed.connect(_restart)  # MVP: Continue = neue Runde
 	level_complete_ui.retry_pressed.connect(_restart)
+	# Pause liegt unter Ergebnis-Modals, aber über HUD und Spielwelt.
+	pause_ui = PauseUI.new()
+	pause_ui.name = "PauseUI"
+	add_child(pause_ui)
 
 	# Upgrade-Feedback (aufsteigender Text über dem Spieler)
 	feedback = UpgradeFeedback.new()
@@ -73,7 +79,8 @@ func _ready() -> void:
 	spawner = SpawnManager.new()
 	spawner.name = "SpawnManager"
 	add_child(spawner)
-	spawner.setup(self)
+	spawner.setup(self, run_seed)
+	spawner.enemy_reached_player.connect(_on_enemy_reached_player)
 
 	# Phase 6: Wellen steuern Spawnparameter + Levelende
 	wave_manager = WaveManager.new()
@@ -83,33 +90,29 @@ func _ready() -> void:
 	wave_manager.level_completed.connect(_on_level_completed)
 	spawner.upgrade_collected_from_world.connect(_on_upgrade_collected)  # Phase-5-Kette (WaveManager-Refactor)
 	spawner.enemy_killed_from_world.connect(_on_enemy_killed)
+	hud.attach_wave_manager(wave_manager)
+	game_manager.start_run()  # Startscreen folgt später; bis dahin sofortiger Start.
 	wave_manager.start_level()
 
 func _physics_process(_delta: float) -> void:
 	if not game_manager.is_running():
 		return
 	HitDetection.process_hits(_collect_bullets(), get_tree().get_nodes_in_group("enemies"), get_tree().get_nodes_in_group("upgrades"))
-	_check_enemy_reach()
 
-func _check_enemy_reach() -> void:
-	var reach_y := get_viewport_rect().size.y * 0.82
-	for e in get_tree().get_nodes_in_group("enemies"):
-		if e is Enemy and e.global_position.y >= reach_y:
-			var damage := GameConfig.MAX_HEALTH if e.is_boss else ENEMY_DAMAGE
-			player_health.take_hit(damage)
-			e.set_physics_process(false)
-			e.queue_free()
+func _on_enemy_reached_player(enemy: Enemy) -> void:
+	if not game_manager.is_running():
+		return
+	var damage := GameConfig.MAX_HEALTH if enemy.is_boss else GameConfig.ENEMY_DAMAGE
+	player_health.take_hit(damage)
 
 func _on_level_completed() -> void:
 	if not game_manager.is_running():
 		return
 	game_manager.complete_level()
 	level_complete_ui.show_stats(game_manager.score, game_manager.kills)
-	_set_gameplay_active(false)
 
 func _on_player_died() -> void:
 	game_over_ui.show_stats(game_manager.score, game_manager.kills)
-	_set_gameplay_active(false)
 
 func _on_enemy_killed(_enemy: Enemy) -> void:
 	game_manager.add_kill()
@@ -121,8 +124,24 @@ func _on_upgrade_collected(u: UpgradeObject) -> void:
 func _restart() -> void:
 	get_tree().reload_current_scene()
 
-func _set_gameplay_active(active: bool) -> void:
-	spawner.set_spawning_enabled(active)
+func _on_state_changed(new_state: int) -> void:
+	match new_state:
+		GameManager.State.RUNNING:
+			_set_gameplay_processing(true)
+		GameManager.State.PAUSED:
+			# Nur Verarbeitung anhalten: der vorherige Spawner-Zustand bleibt
+			# erhalten (wichtig in der Boss-Wartephase).
+			_set_gameplay_processing(false)
+		_:
+			if spawner:
+				spawner.set_spawning_enabled(false)
+			_set_gameplay_processing(false)
+	if pause_ui:
+		pause_ui.show_paused(new_state == GameManager.State.PAUSED)
+
+func _set_gameplay_processing(active: bool) -> void:
+	if spawner == null or wave_manager == null:
+		return
 	spawner.set_physics_process(active)
 	wave_manager.set_physics_process(active)
 	var player := $Player as Player
@@ -149,8 +168,26 @@ func _layout_bg() -> void:
 		bg.size = get_viewport_rect().size
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_SIZE_CHANGED and is_inside_tree():
-		_layout_bg()
+	match what:
+		NOTIFICATION_WM_SIZE_CHANGED:
+			if is_inside_tree():
+				_layout_bg()
+		NOTIFICATION_APPLICATION_FOCUS_OUT:
+			if game_manager and game_manager.is_running():
+				_paused_by_focus = game_manager.pause_run()
+		NOTIFICATION_APPLICATION_FOCUS_IN:
+			if _paused_by_focus and game_manager and game_manager.is_paused():
+				_paused_by_focus = false
+				game_manager.resume_run()
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		if game_manager.is_running():
+			_paused_by_focus = false
+			game_manager.pause_run()
+		elif game_manager.is_paused() and not _paused_by_focus:
+			game_manager.resume_run()
+		get_viewport().set_input_as_handled()
 
 func _on_lane_changed(lane: int) -> void:
 	print("[Game] lane=%d" % lane)

@@ -14,6 +14,14 @@ const SPREAD := 0.0
 
 # Spieler
 const MAX_HEALTH := 100
+const ENEMY_DAMAGE := 10
+const ENEMY_REACH_Y_RATIO := 0.82
+
+# UI-Sicherheitsabstand in Design-Pixeln. Echte Geräte-Safe-Areas werden
+# zusätzlich berücksichtigt; diese Werte sind das Mindestpolster.
+const UI_SAFE_SIDE := 48.0
+const UI_SAFE_TOP := 64.0
+const UI_SAFE_BOTTOM := 64.0
 
 # --- Viewport-relative Layout-Helfer ---
 # Lanes sitzen bei 25% / 50% / 75% der BREITE — funktioniert auf jedem Aspect Ratio

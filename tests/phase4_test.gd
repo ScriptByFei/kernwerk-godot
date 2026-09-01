@@ -18,6 +18,8 @@ func _init() -> void:
 	# --- GameManager Basis ---
 	var gm := GameManager.new()
 	world.add_child(gm)
+	_check(gm.state == GameManager.State.START, "Initialzustand START")
+	gm.start_run()
 	_check(gm.is_running(), "Start-Zustand RUNNING")
 	_check(gm.score == 0 and gm.kills == 0, "Score/Kills starten bei 0")
 

@@ -91,3 +91,8 @@ func _die() -> void:
 	t.tween_property(self, "modulate:a", 0.0, 0.18)
 	t.chain().tween_callback(queue_free)
 	enemy_killed.emit(self)
+
+func _reach_y() -> float:
+	# Gegner melden genau an der Spielerlinie, nicht erst unter dem Viewport.
+	# LaneObject garantiert dabei das einmalige Signal und die Entfernung.
+	return get_viewport_rect().size.y * GameConfig.ENEMY_REACH_Y_RATIO

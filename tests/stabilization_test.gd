@@ -18,6 +18,7 @@ func _init() -> void:
 	# GameManager ist die einzige HP-Quelle; PlayerHealth spiegelt nur Darstellung.
 	var gm := GameManager.new()
 	world.add_child(gm)
+	gm.start_run()
 	var ph := PlayerHealth.new()
 	world.add_child(ph)
 	ph.setup(gm)

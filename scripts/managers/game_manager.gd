@@ -9,12 +9,14 @@ signal player_health_changed(hp: int, max_hp: int)
 signal game_over
 signal level_completed
 signal game_restarted
+signal state_changed(new_state: int)
+signal pause_changed(paused: bool)
 
-enum State { RUNNING, GAME_OVER, LEVEL_COMPLETE }
+enum State { START, RUNNING, PAUSED, GAME_OVER, LEVEL_COMPLETE }
 
 const IFRAMES_SEC := 0.8
 
-var state: int = State.RUNNING
+var state: int = State.START
 var score := 0
 var kills := 0
 var player_hp := GameConfig.MAX_HEALTH
@@ -28,7 +30,10 @@ func _ready() -> void:
 	add_to_group("game_manager")
 
 func reset() -> void:
-	state = State.RUNNING
+	var was_paused := state == State.PAUSED
+	_set_state(State.RUNNING)
+	if was_paused:
+		pause_changed.emit(false)
 	score = 0
 	kills = 0
 	player_hp = _max_health
@@ -57,15 +62,33 @@ func damage_player(dmg: int) -> bool:
 	_iframes = IFRAMES_SEC
 	player_health_changed.emit(player_hp, _max_health)
 	if player_hp <= 0:
-		state = State.GAME_OVER
+		_set_state(State.GAME_OVER)
 		game_over.emit()
 	return true
 
 func complete_level() -> void:
 	if state != State.RUNNING:
 		return
-	state = State.LEVEL_COMPLETE
+	_set_state(State.LEVEL_COMPLETE)
 	level_completed.emit()
+
+func start_run() -> void:
+	if state == State.START:
+		_set_state(State.RUNNING)
+
+func pause_run() -> bool:
+	if state != State.RUNNING:
+		return false
+	_set_state(State.PAUSED)
+	pause_changed.emit(true)
+	return true
+
+func resume_run() -> bool:
+	if state != State.PAUSED:
+		return false
+	_set_state(State.RUNNING)
+	pause_changed.emit(false)
+	return true
 
 func clear_iframes() -> void:
 	_iframes = 0.0
@@ -76,3 +99,12 @@ func _physics_process(delta: float) -> void:
 
 func is_running() -> bool:
 	return state == State.RUNNING
+
+func is_paused() -> bool:
+	return state == State.PAUSED
+
+func _set_state(new_state: int) -> void:
+	if state == new_state:
+		return
+	state = new_state
+	state_changed.emit(state)

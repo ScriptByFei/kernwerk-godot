@@ -22,6 +22,7 @@ Ein Soldat unten, drei Spuren, die Waffe feuert automatisch — der Spieler ents
 | 5 | Upgrades (Damage +15 / Fire Rate +0.1 / Soldier +1) + HUD + Popup-Feedback | ✅ |
 | 6 | WaveManager (6 datengetriebene Wellen, Level ~119s, Boss-Flag, Difficulty-Kurve) | ✅ |
 | — | **Balancing-Pass:** Fire Rate 4→1.2/s, Rate-Upgrade linear +0.1, Upgrade-Hitbox ±100px | ✅ |
+| S1 | **Stabilitätsfundament:** Pause/Focus-Lifecycle, Safe-Area-HUD, Modal-Schichtung, seedbare Spawns | ✅ |
 | 7 | Boss-Verhalten (Angriffsmuster, Lane-Wechsel, Beschwörungen — Boss bisher nur 600 HP Block) | **nächste** |
 | 8 | Polish (Partikel, Sounds, Screen Shake, bessere Sprites, Score-Popups) | offen |
 
@@ -75,7 +76,9 @@ tests/phase{1..6}_test.gd + layout/bugfix/flight/stabilization suites
 godot4 --headless --path . -s tests/<suite>_test.gd
 ```
 
-Suites: `phase1..6`, `layout`, `phase2_bugfix`, `phase2_flight`, `stabilization`. CI wertet zusätzlich Godot-Fehlerzeilen aus, weil Godot bei manchen Scriptfehlern trotzdem Exitcode 0 liefert.
+Suites: `phase1..6`, `layout`, `phase2_bugfix`, `phase2_flight`, `stabilization`, `foundation`. CI wertet zusätzlich Godot-Fehlerzeilen aus, weil Godot bei manchen Scriptfehlern trotzdem Exitcode 0 liefert.
+
+`foundation` sichert den neuen Stabilitätsunterbau ab: explizite Pause-/Resume-Zustände, Safe-Area-Berechnung, UI-Canvas-Ebenen, einmalige Gegnerankunft und reproduzierbare Spawnfolgen per Seed.
 
 **Playbook — Bugs, die wir bereits einmal hatten (nicht wiederholen):**
 1. Bullets spawn always with `world.add_child()` + `global_position = …` AFTER `add_child` (never as Player child — double-offset → bullets below screen)
@@ -94,7 +97,7 @@ Suites: `phase1..6`, `layout`, `phase2_bugfix`, `phase2_flight`, `stabilization`
 
 Es gibt nur noch diesen CI-Deployweg. Die GitHub-Pages-Quelle bleibt auf `gh-pages / (root)`; lokale Deploy-Skripte und der konkurrierende Actions-Pages-Deploy wurden entfernt.
 
-**Lokal:** `godot4 --headless --export-release Web build/web/index.html` + `python3 -m http.server 8080 --directory build/web` + `tailscale serve --bg 8080`.
+**Lokal:** `mkdir -p build/web` + `godot4 --headless --export-release Web build/web/index.html` + `python3 -m http.server 8080 --directory build/web` + `tailscale serve --bg 8080`.
 
 **CI** (`.github/workflows/deploy.yml`): lädt Godot 4.6.3 für Tests, führt jede Suite einzeln mit Timeout aus, startet die Main Scene headless, exportiert anschließend mit `firebelley/godot-export@v8.0.0` und veröffentlicht ausschließlich nach `gh-pages`.
 
