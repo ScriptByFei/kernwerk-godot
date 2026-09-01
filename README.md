@@ -132,9 +132,8 @@ Es gibt nur noch diesen CI-Deployweg. Die GitHub-Pages-Quelle bleibt auf `gh-pag
 - Performance: single-threaded WASM, 9,5 MB gezippt, kein COOP/COEP
 - Ein Feature auf einmal — erst stabil, dann das nächste
 
-## Offene Punkte (Phase 7/8)
+## Offene Punkte
 
-- Boss nur als HP-Sack (keine Muster/Phasen) — Phase 7 Upgrade
-- Artstyle, Sounds, Partikel — Phase 8
-- iPhone-Playtests der Wellen-/Boss-Kurve
+- **iPhone-Boss-Playtest** — Sound-Unlock ✅ verifiziert (01.09.), Look ✅ abgenommen; offen ist nur noch die Boss-Kurve (Pulse-Ausweichen, Phase-2-Tempo) — Balancing dann via `boss_data.gd`
 - Object Pooling für Bullets (aktuell ~15-20 Nodes/Run — noch kein Flaschenhals bei 60 FPS)
+- Optional: Minimax-Kredit aufladen für eigene KI-Sprites (Katalog hat kein Bildmodell, Direkt-API ohne Guthaben)
