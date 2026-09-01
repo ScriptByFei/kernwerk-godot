@@ -76,8 +76,8 @@ Platzhalter: Player=blauer Soldier, Gegner=rot, Upgrade=grün, Bullet=kleines Re
 4. Game Loop (HP, Damage, Game Over, Restart) ✅
 5. Upgrades (Damage, Fire Rate, Soldier + UI-Feedback) ✅ (Hitbox großzügig ±100px)
 6. Waves (WaveManager, Muster, Progression) ✅
-7. Boss (einfach, viel HP) ← **aktuell** (MVP-Minimum steht: 600-HP-Gegner; Angriffsmuster fehlen)
-8. Polish (Animationen, Partikel, Sounds, Screen Shake)
+7. Boss (2-Phasen: Hover, Lane-Pulse, Summons, Weaving) ✅
+8. Polish (Animationen, Partikel, Sounds, Screen Shake) ← **nächste**
 
 **Kern-Test:** Macht es Spaß, per Lane-Wahl Ziele/Upgrades zu wählen? Wenn nicht → kein weiteres System bauen.
 
