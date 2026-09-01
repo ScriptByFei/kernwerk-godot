@@ -56,15 +56,17 @@ func _init() -> void:
 	world.add_child(boss2)
 	boss2.position = Vector2(boss2.lane_x_now(), -140.0)
 	boss2._physics_process(10.0)
-	var boss2_lane_before := boss2.lane
+	var pulse_emit_lanes: Array = []
+	boss2.lane_pulse_fired.connect(func(pl): pulse_emit_lanes.append(pl))
 	boss2._lane_switch_timer = 999.0
 	boss2.begin_lane_pulse()
 	boss2._update_combat_timers(0.1)
-	_check(boss2.lane == boss2_lane_before, "Telegraph blockiert Lane-Wechsel")
+	_check(boss2.lane == 0, "Telegraph blockiert Lane-Wechsel")
+	# Telegraph-Ende: Pulse feuert aus der GEWARNTEN Lane (0); erst danach ist der
+	# Lane-Wechsel wieder erlaubt. (Deterministisch: ein einzelner Switch ∈ {1,2}.)
 	boss2._update_combat_timers(BossData.PULSE_TELEGRAPH + 0.01)
-	boss2._lane_switch_timer = 999.0
-	boss2._update_combat_timers(0.1)
-	_check(boss2.lane != boss2_lane_before, "Nach Telegraph wechselt der Boss wieder die Lane")
+	_check(pulse_emit_lanes == [0], "Pulse feuert aus der gewarnten Lane")
+	_check(boss2.lane != 0, "Nach Telegraph wechselt der Boss wieder die Lane")
 	boss2.queue_free()
 
 	var game_scene := load("res://scenes/game/game.tscn") as PackedScene
