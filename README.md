@@ -27,6 +27,8 @@ Ein Soldat unten, drei Spuren, die Waffe feuert automatisch — der Spieler ents
 | 7 | Boss-Verhalten (Angriffsmuster, Lane-Wechsel, Beschwörungen — Boss bisher nur 600 HP Block) | **nächste** |
 | 8 | Polish (Partikel, Sounds, Screen Shake, bessere Sprites, Score-Popups) | offen |
 
+**Housekeeping (01.09.2026):** Versehentlich im Projekt-Root eingecheckte Web-Export-Artefakte (`index.html/js/wasm/pck`, Spike-Screenshots) entfernt + `.gitignore` verschärft — nur noch `build/web/` darf Build-Output enthalten. Kein Verhaltensunterschied im Deployment (`deploy-pages.sh` liest ohnehin nur aus `build/web/`).
+
 Old TS-version als Referenz archiviert: `~/projects/kernwerk` (separate codebase, frozen).
 
 ## Spielprinzip
