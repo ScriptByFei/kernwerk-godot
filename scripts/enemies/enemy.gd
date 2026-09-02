@@ -11,7 +11,6 @@ var is_boss := false
 var enemy_type := EnemyArchetypeData.GRUNT
 var score_reward := 10
 
-var _flash_rect: Polygon2D
 var _hp_label: Label
 var _wobble_tween: Tween
 var _sprite
@@ -123,18 +122,8 @@ func take_damage(dmg: int) -> void:
 		_hit_feedback()
 
 func _hit_feedback() -> void:
-	# Sanftes Feedback: kurzer Weiß-Blitz + leichtes Wackeln — kein "MISS"/kein hartes Label
-	if _flash_rect == null:
-		_flash_rect = Polygon2D.new()
-		_flash_rect.color = Color(1, 1, 1, 0.0)
-		var sprite_scale: Vector2 = _sprite.scale
-		var half_size := Vector2.ONE * ANIMATION_FRAME_SIZE * sprite_scale * 0.5
-		_flash_rect.polygon = PackedVector2Array([Vector2(-half_size.x, -half_size.y), Vector2(half_size.x, -half_size.y), Vector2(half_size.x, half_size.y), Vector2(-half_size.x, half_size.y)])
-		add_child(_flash_rect)
-	# Blitz: kurz aufblitzen und ausfaden
-	_flash_rect.color = Color(1, 1, 1, 0.55)
-	var t := create_tween()
-	t.tween_property(_flash_rect, "color:a", 0.0, 0.15)
+	# Sanftes Feedback: nur Wackeln — KEIN Weiß-Blitz über dem ganzen Sprite
+	# (Timo-Playtest: Blitz wirkt zu hart, Wackeln reicht).
 	# Wackeln UM DIE AKTUELLE POSITION — kein Sprung zu x=0 (das war der "nach links weg"-Bug)
 	if _wobble_tween and _wobble_tween.is_valid():
 		_wobble_tween.kill()

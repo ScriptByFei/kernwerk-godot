@@ -19,7 +19,7 @@ func _init() -> void:
 	var grunt_sprite := grunt.get_node_or_null("Sprite") as AnimatedSprite2D
 	_check(grunt_sprite != null and grunt_sprite.sprite_frames.get_frame_count("idle") == 2 and grunt_sprite.is_playing(), "Grunt nutzt spielende Idle-Animation")
 	grunt._hit_feedback()
-	_check(grunt._flash_rect != null, "Hit-Feedback funktioniert mit AnimatedSprite2D")
+	_check(grunt._wobble_tween != null and grunt._wobble_tween.is_valid(), "Hit-Feedback = Wackeln (kein Flash)")
 
 	var boss := Enemy.new()
 	boss.configure(1, 600, 0.0, true, EnemyArchetypeData.BOSS)
