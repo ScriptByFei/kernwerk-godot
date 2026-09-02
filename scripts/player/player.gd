@@ -10,6 +10,8 @@ var _last_viewport_size := Vector2.ZERO
 
 const PLAYER_TEXTURE := preload("res://assets/sprites/player.png")
 const PLAYER_SPRITE_SCALE := 1.2
+const PLAYER_SHEET := "res://assets/sprites/generated/anim/player_sheet.png"
+const ANIMATION_FRAME_SIZE := 128
 
 @onready var touch: TouchInput = $TouchInput
 @onready var weapon: WeaponController = $WeaponController
@@ -21,6 +23,7 @@ func _ready() -> void:
 	touch.swiped.connect(move_lane)
 	touch.tapped_lane.connect(move_to_lane)
 	weapon.setup(self)
+	weapon.bullet_fired.connect(_play_shoot_animation)
 	set_process(true)
 
 func _build_visual() -> void:
@@ -28,12 +31,65 @@ func _build_visual() -> void:
 	if old_soldier:
 		remove_child(old_soldier)
 		old_soldier.queue_free()
+	var sprite := _create_animated_sprite()
+	if sprite == null:
+		_build_static_sprite()
+		return
+	sprite.name = "Soldier"
+	sprite.scale = Vector2.ONE * PLAYER_SPRITE_SCALE
+	add_child(sprite)
+
+func _create_animated_sprite() -> AnimatedSprite2D:
+	if not FileAccess.file_exists(PLAYER_SHEET):
+		return null
+	# Web-Export-sicher laden (FileAccess liest aus dem PCK, kein Dateisystem im Browser).
+	var bytes := FileAccess.get_file_as_bytes(PLAYER_SHEET)
+	if bytes.is_empty():
+		return null
+	var image := Image.new()
+	if image.load_png_from_buffer(bytes) != OK or image.is_empty():
+		return null
+	var sheet := ImageTexture.create_from_image(image)
+	var frames := SpriteFrames.new()
+	frames.add_animation("idle")
+	frames.set_animation_speed("idle", 4.0)
+	frames.set_animation_loop("idle", true)
+	for frame_index in 2:
+		frames.add_frame("idle", _sheet_frame(sheet, frame_index))
+	frames.add_animation("shoot")
+	frames.set_animation_speed("shoot", 8.0)
+	frames.set_animation_loop("shoot", false)
+	frames.add_frame("shoot", _sheet_frame(sheet, 2))
+	var sprite := AnimatedSprite2D.new()
+	sprite.sprite_frames = frames
+	sprite.play("idle")
+	return sprite
+
+func _sheet_frame(sheet: Texture2D, frame_index: int) -> AtlasTexture:
+	var frame := AtlasTexture.new()
+	frame.atlas = sheet
+	frame.region = Rect2(frame_index * ANIMATION_FRAME_SIZE, 0, ANIMATION_FRAME_SIZE, ANIMATION_FRAME_SIZE)
+	return frame
+
+func _build_static_sprite() -> void:
 	var sprite := Sprite2D.new()
 	sprite.name = "Soldier"
 	sprite.texture = PLAYER_TEXTURE
 	sprite.scale = Vector2.ONE * PLAYER_SPRITE_SCALE
 	sprite.offset = Vector2(0, -PLAYER_TEXTURE.get_height() / 2.0)
 	add_child(sprite)
+
+func _play_shoot_animation(_bullet: Bullet) -> void:
+	var sprite := get_node_or_null("Soldier") as AnimatedSprite2D
+	if sprite == null:
+		return
+	sprite.play("shoot")
+	var tween := create_tween()
+	tween.tween_interval(0.12)
+	tween.tween_callback(func():
+		if is_instance_valid(sprite):
+			sprite.play("idle")
+	)
 
 func _process(_delta: float) -> void:
 	# Viewport kann sich im Web-Export dynamisch ändern (iOS-URL-Bar, Rotation).

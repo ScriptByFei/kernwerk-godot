@@ -14,12 +14,15 @@ var score_reward := 10
 var _flash_rect: Polygon2D
 var _hp_label: Label
 var _wobble_tween: Tween
-var _sprite: Sprite2D
+var _sprite
+var animation_sheet_path := ""
 
 const GRUNT_TEXTURE := preload("res://assets/sprites/grunt.png")
 const RUNNER_TEXTURE := preload("res://assets/sprites/runner.png")
 const TANK_TEXTURE := preload("res://assets/sprites/tank.png")
 const BOSS_TEXTURE := preload("res://assets/sprites/boss.png")
+const ANIMATION_DIRECTORY := "res://assets/sprites/generated/anim/"
+const ANIMATION_FRAME_SIZE := 128
 
 func _ready() -> void:
 	super._ready()
@@ -38,23 +41,60 @@ func configure(p_lane: int, hp: int, speed: float, p_is_boss: bool = false, p_en
 var configure_label := false  # Headless-Tests ohne Szene: Labels optional
 
 func _build_visual() -> void:
-	_sprite = Sprite2D.new()
-	_sprite.name = "Sprite"
+	var old_sprite := get_node_or_null("Sprite")
+	if old_sprite:
+		old_sprite.queue_free()
+	var scale_factor := 1.18
+	var static_texture: Texture2D = GRUNT_TEXTURE
+	var sheet_unit := "grunt"
 	match enemy_type:
 		EnemyArchetypeData.RUNNER:
-			_sprite.texture = RUNNER_TEXTURE
-			_sprite.scale = Vector2.ONE * 0.92
+			scale_factor = 0.92
+			static_texture = RUNNER_TEXTURE
+			sheet_unit = "runner"
 		EnemyArchetypeData.TANK:
-			_sprite.texture = TANK_TEXTURE
-			_sprite.scale = Vector2.ONE * 1.47
+			scale_factor = 1.47
+			static_texture = TANK_TEXTURE
+			sheet_unit = "tank"
 		EnemyArchetypeData.BOSS:
-			_sprite.texture = BOSS_TEXTURE
-			_sprite.scale = Vector2.ONE * 1.75
-		_:
-			_sprite.texture = GRUNT_TEXTURE
-			_sprite.scale = Vector2.ONE * 1.18
+			scale_factor = 1.75
+			static_texture = BOSS_TEXTURE
+			sheet_unit = "boss"
+	_sprite = _create_animated_sprite(sheet_unit, 4 if is_boss else 2, "pulse" if is_boss else "idle", 3.0 if is_boss else 4.0)
+	if _sprite == null:
+		_sprite = Sprite2D.new()
+		_sprite.texture = static_texture
+	_sprite.name = "Sprite"
+	_sprite.scale = Vector2.ONE * scale_factor
 	add_child(_sprite)
 	build_label()
+
+func _create_animated_sprite(unit: String, frame_count: int, animation_name: String, animation_speed: float) -> AnimatedSprite2D:
+	var sheet_path := animation_sheet_path if not animation_sheet_path.is_empty() else ANIMATION_DIRECTORY + unit + "_sheet.png"
+	if not FileAccess.file_exists(sheet_path):
+		return null
+	# Web-Export-sicher laden: FileAccess liest auch aus dem PCK (kein echtes
+	# Dateisystem im Browser) — Image.load_from_file würde dort still fehlschlagen.
+	var bytes := FileAccess.get_file_as_bytes(sheet_path)
+	if bytes.is_empty():
+		return null
+	var image := Image.new()
+	if image.load_png_from_buffer(bytes) != OK or image.is_empty():
+		return null
+	var sheet := ImageTexture.create_from_image(image)
+	var frames := SpriteFrames.new()
+	frames.add_animation(animation_name)
+	frames.set_animation_speed(animation_name, animation_speed)
+	frames.set_animation_loop(animation_name, true)
+	for frame_index in frame_count:
+		var frame := AtlasTexture.new()
+		frame.atlas = sheet
+		frame.region = Rect2(frame_index * ANIMATION_FRAME_SIZE, 0, ANIMATION_FRAME_SIZE, ANIMATION_FRAME_SIZE)
+		frames.add_frame(animation_name, frame)
+	var sprite := AnimatedSprite2D.new()
+	sprite.sprite_frames = frames
+	sprite.play(animation_name)
+	return sprite
 
 func build_label() -> void:
 	# HP-Label über dem Kopf — nil-safe (Headless-Tests ohne Rendering)
@@ -87,7 +127,8 @@ func _hit_feedback() -> void:
 	if _flash_rect == null:
 		_flash_rect = Polygon2D.new()
 		_flash_rect.color = Color(1, 1, 1, 0.0)
-		var half_size := _sprite.texture.get_size() * _sprite.scale * 0.5
+		var sprite_scale: Vector2 = _sprite.scale
+		var half_size := Vector2.ONE * ANIMATION_FRAME_SIZE * sprite_scale * 0.5
 		_flash_rect.polygon = PackedVector2Array([Vector2(-half_size.x, -half_size.y), Vector2(half_size.x, -half_size.y), Vector2(half_size.x, half_size.y), Vector2(-half_size.x, half_size.y)])
 		add_child(_flash_rect)
 	# Blitz: kurz aufblitzen und ausfaden
