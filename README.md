@@ -27,6 +27,7 @@ Ein Soldat unten, drei Spuren, die Waffe feuert automatisch — der Spieler ents
 | 7 | Boss-Verhalten (2-Phasen-Kampf: Hover, Lane-Pulse mit Telegraph, Beschwörungen, Lane-Weaving, BossData-Tuning) | ✅ |
 | 8 | Polish (Score-Popups, Screen Shake, Partikel, CC0-Sounds mit Web-Audio-Unlock, PNG-Sprites aus Kenney-Paket) | ✅ |
 | 9 | Lebendige Einheiten: prozedurale Animations-Sheets (`tools/sprite_pipeline.py`, Pillow, deterministisch) + `AnimatedSprite2D` (Idle-Bob, Shoot-Flash, Boss-Pulse-Glow) | ✅ |
+| 12 | **Drohne (neuer Gegnertyp):** GPT-generiertes Sprite (flacher Cartoon-Look, Violett-Akzente, Chroma-Key), HP 0.8×/Speed 1.2×/Score 12, Spawn ab Welle 3 (`drone_intro`, `drone_mixed`) | ✅ |
 
 **Housekeeping (01.09.2026):** Versehentlich im Projekt-Root eingecheckte Web-Export-Artefakte (`index.html/js/wasm/pck`, Spike-Screenshots) entfernt + `.gitignore` verschärft — nur noch `build/web/` darf Build-Output enthalten. Kein Verhaltensunterschied im Deployment (`deploy-pages.sh` liest ohnehin nur aus `build/web/`).
 
@@ -40,6 +41,7 @@ Old TS-version als Referenz archiviert: `~/projects/kernwerk` (separate codebase
 - **Waffe feuert automatisch** — 1,2 Schüsse/s (bewusst langsam, „Schüsse zählen"), Damage 10 Baseline
 - **Spawn-Reihen statt Lane-Roulette:** maximal zwei Gegner pro Reihe, immer mindestens eine Lane ohne Gegner; farbige Pfeil-Telegraphen warnen 0,6 s vor
 - **Drei Gegnerrollen:** Grunt = Standard (10 Punkte), Runner = schnell/leicht (15), Tank = langsam/zäh (20); Runner ab Welle 2, Tank ab Welle 3
+- **Drohne (ab Welle 3):** fliegender, schneller, zerbrechlicher Gegner (12 Punkte) — GPT-generiertes Sprite, Violett-Akzente passend zum Boss-Theme
 - **Upgrade-Pfad:** grüne Träger (22–35 % Spawn-Chance) abschießen → `+15 DMG` / `+0.1 RATE` / `+1 SOLDIER` (Soldiers = echte Additional-Bullets ±90px-Formation)
 - **HP 100**, Gegner erreicht 82%-Höhe → 10 Schaden, 0.8 s i-frames, rote Vignette sanft
 - **Level = 6 Wellen ≈ 120 s**, Welle 6 = Boss-Kampf: Boss hält bei 22 % Höhe, Pulse-Angriff (0.8 s Telegraph) trifft nur in seiner Lane, Lane-Weaving, Beschwörungen (Grunt/Runner), Phase 2 ab 50 % HP, danach Level Complete
