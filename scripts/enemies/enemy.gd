@@ -59,7 +59,7 @@ func _build_visual() -> void:
 			scale_factor = 1.75
 			static_texture = BOSS_TEXTURE
 			sheet_unit = "boss"
-	_sprite = _create_animated_sprite(sheet_unit, 4, "pulse" if is_boss else "walk", 3.0 if is_boss else 6.0)
+	_sprite = _create_animated_sprite(sheet_unit, 4 if is_boss else 2, "pulse" if is_boss else "idle", 3.0 if is_boss else 4.0)
 	if _sprite == null:
 		_sprite = Sprite2D.new()
 		_sprite.texture = static_texture

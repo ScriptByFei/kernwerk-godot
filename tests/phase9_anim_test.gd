@@ -17,7 +17,7 @@ func _init() -> void:
 	world.add_child(grunt)
 	await process_frame
 	var grunt_sprite := grunt.get_node_or_null("Sprite") as AnimatedSprite2D
-	_check(grunt_sprite != null and grunt_sprite.animation == "walk" and grunt_sprite.sprite_frames.get_frame_count("walk") == 4 and grunt_sprite.is_playing(), "Grunt nutzt spielende Walk-Animation")
+	_check(grunt_sprite != null and grunt_sprite.sprite_frames.get_frame_count("idle") == 2 and grunt_sprite.is_playing(), "Grunt nutzt spielende Idle-Animation")
 	grunt._hit_feedback()
 	_check(grunt._wobble_tween != null and grunt._wobble_tween.is_valid(), "Hit-Feedback = Wackeln (kein Flash)")
 

@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Render deterministic animation sprite sheets.
+"""Render deterministic animation sprite sheets from the static game sprites.
 
 Examples:
     python3 tools/sprite_pipeline.py --all --out assets/sprites/generated/anim/
     python3 tools/sprite_pipeline.py --input assets/sprites/boss.png \
         --out /tmp/poc/ --frames-dir frames --sheet boss_pulse_sheet.png
 
-``--all`` writes procedural 3/4-view character sheets: player idle/shoot,
-enemy walks, and the boss pulse. The explicit input mode remains the
-silhouette-based four-frame Boss-Pulse PoC used before Phase 9.
+``--all`` writes unit sheets and their individual frames. The explicit input
+mode remains the four-frame Boss-Pulse PoC used before Phase 9.
 """
 
 import argparse
@@ -16,7 +15,7 @@ import colorsys
 import random
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw
+from PIL import Image, ImageChops
 
 
 CANVAS_SIZE = 128
@@ -27,33 +26,12 @@ FRAME_SPECS = (
     (0.85, 2.20, 72, 220),
     (0.35, 1.10, 58, 70),
 )
-WALK_FRAME_SPECS = (
-    (-3.0, -2, 0.85),
-    (0.0, 0, 1.00),
-    (3.0, -2, 0.85),
-    (0.0, 0, 1.00),
-)
 UNIT_SPECS = {
-    "player": {
-        "palette": ((200, 160, 110), (32, 160, 224), (192, 224, 224), (20, 90, 130), (14, 60, 90)),
-        "body": (26, 20), "leg_rx": 6, "head": (12, 11), "animation": "idle",
-    },
-    "grunt": {
-        "palette": ((200, 160, 110), (160, 96, 32), (120, 70, 22), (90, 55, 18), (60, 38, 12)),
-        "body": (26, 20), "leg_rx": 6, "head": (12, 11), "animation": "walk",
-    },
-    "runner": {
-        "palette": ((200, 160, 110), (160, 96, 32), (224, 224, 224), (90, 55, 18), (60, 38, 12)),
-        "body": (20, 20), "leg_rx": 6, "head": (12, 11), "animation": "walk",
-    },
-    "tank": {
-        "palette": ((200, 160, 110), (160, 96, 32), (192, 192, 192), (90, 55, 18), (60, 38, 12)),
-        "body": (32, 22), "leg_rx": 8, "head": (12, 11), "animation": "walk",
-    },
-    "boss": {
-        "palette": ((200, 160, 110), (160, 32, 160), (96, 0, 96), (110, 20, 110), (70, 12, 70)),
-        "body": (34, 26), "leg_rx": 8, "head": (14, 13), "animation": "pulse",
-    },
+    "player": {"input": "player.png", "frame_specs": ("idle", "bob", "shoot"), "animation": "idle"},
+    "grunt": {"input": "grunt.png", "frame_specs": ("idle", "bob"), "animation": "idle"},
+    "runner": {"input": "runner.png", "frame_specs": ("idle", "bob"), "animation": "idle"},
+    "tank": {"input": "tank.png", "frame_specs": ("idle", "bob"), "animation": "idle"},
+    "boss": {"input": "boss.png", "frame_specs": FRAME_SPECS, "animation": "pulse"},
 }
 SPRITES_DIRECTORY = Path("assets/sprites")
 
@@ -134,76 +112,13 @@ def render_shoot_frame(source):
     return Image.alpha_composite(silhouette, muzzle)
 
 
-def create_ground_shadow(scale, offset_x=0):
-    shadow = Image.new("RGBA", (CANVAS_SIZE, CANVAS_SIZE))
-    draw = ImageDraw.Draw(shadow)
-    radius_x, radius_y = 23 * scale, 8 * scale
-    draw.ellipse((64 + offset_x - radius_x, 108 - radius_y, 64 + offset_x + radius_x, 108 + radius_y), fill=(12, 8, 20, 70))
-    return shadow
-
-
-def render_walk_frame(source, rotation_deg, bob_y, shadow_scale, shadow_offset_x=0):
-    shadow = create_ground_shadow(shadow_scale, shadow_offset_x)
-    silhouette = center_on_canvas(tint_silhouette(source, 0.0, 1.0))
-    rotated = silhouette.rotate(rotation_deg, resample=Image.Resampling.BICUBIC, expand=False)
-    shadow.alpha_composite(rotated, (0, bob_y))
-    return shadow
-
-
-def draw_ellipse(draw, center_x, center_y, radius_x, radius_y, color):
-    draw.ellipse((center_x - radius_x, center_y - radius_y, center_x + radius_x, center_y + radius_y), fill=color)
-
-
-def render_character_frame(unit, leg_l, leg_r, tilt, bob, shadow_scale, extra=None, shadow_offset_x=0):
-    """Render one deterministic 3/4-view character animation frame."""
-    spec = UNIT_SPECS[unit]
-    head_color, body_color, detail_color, leg_color, foot_color = spec["palette"]
-    center_x, center_y = 64, 58
-    frame = create_ground_shadow(shadow_scale, shadow_offset_x)
-    legs = Image.new("RGBA", (CANVAS_SIZE, CANVAS_SIZE))
-    legs_draw = ImageDraw.Draw(legs)
-    for hip_x, length in ((center_x - 9, leg_l), (center_x + 9, leg_r)):
-        leg_center_y = center_y + 8 + length / 2
-        draw_ellipse(legs_draw, hip_x, leg_center_y, spec["leg_rx"], length / 2, leg_color)
-        draw_ellipse(legs_draw, hip_x + 2, center_y + 8 + length + 3, 7, 4, foot_color)
-    frame.alpha_composite(legs)
-
-    upper = Image.new("RGBA", (CANVAS_SIZE, CANVAS_SIZE))
-    upper_draw = ImageDraw.Draw(upper)
-    body_rx, body_ry = spec["body"]
-    draw_ellipse(upper_draw, center_x, center_y, body_rx, body_ry, body_color)
-    draw_ellipse(upper_draw, center_x, center_y - 2, min(18, body_rx - 4), min(12, body_ry - 4), detail_color)
-    head_rx, head_ry = spec["head"]
-    draw_ellipse(upper_draw, center_x, center_y - 24, head_rx, head_ry, head_color)
-    helmet_color = detail_color if unit == "boss" else body_color
-    draw_ellipse(upper_draw, center_x, center_y - 26, 8, 6, helmet_color)
-    upper = upper.rotate(tilt, resample=Image.Resampling.BICUBIC, center=(center_x, center_y))
-    frame.alpha_composite(upper, (0, bob))
-
-    if extra == "muzzle":
-        frame.alpha_composite(create_radial_glow(CANVAS_SIZE, 14, 200, (255, 221, 74), (64, 18)))
-    if extra is not None and extra != "muzzle":
-        _, _, glow_radius, glow_alpha = extra
-        glow = create_radial_glow(CANVAS_SIZE, glow_radius, glow_alpha, (190, 112, 255), (64, 58))
-        frame = Image.alpha_composite(glow, frame)
-    return frame
-
-
-def render_unit_frames(unit):
+def render_unit_frames(unit, source):
     if unit == "boss":
-        leg_lengths = ((20, 16), (16, 20), (20, 16), (16, 20))
-        return [render_character_frame(unit, *leg_lengths[index], 0, 0, 1.0, spec) for index, spec in enumerate(FRAME_SPECS)]
-    if unit in ("grunt", "runner", "tank"):
-        leg_pairs = ((24, 12), (16, 16), (12, 24), (16, 16))
-        return [
-            render_character_frame(unit, *leg_pairs[index], *spec, shadow_offset_x=1 if index == 3 else 0)
-            for index, spec in enumerate(WALK_FRAME_SPECS)
-        ]
-    frames = [
-        render_character_frame(unit, 16, 16, 0, 0, 1.0),
-        render_character_frame(unit, 16, 16, 0, -1, 0.95),
-    ]
-    return frames + [render_character_frame(unit, 16, 16, 0, 0, 1.0, "muzzle")]
+        return [render_frame(source, *spec) for spec in FRAME_SPECS]
+    frames = [render_bob_frame(source, False), render_bob_frame(source, True)]
+    if unit == "player":
+        frames.append(render_shoot_frame(source))
+    return frames
 
 
 def write_outputs(frames, output_directory, frames_directory, sheet_name, frame_prefix="frame"):
@@ -219,10 +134,11 @@ def write_outputs(frames, output_directory, frames_directory, sheet_name, frame_
 
 
 def render_all(output_directory):
-    for unit in UNIT_SPECS:
-        frames = render_unit_frames(unit)
+    for unit, spec in UNIT_SPECS.items():
+        source = Image.open(SPRITES_DIRECTORY / spec["input"]).convert("RGBA")
+        frames = render_unit_frames(unit, source)
         write_outputs(frames, output_directory, "frames", f"{unit}_sheet.png", f"{unit}_frame")
-        print(f"Created {len(frames)} {unit} frames and sheet: {output_directory / (unit + '_sheet.png')}")
+        print(f"Created {len(spec['frame_specs'])} {unit} frames and sheet: {output_directory / (unit + '_sheet.png')}")
 
 
 def main():
