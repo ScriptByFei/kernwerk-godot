@@ -55,6 +55,18 @@ const PATTERNS := [
 		"slots": [EnemyArchetypeData.TANK, UPGRADE, EMPTY],
 	},
 	{
+		"id": "drone_intro",
+		"min_wave": 3,
+		"weight": 2.5,
+		"slots": [EnemyArchetypeData.DRONE, EMPTY, EMPTY],
+	},
+	{
+		"id": "drone_mixed",
+		"min_wave": 4,
+		"weight": 2.0,
+		"slots": [EnemyArchetypeData.DRONE, EnemyArchetypeData.GRUNT, EMPTY],
+	},
+	{
 		"id": "pressure_upgrade",
 		"min_wave": 4,
 		"weight": 2.0,

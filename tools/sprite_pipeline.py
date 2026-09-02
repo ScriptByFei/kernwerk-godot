@@ -31,6 +31,7 @@ UNIT_SPECS = {
     "grunt": {"input": "grunt.png", "frame_specs": ("idle", "bob"), "animation": "idle"},
     "runner": {"input": "runner.png", "frame_specs": ("idle", "bob"), "animation": "idle"},
     "tank": {"input": "tank.png", "frame_specs": ("idle", "bob"), "animation": "idle"},
+    "drone": {"input": "drone.png", "frame_specs": ("idle", "bob"), "animation": "idle"},
     "boss": {"input": "boss.png", "frame_specs": FRAME_SPECS, "animation": "pulse"},
 }
 SPRITES_DIRECTORY = Path("assets/sprites")

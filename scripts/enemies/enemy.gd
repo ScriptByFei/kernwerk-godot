@@ -19,6 +19,7 @@ var animation_sheet_path := ""
 const GRUNT_TEXTURE := preload("res://assets/sprites/grunt.png")
 const RUNNER_TEXTURE := preload("res://assets/sprites/runner.png")
 const TANK_TEXTURE := preload("res://assets/sprites/tank.png")
+const DRONE_TEXTURE := preload("res://assets/sprites/drone.png")
 const BOSS_TEXTURE := preload("res://assets/sprites/boss.png")
 const ANIMATION_DIRECTORY := "res://assets/sprites/generated/anim/"
 const ANIMATION_FRAME_SIZE := 128
@@ -55,6 +56,10 @@ func _build_visual() -> void:
 			scale_factor = 1.47
 			static_texture = TANK_TEXTURE
 			sheet_unit = "tank"
+		EnemyArchetypeData.DRONE:
+			scale_factor = 0.85
+			static_texture = DRONE_TEXTURE
+			sheet_unit = "drone"
 		EnemyArchetypeData.BOSS:
 			scale_factor = 1.75
 			static_texture = BOSS_TEXTURE

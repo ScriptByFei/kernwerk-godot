@@ -5,6 +5,7 @@ extends RefCounted
 const GRUNT := "grunt"
 const RUNNER := "runner"
 const TANK := "tank"
+const DRONE := "drone"
 const BOSS := "boss"
 
 const DEFINITIONS := {
@@ -26,6 +27,12 @@ const DEFINITIONS := {
 		"score_reward": 20,
 		"color": Color(0.56, 0.18, 0.28),
 	},
+	DRONE: {
+		"hp_multiplier": 0.8,
+		"speed_multiplier": 1.2,
+		"score_reward": 12,
+		"color": Color(0.55, 0.30, 0.85),
+	},
 	BOSS: {
 		"hp_multiplier": 1.0,
 		"speed_multiplier": 1.0,
@@ -38,4 +45,4 @@ static func get_definition(enemy_type: String) -> Dictionary:
 	return DEFINITIONS.get(enemy_type, DEFINITIONS[GRUNT])
 
 static func is_regular_type(enemy_type: String) -> bool:
-	return enemy_type in [GRUNT, RUNNER, TANK]
+	return enemy_type in [GRUNT, RUNNER, TANK, DRONE]
