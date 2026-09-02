@@ -6,8 +6,9 @@ Examples:
     python3 tools/sprite_pipeline.py --input assets/sprites/boss.png \
         --out /tmp/poc/ --frames-dir frames --sheet boss_pulse_sheet.png
 
-``--all`` writes unit sheets and their individual frames. The explicit input
-mode remains the four-frame Boss-Pulse PoC used before Phase 9.
+``--all`` writes player idle/shoot, enemy walk, and boss pulse sheets with
+their individual frames. The explicit input mode remains the four-frame
+Boss-Pulse PoC used before Phase 9.
 """
 
 import argparse
@@ -26,11 +27,17 @@ FRAME_SPECS = (
     (0.85, 2.20, 72, 220),
     (0.35, 1.10, 58, 70),
 )
+WALK_FRAME_SPECS = (
+    (-3.0, -2, 0.85),
+    (0.0, 0, 1.00),
+    (3.0, -2, 0.85),
+    (0.0, 0, 1.00),
+)
 UNIT_SPECS = {
     "player": {"input": "player.png", "frame_specs": ("idle", "bob", "shoot"), "animation": "idle"},
-    "grunt": {"input": "grunt.png", "frame_specs": ("idle", "bob"), "animation": "idle"},
-    "runner": {"input": "runner.png", "frame_specs": ("idle", "bob"), "animation": "idle"},
-    "tank": {"input": "tank.png", "frame_specs": ("idle", "bob"), "animation": "idle"},
+    "grunt": {"input": "grunt.png", "frame_specs": WALK_FRAME_SPECS, "animation": "walk"},
+    "runner": {"input": "runner.png", "frame_specs": WALK_FRAME_SPECS, "animation": "walk"},
+    "tank": {"input": "tank.png", "frame_specs": WALK_FRAME_SPECS, "animation": "walk"},
     "boss": {"input": "boss.png", "frame_specs": FRAME_SPECS, "animation": "pulse"},
 }
 SPRITES_DIRECTORY = Path("assets/sprites")
@@ -112,9 +119,37 @@ def render_shoot_frame(source):
     return Image.alpha_composite(silhouette, muzzle)
 
 
+def create_ground_shadow(width, scale, offset_x=0):
+    shadow_width = round(width * 1.25 * scale)
+    shadow_height = round(shadow_width * 0.45)
+    shadow = Image.new("RGBA", (CANVAS_SIZE, CANVAS_SIZE))
+    pixels = []
+    center_x = (CANVAS_SIZE - 1) / 2 + offset_x
+    center_y = 102
+    radius_x = shadow_width / 2
+    radius_y = shadow_height / 2
+    for y in range(CANVAS_SIZE):
+        for x in range(CANVAS_SIZE):
+            distance = ((x - center_x) / radius_x) ** 2 + ((y - center_y) / radius_y) ** 2
+            opacity = round(70 * max(0.0, 1.0 - distance) ** 1.4)
+            pixels.append((12, 8, 20, opacity))
+    shadow.putdata(pixels)
+    return shadow
+
+
+def render_walk_frame(source, rotation_deg, bob_y, shadow_scale, shadow_offset_x=0):
+    shadow = create_ground_shadow(source.width, shadow_scale, shadow_offset_x)
+    silhouette = center_on_canvas(tint_silhouette(source, 0.0, 1.0))
+    rotated = silhouette.rotate(rotation_deg, resample=Image.Resampling.BICUBIC, expand=False)
+    shadow.alpha_composite(rotated, (0, bob_y))
+    return shadow
+
+
 def render_unit_frames(unit, source):
     if unit == "boss":
         return [render_frame(source, *spec) for spec in FRAME_SPECS]
+    if unit in ("grunt", "runner", "tank"):
+        return [render_walk_frame(source, *spec, 1 if index == 3 else 0) for index, spec in enumerate(WALK_FRAME_SPECS)]
     frames = [render_bob_frame(source, False), render_bob_frame(source, True)]
     if unit == "player":
         frames.append(render_shoot_frame(source))
