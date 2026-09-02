@@ -26,6 +26,7 @@ Ein Soldat unten, drei Spuren, die Waffe feuert automatisch — der Spieler ents
 | S2 | **Lane-Entscheidungen:** faire Drei-Spur-Muster, 0.6-s-Telegraph, Grunt/Runner/Tank, Rollen-Score | ✅ |
 | 7 | Boss-Verhalten (2-Phasen-Kampf: Hover, Lane-Pulse mit Telegraph, Beschwörungen, Lane-Weaving, BossData-Tuning) | ✅ |
 | 8 | Polish (Score-Popups, Screen Shake, Partikel, CC0-Sounds mit Web-Audio-Unlock, PNG-Sprites aus Kenney-Paket) | ✅ |
+| 9 | Lebendige Einheiten: prozedurale Animations-Sheets (`tools/sprite_pipeline.py`, Pillow, deterministisch) + `AnimatedSprite2D` (Idle-Bob, Shoot-Flash, Boss-Pulse-Glow) | ✅ |
 
 **Housekeeping (01.09.2026):** Versehentlich im Projekt-Root eingecheckte Web-Export-Artefakte (`index.html/js/wasm/pck`, Spike-Screenshots) entfernt + `.gitignore` verschärft — nur noch `build/web/` darf Build-Output enthalten. Kein Verhaltensunterschied im Deployment (`deploy-pages.sh` liest ohnehin nur aus `build/web/`).
 
@@ -135,5 +136,6 @@ Es gibt nur noch diesen CI-Deployweg. Die GitHub-Pages-Quelle bleibt auf `gh-pag
 ## Offene Punkte
 
 - **Playtest-Fixes v2 deployed (01.09.)** — ✅ Soldaten-Salven GEBÜNDELT auf Spieler-Lane (kein ±90px-Offset → nichts ging mehr am Gegner vorbei); ✅ **Boss-HP skaliert mit DPS** (`BossData.scaled_hp`, Wurzel-Kurve, Floor 500) → kein „Instant-Kill“ bei max. Upgrades mehr. **Nächster iPhone-Playtest: trifft die Salve zuverlässig? Fühlt sich der Boss mit Max-Build richtig zäh an?** Tuning via `boss_data.gd` / `weapon_controller.gd`
+- **Phase 9 (02.09.)** — Lebendige Einheiten live: Idle-Bob, Shoot-Flash, Boss-Pulse-Glow. **Nächster iPhone-Playtest: wirken die Animationen stimmig oder zu hektisch?** (Bob-Speed 4.0, Boss-Pulse 3.0 — Tuning in `enemy.gd`/`player.gd`)
 - Object Pooling für Bullets (aktuell ~15-20 Nodes/Run — noch kein Flaschenhals bei 60 FPS)
 - Optional: Minimax-Kredit aufladen für eigene KI-Sprites (Katalog hat kein Bildmodell, Direkt-API ohne Guthaben)
