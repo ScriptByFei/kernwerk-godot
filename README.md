@@ -1,16 +1,20 @@
 # Kernwerk
 
-**3-Lane Auto-Shooter · Godot 4 · Web · Mobile-first**
+**Resonanzsprung-Rebuild · Godot 4 · Web · Mobile-first**
 
-Ein Soldat unten, drei Spuren, die Waffe feuert automatisch — der Spieler entscheidet allein durch die Lane-Wahl, welche Gegner er stoppt und welche Upgrades er abfarmt. Inspiriert vom Minispiel-Prinzip aus *Last War: Survival Game*, aber ein eigenständiges Spiel: kein Base Building, keine Stadt, keine Last-War-Kopie. Alle Assets/Namen eigenständig.
+Kernwerk wird von einem abgeschlossenen 3-Lane-Auto-Shooter zu **Kernwerk: Resonanzsprung** umgebaut: ein eigenständiges, vertikales Jump-Spiel in einem industriellen Reaktorschacht. Der Kern springt automatisch; ein horizontaler Drag steuert ihn in der Luft. Präzise Landungen auf Resonanz-Sockeln laden optionale Overload-Sprünge auf.
 
-▶ **Spielen:** https://scriptbyfei.github.io/kernwerk-godot/
+> **Migration, Phase 0 (04.09.2026):** Der Auto-Shooter ist als Git-Tag `archive/auto-shooter-phase12` gesichert. Die untenstehenden Shooter-Abschnitte dokumentieren den archivierten Stand, bis der neue Vertikal-Slice sie ersetzt. Es gibt bewusst keinen Hybridmodus.
+
+▶ **Aktuell live (noch Auto-Shooter):** https://scriptbyfei.github.io/kernwerk-godot/
 
 *(Lokaler Dev-Preview: `https://masga-server.tail1bf259.ts.net` — Tailscale-serve auf Port 8080)*
 
 ---
 
-## Aktueller Stand (01.09.2026)
+## Archivierter Auto-Shooter-Stand (01.–02.09.2026)
+
+Der folgende Phasenverlauf bleibt als technische Historie erhalten. Er ist **nicht** die Spezifikation des laufenden Resonanzsprung-Rebuilds.
 
 | Phase | Inhalt | Status |
 |---|---|---|

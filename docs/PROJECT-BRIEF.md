@@ -1,7 +1,14 @@
 # Kernwerk — Projektauftrag (Kurzfassung)
 
-> Vollständiger Auftrag vom 31.08.2026 (Timo/fei89). Ziel: 3-Lane Auto-Shooter in Godot als HTML5/Web-Spiel.
-> Orientiert am Werbe-Minispiel-Prinzip von Last War: Survival Game — aber eigenständig: kein Base Building, keine Stadt, keine Last-War-Kopie.
+> **Rebuild-Entscheidung, 04.09.2026 (Timo/fei89):** Das abgeschlossene 3-Lane-Auto-Shooter-Konzept wird nicht fortgeführt. Kernwerk wird als **Kernwerk: Resonanzsprung** neu aufgebaut: ein eigenständiges, mobile-first vertikales Jump-Spiel für Godot-Web.
+>
+> Der Spieler steuert einen Reaktor-Kern mit horizontalem Drag durch einen industriellen Schacht. Er springt beim Landen automatisch. Präzise Landungen auf Resonanz-Sockeln füllen eine Dreierkette; die volle Kette macht den nächsten Sprung zu einem optionalen Overload-Leap. Der sichere Hauptweg bleibt ohne diesen Bonus erreichbar.
+>
+> Nicht Teil des neuen Spiels: Lanes, Waffen, Bullets, Gegner, HP, Wellen, Boss, Upgrades, Shop, Meta-Progression oder Tilt-Sensoren. Der vollständige Umsetzungsplan liegt in `.hermes/plans/2026-09-04_214404-kernwerk-resonance-jump.md`; der letzte Shooter-Stand ist durch `archive/auto-shooter-phase12` gesichert.
+
+## Archiv: vorheriger Auto-Shooter-Auftrag
+
+> Die folgenden Abschnitte sind Historie, damit frühere Architekturentscheidungen nachvollziehbar bleiben. Sie gelten nicht für den Resonanzsprung-Rebuild.
 
 ## Kernspiel
 
