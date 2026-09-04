@@ -4,6 +4,8 @@ extends CharacterBody2D
 signal bounced
 
 var horizontal_intent := 0.0
+var horizontal_target_x := 0.0
+var has_horizontal_target := false
 
 func _ready() -> void:
 	collision_layer = 1
@@ -27,11 +29,26 @@ func apply_gravity(delta: float) -> void:
 	velocity.y += JumpConfig.GRAVITY * delta
 
 func set_horizontal_intent(intent: float) -> void:
+	has_horizontal_target = false
 	horizontal_intent = clampf(intent, -1.0, 1.0)
+
+func set_horizontal_target(target_x: float) -> void:
+	horizontal_target_x = target_x
+	has_horizontal_target = true
+
+func clear_horizontal_target() -> void:
+	has_horizontal_target = false
+	horizontal_intent = 0.0
 
 func apply_horizontal_steering(delta: float) -> void:
 	var target_speed := horizontal_intent * JumpConfig.MAX_HORIZONTAL_SPEED
-	var rate := JumpConfig.HORIZONTAL_ACCELERATION if horizontal_intent != 0.0 else JumpConfig.HORIZONTAL_DRAG
+	if has_horizontal_target:
+		target_speed = clampf(
+			(horizontal_target_x - global_position.x) / JumpConfig.HORIZONTAL_TARGET_DISTANCE * JumpConfig.MAX_HORIZONTAL_SPEED,
+			-JumpConfig.MAX_HORIZONTAL_SPEED,
+			JumpConfig.MAX_HORIZONTAL_SPEED
+		)
+	var rate := JumpConfig.HORIZONTAL_ACCELERATION if not is_zero_approx(target_speed) else JumpConfig.HORIZONTAL_DRAG
 	velocity.x = move_toward(velocity.x, target_speed, rate * delta)
 	velocity.x = clampf(velocity.x, -JumpConfig.MAX_HORIZONTAL_SPEED, JumpConfig.MAX_HORIZONTAL_SPEED)
 

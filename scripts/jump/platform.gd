@@ -10,6 +10,7 @@ func _ready() -> void:
 	var shape := RectangleShape2D.new()
 	shape.size = platform_size
 	collision.shape = shape
+	collision.one_way_collision = true
 	add_child(collision)
 	queue_redraw()
 

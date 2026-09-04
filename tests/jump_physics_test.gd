@@ -28,6 +28,23 @@ func _init() -> void:
 	jumper.apply_horizontal_steering(10.0)
 	_check(jumper.velocity.x == JumpConfig.MAX_HORIZONTAL_SPEED, "horizontal steering is speed-capped")
 
+	jumper.position.x = 540.0
+	jumper.velocity.x = 0.0
+	jumper.set_horizontal_target(360.0)
+	jumper.apply_horizontal_steering(10.0)
+	_check(jumper.velocity.x == -JumpConfig.MAX_HORIZONTAL_SPEED, "left target produces capped leftward motion")
+
+	jumper.velocity.x = 0.0
+	jumper.set_horizontal_target(720.0)
+	jumper.apply_horizontal_steering(10.0)
+	_check(jumper.velocity.x == JumpConfig.MAX_HORIZONTAL_SPEED, "right target produces capped rightward motion")
+
+	jumper.velocity.x = 300.0
+	jumper.set_horizontal_target(jumper.position.x)
+	jumper.apply_horizontal_steering(10.0)
+	_check(jumper.velocity.x == 0.0, "target at jumper position damps horizontal velocity to zero")
+	await _check_rising_platform_pass_through()
+
 	jumper.velocity.y = 240.0
 	jumper.bounce_from(platform, true)
 	_check(-jumper.velocity.y > JumpConfig.BASE_BOUNCE_SPEED, "overload bounce is higher than base bounce")
@@ -53,6 +70,24 @@ func _check_physical_platform_bounce() -> void:
 	for _frame in 12:
 		await physics_frame
 	_check(bounce_count[0] == 1 and physical_jumper.velocity.y < 0.0, "descending CharacterBody2D collision produces one bounce")
+	world.queue_free()
+	await process_frame
+
+func _check_rising_platform_pass_through() -> void:
+	var world := Node2D.new()
+	var physical_platform := Platform.new()
+	var physical_jumper := Jumper.new()
+	var bounce_count := [0]
+	physical_platform.position = Vector2(540.0, 500.0)
+	physical_jumper.position = Vector2(540.0, 650.0)
+	physical_jumper.velocity.y = -1200.0
+	physical_jumper.bounced.connect(func(): bounce_count[0] += 1)
+	world.add_child(physical_platform)
+	world.add_child(physical_jumper)
+	get_root().add_child(world)
+	for _frame in 24:
+		await physics_frame
+	_check(bounce_count[0] == 0 and physical_jumper.position.y < physical_platform.position.y, "rising CharacterBody2D passes through platform underside")
 	world.queue_free()
 	await process_frame
 

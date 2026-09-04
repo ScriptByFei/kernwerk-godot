@@ -2,7 +2,6 @@ extends Node2D
 
 var jumper: Jumper
 var camera: VerticalCamera
-var drag_origin := Vector2.ZERO
 var is_dragging := false
 
 func _ready() -> void:
@@ -41,23 +40,26 @@ func _create_camera() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		is_dragging = event.pressed
-		drag_origin = event.position
-		if not is_dragging:
-			jumper.set_horizontal_intent(0.0)
+		if is_dragging:
+			_set_horizontal_target(event.position)
+		else:
+			jumper.clear_horizontal_target()
 	elif event is InputEventMouseMotion and is_dragging:
-		_set_drag_intent(event.position)
+		_set_horizontal_target(event.position)
 	elif event is InputEventScreenTouch:
 		is_dragging = event.pressed
-		drag_origin = event.position
-		if not is_dragging:
-			jumper.set_horizontal_intent(0.0)
+		if is_dragging:
+			_set_horizontal_target(event.position)
+		else:
+			jumper.clear_horizontal_target()
 	elif event is InputEventScreenDrag and is_dragging:
-		_set_drag_intent(event.position)
+		_set_horizontal_target(event.position)
 	elif event is InputEventKey:
 		_set_keyboard_intent()
 
-func _set_drag_intent(pointer_position: Vector2) -> void:
-	jumper.set_horizontal_intent((pointer_position.x - drag_origin.x) / JumpConfig.DRAG_DISTANCE)
+func _set_horizontal_target(pointer_position: Vector2) -> void:
+	var canvas_to_world := get_viewport().get_canvas_transform().affine_inverse()
+	jumper.set_horizontal_target((canvas_to_world * pointer_position).x)
 
 func _set_keyboard_intent() -> void:
 	jumper.set_horizontal_intent(Input.get_axis("move_left", "move_right"))
