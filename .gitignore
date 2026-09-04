@@ -1,5 +1,6 @@
 # Godot Cache
 .godot/
+/tests/legacy_auto_shooter/*.gd.uid
 build/
 *.tmp
 
