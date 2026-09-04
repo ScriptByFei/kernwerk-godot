@@ -22,6 +22,10 @@ func _init() -> void:
 
 	jumper.velocity.y = -240.0
 	_check(not jumper.bounce_from(platform, false), "rising platform contact never bounces")
+	_check(
+		JumpConfig.BASE_BOUNCE_SPEED * JumpConfig.BASE_BOUNCE_SPEED / (2.0 * JumpConfig.GRAVITY) >= 540.0,
+		"base bounce reaches at least 540px"
+	)
 
 	jumper.set_horizontal_intent(1.0)
 	jumper.velocity.x = 0.0
@@ -38,6 +42,28 @@ func _init() -> void:
 	jumper.set_horizontal_target(720.0)
 	jumper.apply_horizontal_steering(10.0)
 	_check(jumper.velocity.x == JumpConfig.MAX_HORIZONTAL_SPEED, "right target produces capped rightward motion")
+	_check(JumpConfig.MAX_HORIZONTAL_SPEED == 1100.0, "horizontal target impulse uses the 1100px/s cap")
+
+	jumper.velocity.x = 0.0
+	jumper.set_horizontal_target(720.0)
+	jumper.apply_horizontal_steering(0.1)
+	_check(jumper.velocity.x >= 800.0, "short right target step reaches at least 800px/s")
+
+	jumper.velocity.x = 0.0
+	jumper.set_horizontal_target(360.0)
+	jumper.apply_horizontal_steering(0.1)
+	_check(jumper.velocity.x <= -800.0, "short left target step reaches at least 800px/s")
+
+	jumper.velocity.x = 1000.0
+	jumper.clear_horizontal_target()
+	jumper.apply_horizontal_steering(0.1)
+	_check(jumper.velocity.x == 0.0, "releasing input stops 1000px/s within 0.1 seconds")
+
+	_check(JumpConfig.PLATFORM_LAYOUT.size() == 7, "platform route has exactly seven elements")
+	for platform_index in range(JumpConfig.PLATFORM_LAYOUT.size() - 1):
+		var current_platform: Vector2 = JumpConfig.PLATFORM_LAYOUT[platform_index]
+		var next_platform: Vector2 = JumpConfig.PLATFORM_LAYOUT[platform_index + 1]
+		_check(current_platform.y - next_platform.y == 300.0, "adjacent platforms are 300px apart vertically")
 
 	jumper.velocity.x = 300.0
 	jumper.set_horizontal_target(jumper.position.x)
