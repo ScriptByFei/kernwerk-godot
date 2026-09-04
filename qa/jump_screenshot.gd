@@ -11,7 +11,11 @@ func _init() -> void:
 
 	_check(game.get_node_or_null("Jumper") is Jumper, "Jumper present")
 	_check(game.get_node_or_null("VerticalCamera") is VerticalCamera, "VerticalCamera present")
-	_check(game.get_tree().get_nodes_in_group("platforms").size() == 7, "seven platforms present")
+	var platform_count := game.get_tree().get_nodes_in_group("platforms").size()
+	_check(
+		platform_count >= JumpConfig.PLATFORM_LAYOUT.size() and platform_count <= JumpConfig.MAX_ACTIVE_PLATFORMS,
+		"endless platform buffer is present within its active ceiling"
+	)
 	var screenshot_path := "res://docs/assets/screenshots/jump_phase1.png"
 	var image := get_root().get_viewport().get_texture().get_image()
 	var saved := image.save_png(ProjectSettings.globalize_path(screenshot_path))

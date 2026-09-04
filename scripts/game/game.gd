@@ -2,11 +2,13 @@ extends Node2D
 
 var jumper: Jumper
 var camera: VerticalCamera
+var platform_director: PlatformDirector
 var is_dragging := false
 
 func _ready() -> void:
 	queue_redraw()
-	_create_platforms()
+	platform_director = PlatformDirector.new()
+	platform_director.initialize(self, JumpConfig.PLATFORM_LAYOUT)
 	_create_jumper()
 	_create_camera()
 
@@ -16,13 +18,8 @@ func _notification(what: int) -> void:
 
 func _process(_delta: float) -> void:
 	queue_redraw()
-
-func _create_platforms() -> void:
-	for platform_position in JumpConfig.PLATFORM_LAYOUT:
-		var platform := JumpPlatform.new()
-		platform.position = platform_position
-		platform.add_to_group("platforms")
-		add_child(platform)
+	var visible_rect := _get_visible_world_rect()
+	platform_director.maintain(visible_rect.position.y, visible_rect.end.y)
 
 func _create_jumper() -> void:
 	jumper = Jumper.new()
@@ -65,11 +62,14 @@ func _set_keyboard_intent() -> void:
 	jumper.set_horizontal_intent(Input.get_axis("move_left", "move_right"))
 
 func _draw() -> void:
+	var visible_rect := _get_visible_world_rect()
+	draw_rect(visible_rect, Color(0.025, 0.035, 0.055), true)
+	for shaft_x in [120.0, 540.0, 960.0]:
+		draw_line(Vector2(shaft_x, visible_rect.position.y), Vector2(shaft_x, visible_rect.end.y), Color(0.08, 0.13, 0.16), 8.0)
+
+func _get_visible_world_rect() -> Rect2:
 	var viewport_rect := get_viewport_rect()
 	var canvas_to_world := get_viewport().get_canvas_transform().affine_inverse()
 	var top_left := canvas_to_world * viewport_rect.position
 	var bottom_right := canvas_to_world * viewport_rect.end
-	var visible_rect := Rect2(top_left, bottom_right - top_left)
-	draw_rect(visible_rect, Color(0.025, 0.035, 0.055), true)
-	for shaft_x in [120.0, 540.0, 960.0]:
-		draw_line(Vector2(shaft_x, visible_rect.position.y), Vector2(shaft_x, visible_rect.end.y), Color(0.08, 0.13, 0.16), 8.0)
+	return Rect2(top_left, bottom_right - top_left)
