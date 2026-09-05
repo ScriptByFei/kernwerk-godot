@@ -1,6 +1,8 @@
 class_name Jumper
 extends CharacterBody2D
 
+const REACTOR_IDLE_FRAMES := preload("res://assets/jump/reactor_core/reactor_idle_frames.tres")
+
 signal bounced
 
 var horizontal_intent := 0.0
@@ -15,7 +17,20 @@ func _ready() -> void:
 	shape.size = JumpConfig.JUMPER_SIZE
 	collision.shape = shape
 	add_child(collision)
-	queue_redraw()
+	_create_reactor_visual()
+
+func _create_reactor_visual() -> void:
+	var reactor_visual := AnimatedSprite2D.new()
+	reactor_visual.name = "ReactorVisual"
+	reactor_visual.sprite_frames = REACTOR_IDLE_FRAMES
+	reactor_visual.animation = &"idle"
+	reactor_visual.autoplay = &"idle"
+	reactor_visual.centered = false
+	reactor_visual.position = Vector2(-72.0, -109.0)
+	reactor_visual.scale = Vector2(1.5, 1.5)
+	reactor_visual.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(reactor_visual)
+	reactor_visual.play()
 
 func _physics_process(delta: float) -> void:
 	apply_gravity(delta)
@@ -62,8 +77,3 @@ func _apply_bounce(is_overload: bool) -> void:
 	var bounce_speed := JumpConfig.OVERLOAD_BOUNCE_SPEED if is_overload else JumpConfig.BASE_BOUNCE_SPEED
 	velocity.y = -minf(bounce_speed, JumpConfig.MAX_BOUNCE_SPEED)
 	bounced.emit()
-
-func _draw() -> void:
-	draw_circle(Vector2.ZERO, JumpConfig.JUMPER_SIZE.x * 0.7, Color(1.0, 0.32, 0.08, 0.18))
-	draw_circle(Vector2.ZERO, JumpConfig.JUMPER_SIZE.x * 0.45, Color(1.0, 0.34, 0.08))
-	draw_circle(Vector2.ZERO, JumpConfig.JUMPER_SIZE.x * 0.22, Color(1.0, 0.82, 0.36))
