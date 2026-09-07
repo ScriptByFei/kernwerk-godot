@@ -21,17 +21,27 @@ func initialize(platform_parent: Node, initial_positions: Array[Vector2]) -> voi
 		_add_platform(position)
 	_last_position = active_positions.back()
 
-func maintain(visible_top_y: float, visible_bottom_y: float) -> void:
+func maintain(visible_top_y: float, visible_bottom_y: float, difficulty: int = 0) -> void:
+	var clamped_difficulty := clampi(difficulty, 0, JumpConfig.MAX_DIFFICULTY)
 	while _last_position.y > visible_top_y - JumpConfig.PLATFORM_LOOKAHEAD:
-		_add_platform(_next_position())
+		_add_platform(_next_position(clamped_difficulty))
 	_remove_platforms_below(visible_bottom_y + JumpConfig.PLATFORM_CLEANUP_MARGIN)
 
-func _next_position() -> Vector2:
-	var horizontal_offset := _random.randf_range(-JumpConfig.PLATFORM_MAX_HORIZONTAL_STEP, JumpConfig.PLATFORM_MAX_HORIZONTAL_STEP)
+func _next_position(difficulty: int = 0) -> Vector2:
+	var horizontal_step := get_horizontal_step(difficulty)
+	var horizontal_offset := _random.randf_range(-horizontal_step, horizontal_step)
 	return Vector2(
 		clampf(_last_position.x + horizontal_offset, JumpConfig.PLATFORM_MIN_CENTER_X, JumpConfig.PLATFORM_MAX_CENTER_X),
-		_last_position.y - JumpConfig.PLATFORM_VERTICAL_GAP
+		_last_position.y - get_vertical_gap(difficulty)
 	)
+
+func get_vertical_gap(difficulty: int = 0) -> float:
+	var clamped_difficulty := clampi(difficulty, 0, JumpConfig.MAX_DIFFICULTY)
+	return JumpConfig.PLATFORM_VERTICAL_GAP + clamped_difficulty * JumpConfig.DIFFICULTY_VERTICAL_BONUS
+
+func get_horizontal_step(difficulty: int = 0) -> float:
+	var clamped_difficulty := clampi(difficulty, 0, JumpConfig.MAX_DIFFICULTY)
+	return JumpConfig.PLATFORM_MAX_HORIZONTAL_STEP + clamped_difficulty * JumpConfig.DIFFICULTY_HORIZONTAL_BONUS
 
 func _add_platform(position: Vector2) -> void:
 	var platform := JumpPlatform.new()
