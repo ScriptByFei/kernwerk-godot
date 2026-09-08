@@ -41,3 +41,17 @@ const PLATFORM_LAYOUT: Array[Vector2] = [
 	Vector2(380.0, 260.0),
 	Vector2(650.0, -40.0),
 ]
+
+## Start transition choreography (seconds). Deterministic on process time via
+## Tween, independent of refresh rate (30/60/120 FPS).
+const START_TOTAL := 0.92
+const START_PRESS_FEEDBACK := 0.12
+const START_REVEAL_BEGIN := 0.28
+const START_SECONDARY_BEGIN := 0.18
+const START_SECONDARY_DURATION := 0.32
+const START_TITLE_DURATION := 0.42
+const START_CAMERA_DURATION := 0.60
+const START_CAMERA_INTRO_OFFSET := 32.0
+const START_BOUNCE_AT := START_TOTAL
+## Subtle idle breathing for the menu, driven by Tween only.
+const START_IDLE_PERIOD := 3.2

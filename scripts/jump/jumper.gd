@@ -105,6 +105,14 @@ func bounce_from(_platform: JumpPlatform, is_overload: bool) -> bool:
 	_apply_bounce(is_overload)
 	return true
 
+## The first launch has no preceding landing. Normal landing bounces retain
+## their existing land -> jump sequence and physics.
+func start_initial_bounce() -> void:
+	velocity.y = -JumpConfig.BASE_BOUNCE_SPEED
+	_bounce_sequence = [&"jump"]
+	_play_next_bounce_animation()
+	bounced.emit()
+
 func _apply_bounce(is_overload: bool) -> void:
 	var bounce_speed := JumpConfig.OVERLOAD_BOUNCE_SPEED if is_overload else JumpConfig.BASE_BOUNCE_SPEED
 	velocity.y = -minf(bounce_speed, JumpConfig.MAX_BOUNCE_SPEED)
