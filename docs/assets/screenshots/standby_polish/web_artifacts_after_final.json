@@ -1,0 +1,18 @@
+{
+  "index.html": {
+    "bytes": 5441,
+    "sha256": "a2ed097ad1fffbab44f54c98b908675e7cfcc8ccc5b76cdfa66245a566f7a79c"
+  },
+  "index.js": {
+    "bytes": 315759,
+    "sha256": "e3f56ee40e6f84371053db06692cfac15e2c8659547b11c6b2dfa1996dabd981"
+  },
+  "index.wasm": {
+    "bytes": 37700666,
+    "sha256": "26b61ce95247012ab3dca3ff51e96d1cdbff44ee91a8c20a83e150afca83f1b6"
+  },
+  "index.pck": {
+    "bytes": 10087340,
+    "sha256": "975a0dfe1b162770c7bf67208eef9581c2ead208c75aab354e9a6733f162047c"
+  }
+}

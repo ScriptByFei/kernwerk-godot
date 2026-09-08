@@ -47,7 +47,7 @@ func _create_start_menu() -> void:
 	_initial_bounce_fired = false
 	# Establish the intro before the first rendered menu frame, never at tap.
 	camera.offset.y = JumpConfig.START_CAMERA_INTRO_OFFSET
-	jumper.modulate = Color(0.72, 0.76, 0.80)
+	jumper.modulate = Color(0.92, 0.94, 0.96)
 	start_menu = CanvasLayer.new()
 	start_menu.name = "StartMenuLayer"
 	start_menu.layer = 10

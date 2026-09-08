@@ -1,0 +1,581 @@
+
+=== Local engine version (compare with CI) ===
+4.6.2.stable.official.71f334935
+
+
+=== Project import ===
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | Started Registering global classes... (5 steps)[39m[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  16% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  33% ] [90m[1mupdate_scripts_classes[22m | StartMenu[39m[0m
+[  50% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  66% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[92m[ DONE ][39m [1mupdate_scripts_classes[22m
+[0m
+[   0% ] [90m[1m_update_scan_actions[22m | Started Scanning actions... (56 steps)[39m[0m
+[   0% ] [90m[1m_update_scan_actions[22m | after_v1_320x568.png[39m[0m
+[   1% ] [90m[1m_update_scan_actions[22m | after_v1_320x568_window.png[39m[0m
+[   3% ] [90m[1m_update_scan_actions[22m | after_v1_390x844.png[39m[0m
+[   5% ] [90m[1m_update_scan_actions[22m | after_v1_390x844_window.png[39m[0m
+[   7% ] [90m[1m_update_scan_actions[22m | after_v1_390_playing.png[39m[0m
+[   8% ] [90m[1m_update_scan_actions[22m | after_v1_390_playing_window.png[39m[0m
+[  10% ] [90m[1m_update_scan_actions[22m | after_v1_390_tap.png[39m[0m
+[  12% ] [90m[1m_update_scan_actions[22m | after_v1_390_tap_window.png[39m[0m
+[  14% ] [90m[1m_update_scan_actions[22m | after_v1_390_transition040.png[39m[0m
+[  15% ] [90m[1m_update_scan_actions[22m | after_v1_390_transition040_window.png[39m[0m
+[  17% ] [90m[1m_update_scan_actions[22m | after_v1_430x932.png[39m[0m
+[  19% ] [90m[1m_update_scan_actions[22m | after_v1_430x932_window.png[39m[0m
+[  21% ] [90m[1m_update_scan_actions[22m | after_v1_844x390.png[39m[0m
+[  22% ] [90m[1m_update_scan_actions[22m | after_v1_844x390_window.png[39m[0m
+[  24% ] [90m[1m_update_scan_actions[22m | after_v1_1280x720.png[39m[0m
+[  26% ] [90m[1m_update_scan_actions[22m | after_v1_1280x720_window.png[39m[0m
+[  28% ] [90m[1m_update_scan_actions[22m | after_v2_320x568.png[39m[0m
+[  29% ] [90m[1m_update_scan_actions[22m | after_v2_320x568_window.png[39m[0m
+[  31% ] [90m[1m_update_scan_actions[22m | after_v2_390x844.png[39m[0m
+[  33% ] [90m[1m_update_scan_actions[22m | after_v2_390x844_window.png[39m[0m
+[  35% ] [90m[1m_update_scan_actions[22m | after_v2_390_playing.png[39m[0m
+[  36% ] [90m[1m_update_scan_actions[22m | after_v2_390_playing_window.png[39m[0m
+[  38% ] [90m[1m_update_scan_actions[22m | after_v2_390_tap.png[39m[0m
+[  40% ] [90m[1m_update_scan_actions[22m | after_v2_390_tap_window.png[39m[0m
+[  42% ] [90m[1m_update_scan_actions[22m | after_v2_390_transition040.png[39m[0m
+[  43% ] [90m[1m_update_scan_actions[22m | after_v2_390_transition040_window.png[39m[0m
+[  45% ] [90m[1m_update_scan_actions[22m | after_v2_430x932.png[39m[0m
+[  47% ] [90m[1m_update_scan_actions[22m | after_v2_430x932_window.png[39m[0m
+[  49% ] [90m[1m_update_scan_actions[22m | after_v2_844x390.png[39m[0m
+[  50% ] [90m[1m_update_scan_actions[22m | after_v2_844x390_window.png[39m[0m
+[  52% ] [90m[1m_update_scan_actions[22m | after_v2_1280x720.png[39m[0m
+[  54% ] [90m[1m_update_scan_actions[22m | after_v2_1280x720_window.png[39m[0m
+[  56% ] [90m[1m_update_scan_actions[22m | after_v3_320x568.png[39m[0m
+[  57% ] [90m[1m_update_scan_actions[22m | after_v3_320x568_window.png[39m[0m
+[  59% ] [90m[1m_update_scan_actions[22m | after_v3_390x844.png[39m[0m
+[  61% ] [90m[1m_update_scan_actions[22m | after_v3_390x844_window.png[39m[0m
+[  63% ] [90m[1m_update_scan_actions[22m | after_v3_390_playing.png[39m[0m
+[  64% ] [90m[1m_update_scan_actions[22m | after_v3_390_playing_window.png[39m[0m
+[  66% ] [90m[1m_update_scan_actions[22m | after_v3_390_tap.png[39m[0m
+[  68% ] [90m[1m_update_scan_actions[22m | after_v3_390_tap_window.png[39m[0m
+[  70% ] [90m[1m_update_scan_actions[22m | after_v3_390_transition040.png[39m[0m
+[  71% ] [90m[1m_update_scan_actions[22m | after_v3_390_transition040_window.png[39m[0m
+[  73% ] [90m[1m_update_scan_actions[22m | after_v3_430x932.png[39m[0m
+[  75% ] [90m[1m_update_scan_actions[22m | after_v3_430x932_window.png[39m[0m
+[  77% ] [90m[1m_update_scan_actions[22m | after_v3_844x390.png[39m[0m
+[  78% ] [90m[1m_update_scan_actions[22m | after_v3_844x390_window.png[39m[0m
+[  80% ] [90m[1m_update_scan_actions[22m | after_v3_1280x720.png[39m[0m
+[  82% ] [90m[1m_update_scan_actions[22m | after_v3_1280x720_window.png[39m[0m
+[  84% ] [90m[1m_update_scan_actions[22m | before_320x568.png[39m[0m
+[  85% ] [90m[1m_update_scan_actions[22m | before_390x844.png[39m[0m
+[  87% ] [90m[1m_update_scan_actions[22m | before_390_playing.png[39m[0m
+[  89% ] [90m[1m_update_scan_actions[22m | before_390_tap.png[39m[0m
+[  91% ] [90m[1m_update_scan_actions[22m | before_390_transition040.png[39m[0m
+[  92% ] [90m[1m_update_scan_actions[22m | before_430x932.png[39m[0m
+[  94% ] [90m[1m_update_scan_actions[22m | before_844x390.png[39m[0m
+[  96% ] [90m[1m_update_scan_actions[22m | before_1280x720.png[39m[0m
+[92m[ DONE ][39m [1m_update_scan_actions[22m
+[0m
+[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (56 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[   1% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[   3% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[   5% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[   7% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[   8% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  10% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  12% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  14% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  15% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  17% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  19% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  21% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  22% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  24% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  26% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  28% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  29% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  31% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  33% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  35% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  36% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  38% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  40% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  42% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  43% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  45% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  47% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  49% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  50% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  52% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  54% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  56% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  57% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  59% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  61% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  63% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  64% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  66% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  68% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  70% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  71% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  73% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  75% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  77% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  78% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  80% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  82% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  84% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  85% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  87% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  89% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  91% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  92% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  94% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  96% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[   0% ] [90m[1mreimport[22m | Executing pre-reimport operations...[39m[0m
+[   0% ] [90m[1mreimport[22m | after_v2_844x390.png[39m[0m
+[   1% ] [90m[1mreimport[22m | after_v2_844x390_window.png[39m[0m
+[   3% ] [90m[1mreimport[22m | after_v2_1280x720.png[39m[0m
+[   5% ] [90m[1mreimport[22m | after_v2_1280x720_window.png[39m[0m
+[   7% ] [90m[1mreimport[22m | after_v3_320x568.png[39m[0m
+[   8% ] [90m[1mreimport[22m | after_v3_320x568_window.png[39m[0m
+[  10% ] [90m[1mreimport[22m | after_v3_390x844.png[39m[0m
+[  12% ] [90m[1mreimport[22m | after_v3_390x844_window.png[39m[0m
+[  14% ] [90m[1mreimport[22m | after_v3_390_playing.png[39m[0m
+[  15% ] [90m[1mreimport[22m | after_v3_390_playing_window.png[39m[0m
+[  17% ] [90m[1mreimport[22m | after_v3_390_tap.png[39m[0m
+[  19% ] [90m[1mreimport[22m | after_v3_390_tap_window.png[39m[0m
+[  21% ] [90m[1mreimport[22m | after_v3_390_transition040.png[39m[0m
+[  22% ] [90m[1mreimport[22m | after_v3_390_transition040_window.png[39m[0m
+[  24% ] [90m[1mreimport[22m | after_v3_430x932.png[39m[0m
+[  26% ] [90m[1mreimport[22m | after_v3_430x932_window.png[39m[0m
+[  28% ] [90m[1mreimport[22m | after_v3_844x390.png[39m[0m
+[  29% ] [90m[1mreimport[22m | after_v3_844x390_window.png[39m[0m
+[  31% ] [90m[1mreimport[22m | after_v3_1280x720.png[39m[0m
+[  33% ] [90m[1mreimport[22m | after_v3_1280x720_window.png[39m[0m
+[  35% ] [90m[1mreimport[22m | before_320x568.png[39m[0m
+[  36% ] [90m[1mreimport[22m | before_390x844.png[39m[0m
+[  38% ] [90m[1mreimport[22m | before_390_playing.png[39m[0m
+[  40% ] [90m[1mreimport[22m | before_390_tap.png[39m[0m
+[  42% ] [90m[1mreimport[22m | before_390_transition040.png[39m[0m
+[  43% ] [90m[1mreimport[22m | before_430x932.png[39m[0m
+[  45% ] [90m[1mreimport[22m | before_844x390.png[39m[0m
+[  47% ] [90m[1mreimport[22m | before_1280x720.png[39m[0m
+[  49% ] [90m[1mreimport[22m | after_v1_320x568.png[39m[0m
+[  50% ] [90m[1mreimport[22m | after_v1_320x568_window.png[39m[0m
+[  52% ] [90m[1mreimport[22m | after_v1_390x844.png[39m[0m
+[  54% ] [90m[1mreimport[22m | after_v1_390x844_window.png[39m[0m
+[  56% ] [90m[1mreimport[22m | after_v1_390_playing.png[39m[0m
+[  57% ] [90m[1mreimport[22m | after_v1_390_playing_window.png[39m[0m
+[  59% ] [90m[1mreimport[22m | after_v1_390_tap.png[39m[0m
+[  61% ] [90m[1mreimport[22m | after_v1_390_tap_window.png[39m[0m
+[  63% ] [90m[1mreimport[22m | after_v1_390_transition040.png[39m[0m
+[  64% ] [90m[1mreimport[22m | after_v1_390_transition040_window.png[39m[0m
+[  66% ] [90m[1mreimport[22m | after_v1_430x932.png[39m[0m
+[  68% ] [90m[1mreimport[22m | after_v1_430x932_window.png[39m[0m
+[  70% ] [90m[1mreimport[22m | after_v1_844x390.png[39m[0m
+[  71% ] [90m[1mreimport[22m | after_v1_844x390_window.png[39m[0m
+[  73% ] [90m[1mreimport[22m | after_v1_1280x720.png[39m[0m
+[  75% ] [90m[1mreimport[22m | after_v1_1280x720_window.png[39m[0m
+[  77% ] [90m[1mreimport[22m | after_v2_320x568.png[39m[0m
+[  78% ] [90m[1mreimport[22m | after_v2_320x568_window.png[39m[0m
+[  80% ] [90m[1mreimport[22m | after_v2_390x844.png[39m[0m
+[  82% ] [90m[1mreimport[22m | after_v2_390x844_window.png[39m[0m
+[  84% ] [90m[1mreimport[22m | after_v2_390_playing.png[39m[0m
+[  85% ] [90m[1mreimport[22m | after_v2_390_playing_window.png[39m[0m
+[  87% ] [90m[1mreimport[22m | after_v2_390_tap.png[39m[0m
+[  89% ] [90m[1mreimport[22m | after_v2_390_tap_window.png[39m[0m
+[  91% ] [90m[1mreimport[22m | after_v2_390_transition040.png[39m[0m
+[  92% ] [90m[1mreimport[22m | after_v2_390_transition040_window.png[39m[0m
+[  94% ] [90m[1mreimport[22m | after_v2_430x932.png[39m[0m
+[  96% ] [90m[1mreimport[22m | after_v2_430x932_window.png[39m[0m
+[  98% ] [90m[1mreimport[22m | Finalizing Asset Import...[39m[0m
+[92m[ DONE ][39m [1mreimport[22m
+[0m
+[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (56 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Executing post-reimport operations...[39m[0m
+[92m[ DONE ][39m [1mreimport[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Loading editor (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Loading editor layout...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Loading docks...[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m
+
+
+=== tests/gameplay_loop_test.gd ===
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+  ✓ a new run starts at score zero
+  ✓ score increases by one point per ten pixels of height
+  ✓ difficulty stays at zero before the first score step
+  ✓ score reaches 100 at 1000 pixels of height
+  ✓ difficulty rises after one difficulty score step
+  ✓ falling below the camera margin triggers game over
+  ✓ game over starts the configured restart timer
+  ✓ restart clears game over
+  ✓ restart resets score and difficulty
+  ✓ restart restores the jumper start position
+  ✓ restart restores the camera start position
+  ✓ restart restores the initial platform route
+  ✓ difficulty zero keeps the base vertical gap
+  ✓ difficulty adds the configured vertical bonus
+  ✓ difficulty expands the horizontal transition limit
+  ✓ difficulty is capped at the configured maximum
+GAMEPLAY LOOP: ALLE OK
+
+
+=== tests/jump_physics_test.gd ===
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+  ✓ gravity accelerates a resting jumper downward
+  ✓ descending platform contact bounces
+  ✓ descending bounce launches upward
+  ✓ a bounce cannot repeat while rising
+  ✓ descending CharacterBody2D collision produces one bounce
+  ✓ rising platform contact never bounces
+  ✓ base bounce reaches at least 540px
+  ✓ horizontal steering is speed-capped
+  ✓ left target produces capped leftward motion
+  ✓ right target produces capped rightward motion
+  ✓ horizontal target impulse uses the 1100px/s cap
+  ✓ short right target step reaches at least 800px/s
+  ✓ short left target step reaches at least 800px/s
+  ✓ releasing input stops 1000px/s within 0.1 seconds
+  ✓ platform route has exactly seven elements
+  ✓ adjacent platforms are 300px apart vertically
+  ✓ adjacent platforms are 300px apart vertically
+  ✓ adjacent platforms are 300px apart vertically
+  ✓ adjacent platforms are 300px apart vertically
+  ✓ adjacent platforms are 300px apart vertically
+  ✓ adjacent platforms are 300px apart vertically
+  ✓ target at jumper position damps horizontal velocity to zero
+  ✓ rising CharacterBody2D passes through platform underside
+  ✓ overload bounce is higher than base bounce
+  ✓ overload bounce respects the future cap
+JUMP PHYSICS: ALLE OK
+
+
+=== tests/platform_director_test.gd ===
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+  ✓ initialization creates every supplied starting ledge
+  ✓ initialization uses real JumpPlatform nodes
+  ✓ generated nodes retain one-way collisions
+  ✓ maintenance generates ledges above the existing highest ledge
+  ✓ generated ledges extend above the starting route
+  ✓ unchanged camera bounds do not duplicate ledges
+  ✓ generated ledges preserve safe vertical and horizontal transitions
+  ✓ equal seeds and routes generate identical ordered positions
+  ✓ step 0 keeps a platform in the lookahead region
+  ✓ step 0 stays within the active-platform ceiling
+  ✓ step 1 keeps a platform in the lookahead region
+  ✓ step 1 stays within the active-platform ceiling
+  ✓ step 2 keeps a platform in the lookahead region
+  ✓ step 2 stays within the active-platform ceiling
+  ✓ step 3 keeps a platform in the lookahead region
+  ✓ step 3 stays within the active-platform ceiling
+  ✓ step 4 keeps a platform in the lookahead region
+  ✓ step 4 stays within the active-platform ceiling
+  ✓ step 5 keeps a platform in the lookahead region
+  ✓ step 5 stays within the active-platform ceiling
+  ✓ step 6 keeps a platform in the lookahead region
+  ✓ step 6 stays within the active-platform ceiling
+  ✓ step 7 keeps a platform in the lookahead region
+  ✓ step 7 stays within the active-platform ceiling
+  ✓ step 8 keeps a platform in the lookahead region
+  ✓ step 8 stays within the active-platform ceiling
+  ✓ step 9 keeps a platform in the lookahead region
+  ✓ step 9 stays within the active-platform ceiling
+  ✓ step 10 keeps a platform in the lookahead region
+  ✓ step 10 stays within the active-platform ceiling
+  ✓ step 11 keeps a platform in the lookahead region
+  ✓ step 11 stays within the active-platform ceiling
+  ✓ step 12 keeps a platform in the lookahead region
+  ✓ step 12 stays within the active-platform ceiling
+  ✓ step 13 keeps a platform in the lookahead region
+  ✓ step 13 stays within the active-platform ceiling
+  ✓ step 14 keeps a platform in the lookahead region
+  ✓ step 14 stays within the active-platform ceiling
+  ✓ step 15 keeps a platform in the lookahead region
+  ✓ step 15 stays within the active-platform ceiling
+  ✓ step 16 keeps a platform in the lookahead region
+  ✓ step 16 stays within the active-platform ceiling
+  ✓ step 17 keeps a platform in the lookahead region
+  ✓ step 17 stays within the active-platform ceiling
+  ✓ step 18 keeps a platform in the lookahead region
+  ✓ step 18 stays within the active-platform ceiling
+  ✓ step 19 keeps a platform in the lookahead region
+  ✓ step 19 stays within the active-platform ceiling
+  ✓ step 20 keeps a platform in the lookahead region
+  ✓ step 20 stays within the active-platform ceiling
+  ✓ step 21 keeps a platform in the lookahead region
+  ✓ step 21 stays within the active-platform ceiling
+  ✓ step 22 keeps a platform in the lookahead region
+  ✓ step 22 stays within the active-platform ceiling
+  ✓ step 23 keeps a platform in the lookahead region
+  ✓ step 23 stays within the active-platform ceiling
+  ✓ step 24 keeps a platform in the lookahead region
+  ✓ step 24 stays within the active-platform ceiling
+  ✓ step 25 keeps a platform in the lookahead region
+  ✓ step 25 stays within the active-platform ceiling
+  ✓ step 26 keeps a platform in the lookahead region
+  ✓ step 26 stays within the active-platform ceiling
+  ✓ step 27 keeps a platform in the lookahead region
+  ✓ step 27 stays within the active-platform ceiling
+  ✓ step 28 keeps a platform in the lookahead region
+  ✓ step 28 stays within the active-platform ceiling
+  ✓ step 29 keeps a platform in the lookahead region
+  ✓ step 29 stays within the active-platform ceiling
+  ✓ step 30 keeps a platform in the lookahead region
+  ✓ step 30 stays within the active-platform ceiling
+  ✓ step 31 keeps a platform in the lookahead region
+  ✓ step 31 stays within the active-platform ceiling
+  ✓ step 32 keeps a platform in the lookahead region
+  ✓ step 32 stays within the active-platform ceiling
+  ✓ step 33 keeps a platform in the lookahead region
+  ✓ step 33 stays within the active-platform ceiling
+  ✓ step 34 keeps a platform in the lookahead region
+  ✓ step 34 stays within the active-platform ceiling
+  ✓ step 35 keeps a platform in the lookahead region
+  ✓ step 35 stays within the active-platform ceiling
+  ✓ step 36 keeps a platform in the lookahead region
+  ✓ step 36 stays within the active-platform ceiling
+  ✓ step 37 keeps a platform in the lookahead region
+  ✓ step 37 stays within the active-platform ceiling
+  ✓ step 38 keeps a platform in the lookahead region
+  ✓ step 38 stays within the active-platform ceiling
+  ✓ step 39 keeps a platform in the lookahead region
+  ✓ step 39 stays within the active-platform ceiling
+  ✓ step 40 keeps a platform in the lookahead region
+  ✓ step 40 stays within the active-platform ceiling
+  ✓ step 41 keeps a platform in the lookahead region
+  ✓ step 41 stays within the active-platform ceiling
+  ✓ step 42 keeps a platform in the lookahead region
+  ✓ step 42 stays within the active-platform ceiling
+  ✓ step 43 keeps a platform in the lookahead region
+  ✓ step 43 stays within the active-platform ceiling
+  ✓ step 44 keeps a platform in the lookahead region
+  ✓ step 44 stays within the active-platform ceiling
+  ✓ step 45 keeps a platform in the lookahead region
+  ✓ step 45 stays within the active-platform ceiling
+  ✓ step 46 keeps a platform in the lookahead region
+  ✓ step 46 stays within the active-platform ceiling
+  ✓ step 47 keeps a platform in the lookahead region
+  ✓ step 47 stays within the active-platform ceiling
+  ✓ step 48 keeps a platform in the lookahead region
+  ✓ step 48 stays within the active-platform ceiling
+  ✓ step 49 keeps a platform in the lookahead region
+  ✓ step 49 stays within the active-platform ceiling
+  ✓ step 50 keeps a platform in the lookahead region
+  ✓ step 50 stays within the active-platform ceiling
+  ✓ step 51 keeps a platform in the lookahead region
+  ✓ step 51 stays within the active-platform ceiling
+  ✓ step 52 keeps a platform in the lookahead region
+  ✓ step 52 stays within the active-platform ceiling
+  ✓ step 53 keeps a platform in the lookahead region
+  ✓ step 53 stays within the active-platform ceiling
+  ✓ step 54 keeps a platform in the lookahead region
+  ✓ step 54 stays within the active-platform ceiling
+  ✓ step 55 keeps a platform in the lookahead region
+  ✓ step 55 stays within the active-platform ceiling
+  ✓ step 56 keeps a platform in the lookahead region
+  ✓ step 56 stays within the active-platform ceiling
+  ✓ step 57 keeps a platform in the lookahead region
+  ✓ step 57 stays within the active-platform ceiling
+  ✓ step 58 keeps a platform in the lookahead region
+  ✓ step 58 stays within the active-platform ceiling
+  ✓ step 59 keeps a platform in the lookahead region
+  ✓ step 59 stays within the active-platform ceiling
+  ✓ step 60 keeps a platform in the lookahead region
+  ✓ step 60 stays within the active-platform ceiling
+  ✓ step 61 keeps a platform in the lookahead region
+  ✓ step 61 stays within the active-platform ceiling
+  ✓ step 62 keeps a platform in the lookahead region
+  ✓ step 62 stays within the active-platform ceiling
+  ✓ step 63 keeps a platform in the lookahead region
+  ✓ step 63 stays within the active-platform ceiling
+  ✓ step 64 keeps a platform in the lookahead region
+  ✓ step 64 stays within the active-platform ceiling
+  ✓ step 65 keeps a platform in the lookahead region
+  ✓ step 65 stays within the active-platform ceiling
+  ✓ step 66 keeps a platform in the lookahead region
+  ✓ step 66 stays within the active-platform ceiling
+  ✓ step 67 keeps a platform in the lookahead region
+  ✓ step 67 stays within the active-platform ceiling
+  ✓ step 68 keeps a platform in the lookahead region
+  ✓ step 68 stays within the active-platform ceiling
+  ✓ step 69 keeps a platform in the lookahead region
+  ✓ step 69 stays within the active-platform ceiling
+  ✓ step 70 keeps a platform in the lookahead region
+  ✓ step 70 stays within the active-platform ceiling
+  ✓ step 71 keeps a platform in the lookahead region
+  ✓ step 71 stays within the active-platform ceiling
+  ✓ step 72 keeps a platform in the lookahead region
+  ✓ step 72 stays within the active-platform ceiling
+  ✓ step 73 keeps a platform in the lookahead region
+  ✓ step 73 stays within the active-platform ceiling
+  ✓ step 74 keeps a platform in the lookahead region
+  ✓ step 74 stays within the active-platform ceiling
+  ✓ step 75 keeps a platform in the lookahead region
+  ✓ step 75 stays within the active-platform ceiling
+  ✓ step 76 keeps a platform in the lookahead region
+  ✓ step 76 stays within the active-platform ceiling
+  ✓ step 77 keeps a platform in the lookahead region
+  ✓ step 77 stays within the active-platform ceiling
+  ✓ step 78 keeps a platform in the lookahead region
+  ✓ step 78 stays within the active-platform ceiling
+  ✓ step 79 keeps a platform in the lookahead region
+  ✓ step 79 stays within the active-platform ceiling
+PLATFORM DIRECTOR: ALLE OK
+
+
+=== tests/reactor_bounce_anim_test.gd ===
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+  ✓ jump animation exists
+  ✓ jump animation has 6 frames
+  ✓ jump animation does not loop
+  ✓ jump frame 0 texture is non-null and non-empty
+  ✓ jump frame 0 has the exact 96x96 sheet region
+  ✓ jump frame 1 texture is non-null and non-empty
+  ✓ jump frame 1 has the exact 96x96 sheet region
+  ✓ jump frame 2 texture is non-null and non-empty
+  ✓ jump frame 2 has the exact 96x96 sheet region
+  ✓ jump frame 3 texture is non-null and non-empty
+  ✓ jump frame 3 has the exact 96x96 sheet region
+  ✓ jump frame 4 texture is non-null and non-empty
+  ✓ jump frame 4 has the exact 96x96 sheet region
+  ✓ jump frame 5 texture is non-null and non-empty
+  ✓ jump frame 5 has the exact 96x96 sheet region
+  ✓ land animation exists
+  ✓ land animation has 6 frames
+  ✓ land animation does not loop
+  ✓ land frame 0 texture is non-null and non-empty
+  ✓ land frame 0 has the exact 96x96 sheet region
+  ✓ land frame 1 texture is non-null and non-empty
+  ✓ land frame 1 has the exact 96x96 sheet region
+  ✓ land frame 2 texture is non-null and non-empty
+  ✓ land frame 2 has the exact 96x96 sheet region
+  ✓ land frame 3 texture is non-null and non-empty
+  ✓ land frame 3 has the exact 96x96 sheet region
+  ✓ land frame 4 texture is non-null and non-empty
+  ✓ land frame 4 has the exact 96x96 sheet region
+  ✓ land frame 5 texture is non-null and non-empty
+  ✓ land frame 5 has the exact 96x96 sheet region
+  ✓ starts on idle animation
+  ✓ bounce immediately plays land animation
+  ✓ land is followed by jump animation
+  ✓ jump returns to idle animation
+REACTOR BOUNCE ANIM: ALLE OK
+
+
+=== tests/reactor_visual_test.gd ===
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+  ✓ Jumper has a ReactorVisual AnimatedSprite2D child
+  ✓ ReactorVisual has SpriteFrames
+  ✓ idle animation exists
+  ✓ idle animation has 10 frames
+  ✓ idle animation loops
+  ✓ frame 0 texture is non-null and non-empty
+  ✓ frame 0 has the exact 96x96 sheet region
+  ✓ frame 0 has its approved duration
+  ✓ frame 1 texture is non-null and non-empty
+  ✓ frame 1 has the exact 96x96 sheet region
+  ✓ frame 1 has its approved duration
+  ✓ frame 2 texture is non-null and non-empty
+  ✓ frame 2 has the exact 96x96 sheet region
+  ✓ frame 2 has its approved duration
+  ✓ frame 3 texture is non-null and non-empty
+  ✓ frame 3 has the exact 96x96 sheet region
+  ✓ frame 3 has its approved duration
+  ✓ frame 4 texture is non-null and non-empty
+  ✓ frame 4 has the exact 96x96 sheet region
+  ✓ frame 4 has its approved duration
+  ✓ frame 5 texture is non-null and non-empty
+  ✓ frame 5 has the exact 96x96 sheet region
+  ✓ frame 5 has its approved duration
+  ✓ frame 6 texture is non-null and non-empty
+  ✓ frame 6 has the exact 96x96 sheet region
+  ✓ frame 6 has its approved duration
+  ✓ frame 7 texture is non-null and non-empty
+  ✓ frame 7 has the exact 96x96 sheet region
+  ✓ frame 7 has its approved duration
+  ✓ frame 8 texture is non-null and non-empty
+  ✓ frame 8 has the exact 96x96 sheet region
+  ✓ frame 8 has its approved duration
+  ✓ frame 9 texture is non-null and non-empty
+  ✓ frame 9 has the exact 96x96 sheet region
+  ✓ frame 9 has its approved duration
+  ✓ idle loop totals 2.42 seconds
+  ✓ idle animation is playing
+  ✓ ReactorVisual uses nearest pixel filtering
+  ✓ ReactorVisual uses the approved 1.5 scale
+  ✓ Jumper keeps its centered 58x58 collision shape
+  ✓ Jumper keeps its collision layer and mask
+  ✓ reactor foot exactly aligns to the collider bottom
+  ✓ ReactorVisual follows Jumper movement
+  ✓ animation advancement waits for bounded process time
+  ✓ animation advances while Jumper physics is frozen
+REACTOR VISUAL: ALLE OK
+
+
+=== tests/standby_polish_test.gd ===
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+RESPONSIVE (320, 568) viewport=(1080.0, 1920.0) scale=0.29537037014961 CTA=(171.3148, 44.00002)
+RESPONSIVE (390, 844) viewport=(1080.0, 2337.0) scale=0.36111110448837 CTA=(209.4444, 44.00001)
+RESPONSIVE (430, 932) viewport=(1080.0, 2340.0) scale=0.39814814925194 CTA=(230.9259, 44.59259)
+RESPONSIVE (1280, 720) viewport=(1080.0, 1920.0) scale=0.375 CTA=(217.5, 44.00002)
+RESPONSIVE (844, 390) viewport=(1080.0, 1920.0) scale=0.20277777314186 CTA=(117.6111, 44.0)
+STANDBY POLISH: 90 checks, 0 failures
+
+
+=== tests/start_transition_test.gd ===
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+timeline 30 FPS mouse: handoff 0.9333s, bounces 1, exit alpha 0.0
+timeline 30 FPS touch: handoff 0.9333s, bounces 1, exit alpha 0.0
+timeline 60 FPS mouse: handoff 0.9333s, bounces 1, exit alpha 0.0
+timeline 60 FPS touch: handoff 0.9333s, bounces 1, exit alpha 0.0
+timeline 120 FPS mouse: handoff 0.9250s, bounces 1, exit alpha 0.0
+timeline 120 FPS touch: handoff 0.9250s, bounces 1, exit alpha 0.0
+START TRANSITION: 2184 checks, 0 failures
+
+
+=== Main-scene smoke ===
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+
+
+=== Web release export ===
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+ERROR: Cannot export project with preset "Web" due to configuration errors:
+No export template found at the expected path:
+/home/masgi_bot/.hermes/profiles/pixel-builder/home/.local/share/godot/export_templates/4.6.2.stable/web_nothreads_debug.zip
+No export template found at the expected path:
+/home/masgi_bot/.hermes/profiles/pixel-builder/home/.local/share/godot/export_templates/4.6.2.stable/web_nothreads_release.zip
+
+   at: _fs_changed (editor/editor_node.cpp:1332)
+ERROR: Project export for preset "Web" failed.
+   at: _fs_changed (editor/editor_node.cpp:1348)
+
+FAIL: Web release export (exit=1)

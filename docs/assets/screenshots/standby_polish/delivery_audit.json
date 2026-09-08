@@ -1,0 +1,106 @@
+{
+  "preserved_existing_files": 1145,
+  "preservation_changes": [],
+  "game_gd_only_initial_visual_tint_changed": true,
+  "all_five_real_window_sizes_verified": true,
+  "evidence_excluded_from_export": true,
+  "screens": [
+    {
+      "window": [
+        320,
+        568
+      ],
+      "raster": [
+        319,
+        568
+      ],
+      "cta_pixels": [
+        73.84,
+        352.29,
+        171.31,
+        44.0
+      ],
+      "screenshot": "docs/assets/screenshots/standby_polish/after_verified_320x568_window.png"
+    },
+    {
+      "window": [
+        390,
+        844
+      ],
+      "raster": [
+        390,
+        844
+      ],
+      "cta_pixels": [
+        90.28,
+        534.99,
+        209.44,
+        44.0
+      ],
+      "screenshot": "docs/assets/screenshots/standby_polish/after_verified_390x844_window.png"
+    },
+    {
+      "window": [
+        430,
+        932
+      ],
+      "raster": [
+        430,
+        932
+      ],
+      "cta_pixels": [
+        99.54,
+        592.6,
+        230.93,
+        44.59
+      ],
+      "screenshot": "docs/assets/screenshots/standby_polish/after_verified_430x932_window.png"
+    },
+    {
+      "window": [
+        1280,
+        720
+      ],
+      "raster": [
+        405,
+        720
+      ],
+      "cta_pixels": [
+        93.75,
+        453.2,
+        217.5,
+        44.0
+      ],
+      "screenshot": "docs/assets/screenshots/standby_polish/after_verified_1280x720_window.png"
+    },
+    {
+      "window": [
+        844,
+        390
+      ],
+      "raster": [
+        219,
+        390
+      ],
+      "cta_pixels": [
+        50.69,
+        234.96,
+        117.61,
+        44.0
+      ],
+      "screenshot": "docs/assets/screenshots/standby_polish/after_verified_844x390_window.png"
+    }
+  ],
+  "task_status_entries": [
+    " M scripts/game/game.gd",
+    " M scripts/ui/start_menu.gd",
+    " M tests/start_transition_test.gd",
+    "?? docs/assets/screenshots/standby_polish/",
+    "?? qa/standby_polish_audit.py",
+    "?? qa/standby_polish_capture.gd",
+    "?? qa/standby_polish_capture.gd.uid",
+    "?? qa/standby_polish_verify.py",
+    "?? tests/standby_polish_test.gd",
+    "?? tests/standby_polish_test.gd.uid"
+  ]
+}

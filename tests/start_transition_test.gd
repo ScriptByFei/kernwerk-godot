@@ -104,7 +104,7 @@ func _timeline(fps: int, touch: bool) -> void:
 	var tween: Tween = game._start_tween
 	tween.pause()
 	_check(game.camera.position + game.camera.offset == camera_before, "no teleport at tap")
-	_check(menu.cta_panel.scale.x < 1.0, "immediate press feedback")
+	_check(menu.cta_panel.scale == Vector2.ONE and menu.cta_panel.self_modulate.r > 1.0, "immediate brightness feedback without scale punch")
 	_pointer(touch, true, cta_center)
 	_check(game._start_tween == tween, "duplicate tap does not replace timeline")
 	var time := 0.0
