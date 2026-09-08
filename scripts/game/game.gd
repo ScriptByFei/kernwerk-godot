@@ -9,6 +9,7 @@ var is_dragging := false
 var score := 0
 var difficulty := 0
 var is_game_over := false
+var is_started := false
 var _restart_timer := -1.0
 var _highest_y := START_Y
 var _death_check_armed := false
@@ -20,6 +21,9 @@ func _ready() -> void:
 	_create_camera()
 	_highest_y = jumper.global_position.y
 	_update_score()
+	# Hold the jumper on the start platform until the player taps to begin.
+	jumper.set_physics_process(false)
+	camera.set_physics_process(false)
 	queue_redraw()
 
 func _notification(what: int) -> void:
@@ -28,6 +32,8 @@ func _notification(what: int) -> void:
 
 func _process(delta: float) -> void:
 	queue_redraw()
+	if not is_started:
+		return
 	if jumper == null or camera == null:
 		return
 	if is_game_over:
@@ -107,7 +113,21 @@ func _restart() -> void:
 	_update_score()
 	queue_redraw()
 
+func _start_game() -> void:
+	if is_started:
+		return
+	is_started = true
+	jumper.set_physics_process(true)
+	camera.set_physics_process(true)
+	# Give the jumper an initial upward bounce so it leaves the start platform.
+	jumper.velocity.y = -JumpConfig.BASE_BOUNCE_SPEED
+	queue_redraw()
+
 func _unhandled_input(event: InputEvent) -> void:
+	if not is_started:
+		if _is_start_tap(event):
+			_start_game()
+		return
 	if jumper == null:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -128,6 +148,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_set_horizontal_target(event.position)
 	elif event is InputEventKey:
 		_set_keyboard_intent()
+
+func _is_start_tap(event: InputEvent) -> bool:
+	return (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
+		or (event is InputEventScreenTouch and event.pressed)
 
 func _set_horizontal_target(pointer_position: Vector2) -> void:
 	var canvas_to_world := get_viewport().get_canvas_transform().affine_inverse()
@@ -160,6 +184,54 @@ func _draw() -> void:
 			30,
 			Color(0.72, 0.82, 0.86)
 		)
+	if not is_started:
+		_draw_start_menu(visible_rect)
+
+func _draw_start_menu(visible_rect: Rect2) -> void:
+	var center := visible_rect.position + visible_rect.size * 0.5
+	# Title
+	draw_string(
+		ThemeDB.fallback_font,
+		center + Vector2(0.0, -220.0),
+		"KERNWERK",
+		HORIZONTAL_ALIGNMENT_CENTER,
+		-1.0,
+		96,
+		Color(0.72, 1.0, 0.92)
+	)
+	draw_string(
+		ThemeDB.fallback_font,
+		center + Vector2(0.0, -140.0),
+		"RESONANZSPRUNG",
+		HORIZONTAL_ALIGNMENT_CENTER,
+		-1.0,
+		48,
+		Color(0.16, 0.52, 0.58)
+	)
+	# Start button
+	var button_size := Vector2(360.0, 120.0)
+	var button_rect := Rect2(center - button_size * 0.5 + Vector2(0.0, 120.0), button_size)
+	draw_rect(button_rect.grow(7.0), Color(0.04, 0.18, 0.22, 0.65), true)
+	draw_rect(button_rect, Color(0.16, 0.52, 0.58), true)
+	draw_string(
+		ThemeDB.fallback_font,
+		button_rect.get_center() + Vector2(0.0, 18.0),
+		"START",
+		HORIZONTAL_ALIGNMENT_CENTER,
+		-1.0,
+		56,
+		Color(0.025, 0.035, 0.055)
+	)
+	# Hint
+	draw_string(
+		ThemeDB.fallback_font,
+		center + Vector2(0.0, 300.0),
+		"Tippe zum Starten",
+		HORIZONTAL_ALIGNMENT_CENTER,
+		-1.0,
+		32,
+		Color(0.72, 0.82, 0.86)
+	)
 
 func _get_visible_world_rect() -> Rect2:
 	var viewport_rect := get_viewport_rect()
