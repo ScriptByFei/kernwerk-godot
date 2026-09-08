@@ -2,12 +2,17 @@ class_name Jumper
 extends CharacterBody2D
 
 const REACTOR_IDLE_FRAMES := preload("res://assets/jump/reactor_core/reactor_idle_frames.tres")
+const REACTOR_JUMP_FRAMES := preload("res://assets/jump/reactor_core/reactor_jump_frames.tres")
+const REACTOR_LAND_FRAMES := preload("res://assets/jump/reactor_core/reactor_land_frames.tres")
 
 signal bounced
 
 var horizontal_intent := 0.0
 var horizontal_target_x := 0.0
 var has_horizontal_target := false
+
+var _reactor_visual: AnimatedSprite2D
+var _bounce_sequence: Array[StringName] = []
 
 func _ready() -> void:
 	collision_layer = 1
@@ -20,17 +25,44 @@ func _ready() -> void:
 	_create_reactor_visual()
 
 func _create_reactor_visual() -> void:
-	var reactor_visual := AnimatedSprite2D.new()
-	reactor_visual.name = "ReactorVisual"
-	reactor_visual.sprite_frames = REACTOR_IDLE_FRAMES
-	reactor_visual.animation = &"idle"
-	reactor_visual.autoplay = &"idle"
-	reactor_visual.centered = false
-	reactor_visual.position = Vector2(-72.0, -109.0)
-	reactor_visual.scale = Vector2(1.5, 1.5)
-	reactor_visual.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	add_child(reactor_visual)
-	reactor_visual.play()
+	_reactor_visual = AnimatedSprite2D.new()
+	_reactor_visual.name = "ReactorVisual"
+	_reactor_visual.sprite_frames = REACTOR_IDLE_FRAMES
+	_reactor_visual.animation = &"idle"
+	_reactor_visual.autoplay = &"idle"
+	_reactor_visual.centered = false
+	_reactor_visual.position = Vector2(-72.0, -109.0)
+	_reactor_visual.scale = Vector2(1.5, 1.5)
+	_reactor_visual.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(_reactor_visual)
+	_reactor_visual.play()
+
+func _process(_delta: float) -> void:
+	if _reactor_visual.is_playing():
+		return
+	_play_next_bounce_animation()
+
+func _play_next_bounce_animation() -> void:
+	if _reactor_visual == null:
+		return
+	if _bounce_sequence.is_empty():
+		_reactor_visual.sprite_frames = REACTOR_IDLE_FRAMES
+		_reactor_visual.animation = &"idle"
+		_reactor_visual.play()
+		return
+	var anim: StringName = _bounce_sequence.pop_front()
+	_reactor_visual.sprite_frames = _frames_for(anim)
+	_reactor_visual.animation = anim
+	_reactor_visual.play()
+
+func _frames_for(anim: StringName) -> SpriteFrames:
+	match anim:
+		&"jump":
+			return REACTOR_JUMP_FRAMES
+		&"land":
+			return REACTOR_LAND_FRAMES
+		_:
+			return REACTOR_IDLE_FRAMES
 
 func _physics_process(delta: float) -> void:
 	apply_gravity(delta)
@@ -76,4 +108,6 @@ func bounce_from(_platform: JumpPlatform, is_overload: bool) -> bool:
 func _apply_bounce(is_overload: bool) -> void:
 	var bounce_speed := JumpConfig.OVERLOAD_BOUNCE_SPEED if is_overload else JumpConfig.BASE_BOUNCE_SPEED
 	velocity.y = -minf(bounce_speed, JumpConfig.MAX_BOUNCE_SPEED)
+	_bounce_sequence = [&"land", &"jump"]
+	_play_next_bounce_animation()
 	bounced.emit()
