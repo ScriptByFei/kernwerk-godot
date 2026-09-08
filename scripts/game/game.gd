@@ -2,6 +2,7 @@ extends Node2D
 
 const START_Y := JumpConfig.PLATFORM_LAYOUT[0].y - JumpConfig.PLATFORM_SIZE.y
 const START_MENU_BG := preload("res://assets/jump/reactor_core/start_menu_bg.png")
+const START_BUTTON := preload("res://assets/jump/reactor_core/start_button.png")
 
 var jumper: Jumper
 var camera: VerticalCamera
@@ -211,19 +212,13 @@ func _draw_start_menu(visible_rect: Rect2) -> void:
 		48,
 		Color(0.16, 0.52, 0.58)
 	)
-	# Start button
-	var button_size := Vector2(360.0, 120.0)
-	var button_rect := Rect2(center - button_size * 0.5 + Vector2(0.0, 120.0), button_size)
-	draw_rect(button_rect.grow(7.0), Color(0.04, 0.18, 0.22, 0.65), true)
-	draw_rect(button_rect, Color(0.16, 0.52, 0.58), true)
-	draw_string(
-		ThemeDB.fallback_font,
-		button_rect.get_center() + Vector2(0.0, 18.0),
-		"START",
-		HORIZONTAL_ALIGNMENT_CENTER,
-		-1.0,
-		56,
-		Color(0.025, 0.035, 0.055)
+	# Start button artwork (400x140), centered below the title.
+	var button_size := Vector2(400.0, 140.0)
+	var button_center := center + Vector2(0.0, 120.0)
+	draw_texture_rect(
+		START_BUTTON,
+		Rect2(button_center - button_size * 0.5, button_size),
+		false
 	)
 	# Hint
 	draw_string(
