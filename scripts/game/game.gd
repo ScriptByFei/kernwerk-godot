@@ -1,12 +1,11 @@
 extends Node2D
 
 const START_Y := JumpConfig.PLATFORM_LAYOUT[0].y - JumpConfig.PLATFORM_SIZE.y
-const START_MENU_BG := preload("res://assets/jump/reactor_core/start_menu_bg.png")
-const START_BUTTON := preload("res://assets/jump/reactor_core/start_button.png")
 
 var jumper: Jumper
 var camera: VerticalCamera
 var platform_director: PlatformDirector
+var start_menu: CanvasLayer
 var is_dragging := false
 var score := 0
 var difficulty := 0
@@ -26,7 +25,17 @@ func _ready() -> void:
 	# Hold the jumper on the start platform until the player taps to begin.
 	jumper.set_physics_process(false)
 	camera.set_physics_process(false)
+	_create_start_menu()
 	queue_redraw()
+
+func _create_start_menu() -> void:
+	start_menu = CanvasLayer.new()
+	start_menu.name = "StartMenuLayer"
+	start_menu.layer = 10
+	add_child(start_menu)
+	var menu := StartMenu.new()
+	menu.name = "StartMenu"
+	start_menu.add_child(menu)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_SIZE_CHANGED:
@@ -123,6 +132,9 @@ func _start_game() -> void:
 	camera.set_physics_process(true)
 	# Give the jumper an initial upward bounce so it leaves the start platform.
 	jumper.velocity.y = -JumpConfig.BASE_BOUNCE_SPEED
+	# Hide the start menu overlay.
+	if start_menu != null:
+		start_menu.visible = false
 	queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -186,50 +198,6 @@ func _draw() -> void:
 			30,
 			Color(0.72, 0.82, 0.86)
 		)
-	if not is_started:
-		_draw_start_menu(visible_rect)
-
-func _draw_start_menu(visible_rect: Rect2) -> void:
-	# Background artwork fills the whole viewport.
-	draw_texture_rect(START_MENU_BG, visible_rect, false)
-	var center := visible_rect.position + visible_rect.size * 0.5
-	# Title
-	draw_string(
-		ThemeDB.fallback_font,
-		center + Vector2(0.0, -220.0),
-		"KERNWERK",
-		HORIZONTAL_ALIGNMENT_CENTER,
-		-1.0,
-		96,
-		Color(0.72, 1.0, 0.92)
-	)
-	draw_string(
-		ThemeDB.fallback_font,
-		center + Vector2(0.0, -140.0),
-		"RESONANZSPRUNG",
-		HORIZONTAL_ALIGNMENT_CENTER,
-		-1.0,
-		48,
-		Color(0.16, 0.52, 0.58)
-	)
-	# Start button artwork (400x140), centered below the title.
-	var button_size := Vector2(400.0, 140.0)
-	var button_center := center + Vector2(0.0, 120.0)
-	draw_texture_rect(
-		START_BUTTON,
-		Rect2(button_center - button_size * 0.5, button_size),
-		false
-	)
-	# Hint
-	draw_string(
-		ThemeDB.fallback_font,
-		center + Vector2(0.0, 300.0),
-		"Tippe zum Starten",
-		HORIZONTAL_ALIGNMENT_CENTER,
-		-1.0,
-		32,
-		Color(0.72, 0.82, 0.86)
-	)
 
 func _get_visible_world_rect() -> Rect2:
 	var viewport_rect := get_viewport_rect()
