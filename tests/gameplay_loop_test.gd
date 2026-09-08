@@ -44,7 +44,7 @@ func _test_gameplay_loop() -> void:
 	_check(not game.is_game_over, "restart clears game over")
 	_check(game.score == 0 and game.difficulty == 0, "restart resets score and difficulty")
 	_check(game.jumper.global_position == Vector2(540.0, game.START_Y), "restart restores the jumper start position")
-	_check(game.camera.global_position == JumpConfig.CAMERA_START, "restart restores the camera start position")
+	_check(game.camera.global_position == Vector2(540.0, game.START_Y + JumpConfig.CAMERA_LEAD), "restart restores the camera start position")
 	_check(game.platform_director.active_positions == JumpConfig.PLATFORM_LAYOUT, "restart restores the initial platform route")
 
 	game.queue_free()

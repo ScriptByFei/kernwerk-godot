@@ -57,6 +57,10 @@ func _create_camera() -> void:
 	camera.name = "VerticalCamera"
 	camera.target = jumper
 	add_child(camera)
+	# Start the camera on the jumper so the death line sits below the play area,
+	# not above it. The camera only follows upward, so a static CAMERA_START
+	# leaves the jumper permanently below the death line (instant game over).
+	camera.position = Vector2(jumper.global_position.x, jumper.global_position.y + JumpConfig.CAMERA_LEAD)
 
 func _update_score() -> void:
 	if jumper == null:
