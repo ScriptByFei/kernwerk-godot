@@ -1,6 +1,7 @@
 extends Node2D
 
 const START_Y := JumpConfig.PLATFORM_LAYOUT[0].y - JumpConfig.PLATFORM_SIZE.y
+const START_MENU_BG := preload("res://assets/jump/reactor_core/start_menu_bg.png")
 
 var jumper: Jumper
 var camera: VerticalCamera
@@ -188,6 +189,8 @@ func _draw() -> void:
 		_draw_start_menu(visible_rect)
 
 func _draw_start_menu(visible_rect: Rect2) -> void:
+	# Background artwork fills the whole viewport.
+	draw_texture_rect(START_MENU_BG, visible_rect, false)
 	var center := visible_rect.position + visible_rect.size * 0.5
 	# Title
 	draw_string(
