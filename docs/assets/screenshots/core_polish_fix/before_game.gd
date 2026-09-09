@@ -189,12 +189,6 @@ func _restart(fast_retry := false) -> void:
 	platform_director.initialize(self, JumpConfig.PLATFORM_LAYOUT)
 	_create_jumper()
 	_create_camera()
-	# The new camera's scroll/canvas transform is not applied to the viewport
-	# until its next process. Force it now so the same-frame _draw() computes the
-	# correct visible world rect (otherwise the retry frame exposes the clear
-	# color where the background rect misses the viewport).
-	camera.make_current()
-	camera.force_update_scroll()
 	score = 0
 	_landing_bonus = 0
 	difficulty = 0

@@ -1,0 +1,22 @@
+{
+  "retry_frames": [
+    300
+  ],
+  "render_checks": [
+    {
+      "frame": 300,
+      "bad_background_probes": 0,
+      "examples": [],
+      "hud_lit_pixels": 385,
+      "pass": true
+    },
+    {
+      "frame": 301,
+      "bad_background_probes": 0,
+      "examples": [],
+      "hud_lit_pixels": 365,
+      "pass": true
+    }
+  ],
+  "pass": true
+}

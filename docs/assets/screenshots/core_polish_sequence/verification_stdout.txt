@@ -1,0 +1,69 @@
+{
+  "capture_frames": 346,
+  "resolution": [
+    390,
+    844
+  ],
+  "contacts": [
+    {
+      "bonus": 0,
+      "bounce_vy": -1580.0,
+      "frame": 108,
+      "on_floor": true,
+      "platform_id": 31339840989,
+      "platform_impact_count": 1,
+      "previous_render_vy": 909.999816894531,
+      "quality": 0,
+      "slide_normals": [
+        "(0.0, -1.0)"
+      ],
+      "stage": "normal",
+      "target_id": 31339840989
+    },
+    {
+      "bonus": 0,
+      "bounce_vy": -1619.5,
+      "frame": 168,
+      "on_floor": true,
+      "platform_id": 31339840989,
+      "platform_impact_count": 2,
+      "previous_render_vy": 909.999816894531,
+      "quality": 1,
+      "slide_normals": [
+        "(0.0, -1.0)"
+      ],
+      "stage": "resonance",
+      "target_id": 31339840989
+    },
+    {
+      "bonus": 0,
+      "bounce_vy": -1659.0,
+      "frame": 228,
+      "on_floor": true,
+      "platform_id": 31339840989,
+      "platform_impact_count": 3,
+      "previous_render_vy": 909.999816894531,
+      "quality": 2,
+      "slide_normals": [
+        "(0.0, -1.0)"
+      ],
+      "stage": "perfect",
+      "target_id": 31339840989
+    }
+  ],
+  "death_frame": 283,
+  "retry_frame": 300,
+  "retry_seconds": 0.2833333333333333,
+  "protected_against_HEAD": {
+    "_create_start_menu": true,
+    "_start_game": true,
+    "_begin_start_sequence": true,
+    "_tween_menu_away": true,
+    "_finish_start_sequence": true,
+    "_fire_initial_bounce": true,
+    "_enter_playing": true,
+    "_cancel_start_sequence": true,
+    "start_menu_file": true,
+    "start_constants": true
+  }
+}

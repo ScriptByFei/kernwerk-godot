@@ -10,12 +10,15 @@ var _platform_parent: Node
 var _active_platforms: Array[JumpPlatform] = []
 var _random := RandomNumberGenerator.new()
 var _last_position := Vector2.ZERO
+var _run_seed: int
 
 func _init(run_seed: int = JumpConfig.PLATFORM_RUN_SEED) -> void:
+	_run_seed = run_seed
 	_random.seed = run_seed
 
 func initialize(platform_parent: Node, initial_positions: Array[Vector2]) -> void:
 	_clear_platforms()
+	_random.seed = _run_seed
 	_platform_parent = platform_parent
 	for position in initial_positions:
 		_add_platform(position)
@@ -59,6 +62,10 @@ func _remove_platforms_below(cleanup_y: float) -> void:
 
 func _clear_platforms() -> void:
 	for platform in _active_platforms:
-		platform.queue_free()
+		# Retry occurs in process, outside the physics query: immediately detach
+		# old colliders before creating the new route, then defer destruction.
+		if is_instance_valid(platform):
+			platform.get_parent().remove_child(platform)
+			platform.queue_free()
 	_active_platforms.clear()
 	active_positions.clear()
