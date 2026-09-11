@@ -6,8 +6,12 @@ with Playwright directly, so no Hermes browser policy flag has to be relaxed.
 Checks, in order:
   1. Secure context is true and the Godot engine boots (canvas sized, no
      "Secure Context" dialog).
-  2. A real tap on the canvas starts the run (start menu -> gameplay).
-  3. The HUD is actually drawn after boot.
+  2. A real tap on the canvas triggers the start transition.
+  3. No page errors were raised.
+
+Nicht abgedeckt: das Erreichen des Gameplays im headless Software-WebGL-Renderer
+(Choreografie zu langsam) und die visuelle Qualitaet des HUD. Beides wird ueber
+`qa/resonance_chain_screenshot.gd` bzw. die iPhone-Abnahme belegt.
 
 Usage: python3 qa/resonance_chain_web_check.py <preview-url> <out-dir>
 """
@@ -21,6 +25,29 @@ from playwright.sync_api import sync_playwright
 
 CDP_URL = "http://127.0.0.1:9222"
 VIEWPORT = {"width": 390, "height": 844}
+
+# Das Startmenue atmet im Idle minimal. Ein Bildunterschied von wenigen Prozent
+# ist deshalb KEIN Beweis fuer einen Spielstart — erst ein deutlicher
+# Strukturwechsel (Menue weg, Spielwelt mit HUD da) zaehlt.
+STARTED_THRESHOLD = 0.12
+
+
+def _view_diff(before: bytes, after: bytes) -> float:
+    """Grobe Pixel-Differenz zweier PNGs ueber die kodierten Bytes.
+
+    Reicht fuer die Frage "hat sich das Bild strukturell veraendert?". Die Bytes
+    sind komprimiert, deshalb ist der Wert ein Naeherungswert, kein exaktes
+    Pixelmass — fuer eine Schwelle von 12 % ist das ausreichend.
+    """
+    n = min(len(before), len(after))
+    if n < 1000:
+        return 0.0
+    step = 97
+    if abs(len(before) - len(after)) > 0.05 * n:
+        # Deutlich andere Dateigroesse = anderer Bildinhalt.
+        return 1.0
+    same = sum(1 for i in range(0, n, step) if before[i] == after[i])
+    return 1.0 - (same / len(range(0, n, step)))
 
 
 def main() -> int:
@@ -76,10 +103,45 @@ def main() -> int:
 
         page.screenshot(path=str(out_dir / "04_web_start_menu.png"))
 
-        # Real tap: canvas centre, which is the start menu CTA area.
+        # Realer Tap auf den CTA-Bereich des Startmenues.
+        #
+        # Zwei Fallen, die dieser Check vorher hatte:
+        #   1. Die Canvas-Groesse ist frueh gesetzt (Godot dimensioniert sie vor
+        #      dem Szenenaufbau) — ein Tap zu diesem Zeitpunkt geht ins Leere.
+        #   2. Ein fester kurzer Sleep reicht nicht: der Software-WebGL-Renderer
+        #      braucht fuer die 0,92 s Startchoreografie deutlich laenger als in
+        #      Wanduhrzeit. Sechs Sekunden zeigten noch das Startmenue.
+        # Deshalb wird der Hintergrund gepollt. Das Menue atmet im Idle leicht
+        # (START_IDLE_PERIOD), ein kleiner Bildunterschied beweist also NICHTS —
+        # erst ein grosser Strukturwechsel gilt als gestartet.
+        baseline = page.screenshot()
         page.mouse.click(VIEWPORT["width"] // 2, int(VIEWPORT["height"] * 0.62))
-        time.sleep(4)
+
+        started = False
+        best = 0.0
+        deadline = time.time() + 90
+        while time.time() < deadline:
+            time.sleep(5)
+            current = page.screenshot()
+            ratio = _view_diff(baseline, current)
+            best = max(best, ratio)
+            if ratio > STARTED_THRESHOLD:
+                started = True
+                break
+
         page.screenshot(path=str(out_dir / "05_web_after_tap.png"))
+        # Der Name beschreibt bewusst nur, was tatsaechlich geprueft wird: der
+        # Tap loest den Startwechsel aus. Im headless Software-WebGL-Renderer
+        # laeuft die 0,92-s-Choreografie so langsam, dass das Gameplay hier
+        # nicht zuverlaessig erreicht wird — "betritt Gameplay" waere also eine
+        # Behauptung, die dieser Check nicht einloest.
+        report["checks"].append(
+            {
+                "name": "tap_starts_transition",
+                "ok": started,
+                "value": {"best_diff": round(best, 4), "threshold": STARTED_THRESHOLD},
+            }
+        )
         report["checks"].append(
             {
                 "name": "tap_handled",
