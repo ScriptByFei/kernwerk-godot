@@ -41,12 +41,10 @@ func _on_viewport_size_changed() -> void:
 func _build_nodes() -> void:
 	bg = TextureRect.new()
 	bg.name = "Background"
-	# Reuse the upper chamber, not its large painted reactor: the live reactor
-	# remains the only character during the dissolve (no double silhouette).
-	var chamber := AtlasTexture.new()
-	chamber.atlas = START_MENU_BG
-	chamber.region = Rect2(0, 0, 1080, 760)
-	bg.texture = chamber
+	# The artwork is authored 1080x1920 portrait and covers the screen directly.
+	# It deliberately keeps the reactor area empty, so the live reactor stays
+	# the only character during the dissolve (no double silhouette).
+	bg.texture = START_MENU_BG
 	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -54,9 +52,13 @@ func _build_nodes() -> void:
 	bg.modulate.a = 0.32
 	bg.self_modulate = Color(0.74, 0.78, 0.82)
 	add_child(bg)
-	title_label = _make_label("KERNWERK", FONT_BOLD, Color(0.53, 0.58, 0.57))
+	title_label = _make_label("KERNWERK", FONT_BOLD, Color(1.0, 0.965, 0.91))
+	# Warm halo instead of a flat grey logo: reads as powered metal and picks up
+	# the reactor's amber light. Width is proportional, see _apply_layout.
+	title_label.add_theme_color_override("font_outline_color", Color(1.0, 0.55, 0.16, 0.55))
+	title_label.add_theme_constant_override("outline_size", 6)
 	add_child(title_label)
-	subtitle_label = _make_label("RESONANZSPRUNG", FONT_REGULAR, Color(0.47, 0.55, 0.57))
+	subtitle_label = _make_label("RESONANZSPRUNG", FONT_REGULAR, Color(0.62, 0.70, 0.72))
 	add_child(subtitle_label)
 	# The old texture contains baked-in START lettering. Use a simple console
 	# plate instead; keep the source asset untouched and render exactly one CTA.
@@ -92,6 +94,8 @@ func _apply_layout() -> void:
 	bg.position = Vector2.ZERO
 	bg.size = size
 	title_label.add_theme_font_size_override("font_size", title_font)
+	title_label.add_theme_constant_override(
+		"outline_size", maxi(1, roundi(title_font * JumpConfig.START_TITLE_GLOW_RATIO)))
 	subtitle_label.add_theme_font_size_override("font_size", subtitle_font)
 	cta_label.add_theme_font_size_override("font_size", cta_font)
 	# A prior tiny/headless viewport may have expanded Label minimum sizes.

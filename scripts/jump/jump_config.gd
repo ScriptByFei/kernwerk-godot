@@ -179,3 +179,6 @@ const START_CAMERA_INTRO_OFFSET := 32.0
 const START_BOUNCE_AT := START_TOTAL
 ## Subtle idle breathing for the menu, driven by Tween only.
 const START_IDLE_PERIOD := 3.2
+# Title glow: outline width as a fraction of the title font size, so the
+# halo keeps its proportion on every screen size.
+const START_TITLE_GLOW_RATIO := 0.055
