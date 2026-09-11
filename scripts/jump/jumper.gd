@@ -19,6 +19,14 @@ var landing_count := 0
 var _contact_latched := false
 var _impact_remaining := 0.0
 var _feedback_visual: Node2D
+## Resonanzstand 0.0 .. 1.0, nur fuer die Ringintensitaet. Die Ladungen selbst
+## liegen im ResonanceSystem, damit es genau eine Quelle der Wahrheit gibt.
+var _resonance_ratio := 0.0
+
+## Wird unmittelbar vor dem Absprung befragt: bekommt die Landequalitaet und
+## meldet, ob dieser Absprung ueberladen ist. Das Spiel haengt hier das
+## ResonanceSystem ein, damit die Overload-Kraft im selben Tick wirkt.
+var overload_check: Callable
 
 func _ready() -> void:
 	collision_layer = 1
@@ -114,6 +122,13 @@ func clear_horizontal_target() -> void:
 	has_horizontal_target = false
 	horizontal_intent = 0.0
 
+## Anteil der geladenen Resonanz (0.0 .. 1.0). Wird vom Spiel gesetzt und
+## faerbt nur das Kontakt-Feedback, nicht die Physik.
+func set_resonance_ratio(ratio: float) -> void:
+	_resonance_ratio = clampf(ratio, 0.0, 1.0)
+	if _feedback_visual != null:
+		_feedback_visual.queue_redraw()
+
 func apply_horizontal_steering(delta: float) -> void:
 	var target_speed := horizontal_intent * JumpConfig.MAX_HORIZONTAL_SPEED
 	if has_horizontal_target:
@@ -140,6 +155,10 @@ func bounce_from(platform: JumpPlatform, is_overload: bool) -> bool:
 	_resolve_landing(platform, is_overload, global_position.x)
 	return true
 
+## Der Absprung traegt die verbrauchte Resonanzladung. Wird in `_apply_bounce`
+## gesetzt, BEVOR der Callback die Ladungen leert.
+var _pending_overload := false
+
 func _resolve_landing(platform: JumpPlatform, is_overload: bool, contact_center_x: float) -> void:
 	last_landing_quality = JumpConfig.LandingQuality.NORMAL
 	var bonus := 0
@@ -151,7 +170,15 @@ func _resolve_landing(platform: JumpPlatform, is_overload: bool, contact_center_
 	_impact_remaining = JumpConfig.LANDING_EFFECT_DURATIONS[last_landing_quality]
 	if _feedback_visual != null:
 		_feedback_visual.queue_redraw()
-	_apply_bounce(is_overload)
+	# Erst die Landung verbuchen (laedt die Resonanz), dann mit dem Ergebnis
+	# abspringen. So wirkt ein Overload im selben Physik-Tick wie die Landung,
+	# die ihn ausgeloest hat.
+	var overload := false
+	if overload_check.is_valid():
+		overload = bool(overload_check.call(last_landing_quality))
+	else:
+		overload = is_overload
+	_apply_bounce(overload)
 	landed.emit(platform, last_landing_quality, bonus)
 
 ## The first launch has no preceding landing. Normal landing bounces retain
@@ -163,8 +190,12 @@ func start_initial_bounce() -> void:
 	bounced.emit()
 
 func _apply_bounce(is_overload: bool) -> void:
+	_pending_overload = is_overload
 	var bounce_speed := JumpConfig.OVERLOAD_BOUNCE_SPEED if is_overload else JumpConfig.BASE_BOUNCE_SPEED
-	velocity.y = -minf(bounce_speed * JumpConfig.LANDING_BOUNCE_MULTIPLIERS[last_landing_quality], JumpConfig.MAX_BOUNCE_SPEED)
+	# Landequalitaet und Resonanzstand multiplizieren sich, danach greift die
+	# Kappung: kein Bonus hebt den Deckel von MAX_BOUNCE_SPEED an.
+	var chained := bounce_speed * (1.0 + JumpConfig.resonance_bounce_bonus(int(round(_resonance_ratio * JumpConfig.RESONANCE_MAX_CHARGES))))
+	velocity.y = -minf(chained * JumpConfig.LANDING_BOUNCE_MULTIPLIERS[last_landing_quality], JumpConfig.MAX_BOUNCE_SPEED)
 	_bounce_sequence = [&"land", &"jump"]
 	_play_next_bounce_animation()
 	bounced.emit()
@@ -192,8 +223,17 @@ func _draw_contact_light() -> void:
 	_feedback_visual.draw_circle(JumpConfig.REACTOR_CORE_POSITION, JumpConfig.LANDING_CORE_LIGHT_RADIUS, light)
 	if last_landing_quality != JumpConfig.LandingQuality.NORMAL:
 		var ring := JumpConfig.LANDING_GLOW_COLOR
-		ring.a = strength
+		# Der Ladungsstand ist am Ring ablesbar, ohne zusaetzliche Objekte:
+		# mehr Resonanz = hellerer und weiter gespannter Kontaktring.
+		var charge_boost := _resonance_ratio * JumpConfig.RESONANCE_RING_CHARGE_GAIN
+		ring.a = minf(1.0, strength * (1.0 + charge_boost))
 		var radius: float = JumpConfig.LANDING_RING_RADII[last_landing_quality] + (1.0 - fade) * JumpConfig.LANDING_RING_EXPANSION
+		if _pending_overload:
+			# Ein entladener Overload ist im selben Moment sichtbar, in dem er
+			# verbraucht wird.
+			ring = JumpConfig.RESONANCE_OVERLOAD_COLOR
+			ring.a = minf(1.0, strength * 2.0)
+			radius += JumpConfig.LANDING_RING_EXPANSION
 		_feedback_visual.draw_set_transform(Vector2(0.0, JumpConfig.JUMPER_SIZE.y * 0.5), 0.0, Vector2(1.0, JumpConfig.LANDING_RING_FLATTEN))
 		_feedback_visual.draw_arc(Vector2.ZERO, radius, 0.0, TAU, JumpConfig.LANDING_RING_SEGMENTS, ring, JumpConfig.LANDING_RING_WIDTH)
 		_feedback_visual.draw_set_transform(Vector2.ZERO)

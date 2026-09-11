@@ -1,0 +1,31 @@
+{
+  "url": "https://masga-server.tail1bf259.ts.net:8790/index.html",
+  "checks": [
+    {
+      "name": "secure_context",
+      "ok": true,
+      "value": true
+    },
+    {
+      "name": "engine_boot_canvas",
+      "ok": true,
+      "value": [
+        300,
+        150
+      ]
+    },
+    {
+      "name": "tap_handled",
+      "ok": true,
+      "value": []
+    }
+  ],
+  "console_tail": [
+    "warning: []Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader flag to opt in to lower security guarantees for trusted content.",
+    "log: Godot Engine v4.6.3.stable.official.7d41c59c4 - https://godotengine.org",
+    "log: OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL",
+    "log: Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support.",
+    "warning: []Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader flag to opt in to lower security guarantees for trusted content."
+  ],
+  "passed": true
+}

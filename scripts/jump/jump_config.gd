@@ -17,26 +17,61 @@ const HORIZONTAL_TARGET_DEADZONE := 1.5
 
 enum LandingQuality { NORMAL, RESONANCE, PERFECT }
 # Ratios use FULL platform width, not half-width. Boundaries are inclusive.
-const PERFECT_CENTER_RATIO := 0.08
-const RESONANCE_CENTER_RATIO := 0.22
+# PERFECT 0.08 -> 0.15 -> 0.20: das urspruengliche Fenster war +-19 Welt-Pixel,
+# auf einem 390pt-Telefon nur +-7 Punkte und damit unter der Daumen-Praezision.
+# Jetzt +-48 px (+-17 Punkte); die sichtbare Sockelmarkierung zeichnet exakt
+# dieselbe Breite (perfect_band_width), damit Ziel und Trefferzone gleich sind.
+# RESONANCE bleibt bewusst schmaler als 2x PERFECT, damit aussen noch ein
+# echter NORMAL-Bereich mit eigenem Impact-Feedback sichtbar bleibt.
+const PERFECT_CENTER_RATIO := 0.24
+const RESONANCE_CENTER_RATIO := 0.38
 const LANDING_BOUNCE_MULTIPLIERS := [1.0, 1.025, 1.05]
+# Resonanzladungen: die zentrale Kernmechanik. Jede RESONANCE- oder
+# PERFECT-Landung laedt +1. Bei RESONANCE_MAX_CHARGES ist OVERLOAD scharf, der
+# naechste Absprung nutzt OVERLOAD_BOUNCE_SPEED, danach steht die Resonanz
+# wieder auf 0. Eine NORMAL-Landung loescht alle Ladungen.
+const RESONANCE_MAX_CHARGES := 3
+# Punkte je gehaltener Ladung. Index = Ladungsstand, 0 zahlt nichts.
+const RESONANCE_SCORE_BY_CHARGE := [0, 5, 12, 25]
+# Aufschlag auf die Absprungkraft je gehaltener Ladung. Wirkt auf den naechsten
+# Absprung und bleibt unter MAX_BOUNCE_SPEED gedeckelt.
+const RESONANCE_BOUNCE_BONUS_PER_CHARGE := 0.03
+const RESONANCE_HUD_COLOR := Color(1.0, 0.73, 0.35)
+const RESONANCE_HUD_DIM_COLOR := Color(0.30, 0.38, 0.44)
+const RESONANCE_HUD_CHARGE_COLOR := Color(0.55, 0.95, 0.88)
+const RESONANCE_OVERLOAD_COLOR := Color(1.0, 0.86, 0.42)
+# Der Ring am Kontaktpunkt wird mit der Ladung heller, ohne zusaetzliche Objekte.
+const RESONANCE_RING_CHARGE_GAIN := 1.0
+# Minimalistisches HUD: drei Segmente, kein Ziffern- oder Textzauber.
+const RESONANCE_HUD_ORIGIN := Vector2(44.0, 72.0)
+const RESONANCE_HUD_SEGMENT_SIZE := Vector2(44.0, 14.0)
+const RESONANCE_HUD_SEGMENT_GAP := 9.0
+# Abstand der Segmentzeile unter dem Score-Text.
+const RESONANCE_HUD_ROW_OFFSET := 60.0
+const RESONANCE_HUD_OUTLINE_WIDTH := 2.0
+const RESONANCE_OVERLOAD_LABEL := "OVERLOAD"
+# Das Spiel springt automatisch beim Landen ab. 3/3 existiert deshalb nur einen
+# Physik-Tick lang und waere nie sichtbar (queue_redraw laeuft nach der Physik).
+# Waehrend des ueberladenen Flugs bleibt die Anzeige stehen: dort ist der
+# Overload tatsaechlich aktiv.
+const RESONANCE_OVERLOAD_DISPLAY_TIME := 0.6
 const LANDING_BONUSES_ENABLED := false
 const LANDING_SCORE_BONUSES := [0, 1, 3]
 const LANDING_EFFECT_DURATIONS := [0.12, 0.18, 0.22]
 const LANDING_EFFECT_STRENGTHS := [0.12, 0.30, 0.46]
-const LANDING_RING_RADII := [12.0, 32.0, 42.0]
-const LANDING_RING_EXPANSION := 16.0
+const LANDING_RING_RADII := [15.0, 40.0, 52.0]
+const LANDING_RING_EXPANSION := 20.0
 const LANDING_RING_FLATTEN := 0.25
 const LANDING_RING_SEGMENTS := 24
-const LANDING_RING_WIDTH := 2.0
-const LANDING_GLOW_RADIUS := 40.0
+const LANDING_RING_WIDTH := 2.5
+const LANDING_GLOW_RADIUS := 50.0
 const LANDING_GLOW_COLOR := Color(1.0, 0.54, 0.16)
 const LANDING_CORE_LIGHT_COLOR := Color(1.0, 0.73, 0.35)
-const LANDING_CORE_LIGHT_RADIUS := 13.0
+const LANDING_CORE_LIGHT_RADIUS := 16.0
 const LANDING_CORE_LIGHT_GAIN := 0.35
-const REACTOR_CORE_POSITION := Vector2(-3.0, -52.0)
-const REACTOR_VISUAL_POSITION := Vector2(-72.0, -109.0)
-const REACTOR_VISUAL_SCALE := Vector2(1.5, 1.5)
+const REACTOR_CORE_POSITION := Vector2(-1.0, -50.0)
+const REACTOR_VISUAL_POSITION := Vector2(-96.0, -146.0)
+const REACTOR_VISUAL_SCALE := Vector2(2.0, 2.0)
 const LAND_ANIMATION_SPEED := 3.0
 const JUMP_ANIMATION_SPEED := 1.0
 const PLATFORM_BODY_COLOR := Color("233b46")
@@ -44,21 +79,21 @@ const PLATFORM_OUTLINE_COLOR := Color("10212a")
 const PLATFORM_SHADOW_COLOR := Color("152630")
 const PLATFORM_ENDCAP_COLOR := Color("314d58")
 const PLATFORM_EDGE_COLOR := Color("69858d")
-const PLATFORM_EDGE_HEIGHT := 4.0
-const PLATFORM_SHADOW_HEIGHT := 6.0
-const PLATFORM_ENDCAP_WIDTH := 12.0
+const PLATFORM_EDGE_HEIGHT := 5.0
+const PLATFORM_SHADOW_HEIGHT := 7.0
+const PLATFORM_ENDCAP_WIDTH := 14.0
 const PLATFORM_OUTLINE_WIDTH := 2.0
-const PLATFORM_CENTER_INSET_SIZE := Vector2(36.0, 12.0)
+const PLATFORM_CENTER_INSET_SIZE := Vector2(42.0, 14.0)
 const PLATFORM_CENTER_INSET_COLOR := Color("10252d")
-const PLATFORM_CENTER_MARK_SIZE := Vector2(24.0, 4.0)
-const PLATFORM_CENTER_STEM_SIZE := Vector2(6.0, 8.0)
+const PLATFORM_CENTER_MARK_SIZE := Vector2(28.0, 5.0)
+const PLATFORM_CENTER_STEM_SIZE := Vector2(7.0, 9.0)
 const PLATFORM_CENTER_MARK_COLOR := Color("4b9299")
-const PLATFORM_IMPACT_DEPTH := [0.6, 1.3, 2.0]
+const PLATFORM_IMPACT_DEPTH := [0.7, 1.5, 2.3]
 const PLATFORM_IMPACT_COLORS := [Color("a0b8b8"), Color("72b9bc"), Color("ffd08a")]
 const PLATFORM_IMPACT_ALPHAS := [0.65, 0.60, 0.75]
-const PLATFORM_IMPACT_WIDTHS := [30.0, 60.0, 72.0]
-const PERFECT_DASH_SIZE := Vector2(12.0, 6.0)
-const PERFECT_DASH_TRAVEL := Vector2(18.0, 48.0)
+const PLATFORM_IMPACT_WIDTHS := [35.0, 70.0, 84.0]
+const PERFECT_DASH_SIZE := Vector2(14.0, 7.0)
+const PERFECT_DASH_TRAVEL := Vector2(21.0, 56.0)
 const PERFECT_DASH_DURATION := 0.16
 const PERFECT_DASH_COLOR := Color("e7b779")
 const PERFECT_DASH_ALPHA := 0.65
@@ -80,8 +115,27 @@ static func classify_landing(center_distance: float, full_width: float) -> Landi
 		return LandingQuality.RESONANCE
 	return LandingQuality.NORMAL
 
-const JUMPER_SIZE := Vector2(58.0, 58.0)
-const PLATFORM_SIZE := Vector2(240.0, 34.0)
+## Sichtbare Breite der PERFECT-Zone in Weltpixeln. Markierung und Trefferzone
+## muessen dieselbe Quelle nutzen, sonst zielt der Spieler auf eine Flaeche,
+## die nicht der Belohnung entspricht.
+static func perfect_band_width(platform_width: float) -> float:
+	return platform_width * PERFECT_CENTER_RATIO * 2.0
+
+static func resonance_band_width(platform_width: float) -> float:
+	return platform_width * RESONANCE_CENTER_RATIO * 2.0
+
+## Kraftaufschlag des Resonanzstands auf den naechsten Absprung. Eine NORMAL-
+## Landung traegt keine Ladung und damit keinen Aufschlag.
+static func resonance_bounce_bonus(charges: int) -> float:
+	return clampf(float(charges), 0.0, float(RESONANCE_MAX_CHARGES)) * RESONANCE_BOUNCE_BONUS_PER_CHARGE
+
+## Gesamtbreite aller HUD-Segmente inklusive der Luecken dazwischen.
+static func resonance_hud_width() -> float:
+	var count := RESONANCE_MAX_CHARGES
+	return count * RESONANCE_HUD_SEGMENT_SIZE.x + (count - 1) * RESONANCE_HUD_SEGMENT_GAP
+
+const JUMPER_SIZE := Vector2(76.0, 76.0)
+const PLATFORM_SIZE := Vector2(280.0, 40.0)
 const PLATFORM_VERTICAL_GAP := 300.0
 const PLATFORM_LOOKAHEAD := 1200.0
 const PLATFORM_CLEANUP_MARGIN := 1200.0

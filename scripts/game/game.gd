@@ -20,6 +20,11 @@ var _contact_audio: AudioStreamPlayer
 var _audio_unlocked := false
 var _death_tween: Tween
 var _landing_bonus := 0
+## Restlaufzeit der OVERLOAD-Anzeige. Das Spiel springt automatisch ab, deshalb
+## ist 3/3 nur einen Tick lang wahr; der ueberladene Flug haelt die Anzeige.
+var _overload_display := 0.0
+var resonance: ResonanceSystem
+var hud: ResonanceHud
 var jumper: Jumper
 var camera: VerticalCamera
 var platform_director: PlatformDirector
@@ -44,8 +49,10 @@ func _ready() -> void:
 	_contact_audio = AudioStreamPlayer.new()
 	_contact_audio.name = "ContactAudio"
 	add_child(_contact_audio)
+	resonance = ResonanceSystem.new()
 	platform_director = PlatformDirector.new()
 	platform_director.initialize(self, JumpConfig.PLATFORM_LAYOUT)
+	_create_hud()
 	_create_jumper()
 	_create_camera()
 	_highest_y = jumper.global_position.y
@@ -94,6 +101,7 @@ func _process(delta: float) -> void:
 	# Full gameplay logic only after the start choreography finished.
 	if _phase == Phase.PLAYING:
 		_update_score()
+		_overload_display = maxf(0.0, _overload_display - delta)
 		if _death_check_armed:
 			_check_game_over()
 		else:
@@ -103,11 +111,26 @@ func _process(delta: float) -> void:
 		var visible_rect := _get_visible_world_rect()
 		platform_director.maintain(visible_rect.position.y, visible_rect.end.y, difficulty)
 
+func _create_hud() -> void:
+	# Overlay in eigenem Layer: bleibt lesbar, egal welche Plattformen im
+	# Weltraum vorbeiziehen.
+	hud = ResonanceHud.new()
+	hud.name = "ResonanceHud"
+	hud.resonance = resonance
+	var layer := CanvasLayer.new()
+	layer.name = "HudLayer"
+	layer.layer = 5
+	add_child(layer)
+	layer.add_child(hud)
+
 func _create_jumper() -> void:
 	jumper = Jumper.new()
 	jumper.name = "Jumper"
 	jumper.position = JumpConfig.PLATFORM_LAYOUT[0] - Vector2(0.0, JumpConfig.PLATFORM_SIZE.y)
 	jumper.velocity.y = -JumpConfig.BASE_BOUNCE_SPEED
+	# Das ResonanceSystem entscheidet direkt beim Absprung ueber Overload, damit
+	# die Kraft im selben Physik-Tick wirkt wie die ausloesende Landung.
+	jumper.overload_check = _on_overload_check
 	add_child(jumper)
 	jumper.landed.connect(_on_landed)
 
@@ -132,9 +155,41 @@ func _update_score() -> void:
 		int(floor(float(height_score) / JumpConfig.DIFFICULTY_STEP_SCORE))
 	)
 
+## Einziger Verbuchungspfad fuer eine Landung. Wird sowohl vom Absprung-Callback
+## des Jumpers als auch direkt (Tests, Sonderfaelle) aufgerufen. Liefert zurueck,
+## ob diese Landung einen Overload ausgeloest hat.
+func _register_resonance(quality: JumpConfig.LandingQuality) -> bool:
+	var overload := resonance.register_landing(quality)
+	# Punkte fuer die Ladung, die DIESE Landung erreicht hat. Bei Overload steht
+	# der Stand schon wieder auf 0, deshalb der gemerkte Wert.
+	_landing_bonus += ResonanceSystem.score_for_charge(resonance.last_charge)
+	if jumper != null:
+		# Beim Overload traegt die Kraft allein die Belohnung: der Ladungsbonus
+		# wuerde sonst mit OVERLOAD_BOUNCE_SPEED doppelt zahlen.
+		jumper.set_resonance_ratio(0.0 if overload else resonance.charge_ratio())
+	if overload:
+		_overload_display = JumpConfig.RESONANCE_OVERLOAD_DISPLAY_TIME
+		_play_overload_sound()
+	_update_score()
+	return overload
+
+## Callback des Jumpers: wird unmittelbar vor jedem Absprung aufgerufen. Erst
+## hier wird die Landung verbucht, damit die Overload-Kraft noch in diesem Tick
+## greift und die Ringintensitaet vor dem Zeichnen feststeht.
+func _on_overload_check(quality: JumpConfig.LandingQuality) -> bool:
+	if _phase != Phase.PLAYING or is_game_over:
+		return false
+	return _register_resonance(quality)
+
+func _play_overload_sound() -> void:
+	if resonance_landing_sound != null:
+		_play_contact_sound(resonance_landing_sound, JumpConfig.LANDING_AUDIO_DB[JumpConfig.LandingQuality.RESONANCE])
+
 func _on_landed(_platform: JumpPlatform, quality: JumpConfig.LandingQuality, bonus: int) -> void:
 	if _phase != Phase.PLAYING or is_game_over:
 		return
+	# Die Resonanz wurde bereits im Absprung-Callback verbucht (gleicher Tick,
+	# damit Overload wirkt). Hier folgen nur Punkte und Klang.
 	_landing_bonus += bonus
 	_update_score()
 	var streams := [normal_landing_sound, resonance_landing_sound, perfect_landing_sound]
@@ -197,6 +252,8 @@ func _restart(fast_retry := false) -> void:
 	camera.force_update_scroll()
 	score = 0
 	_landing_bonus = 0
+	_overload_display = 0.0
+	resonance.reset()
 	difficulty = 0
 	is_game_over = false
 	_restart_timer = -1.0
@@ -399,17 +456,15 @@ func _draw() -> void:
 	for shaft_x in [120.0, 540.0, 960.0]:
 		draw_line(Vector2(shaft_x, visible_rect.position.y), Vector2(shaft_x, visible_rect.end.y), Color(0.08, 0.13, 0.16), 8.0)
 	if _phase == Phase.PLAYING:
-		# Only show HUD once the world is actually in play; during STARTING the
-		# reveal is still finishing.
-		draw_string(
-			ThemeDB.fallback_font,
-			visible_rect.position + Vector2(44.0, 72.0),
-			"SCORE %06d" % score,
-			HORIZONTAL_ALIGNMENT_LEFT,
-			-1.0,
-			42,
-			Color(0.72, 1.0, 0.92)
-		)
+		# HUD liegt in einer eigenen CanvasLayer (ResonanceHud), damit
+		# vorbeiziehende Plattformen den Text nicht ueberdecken.
+		if hud != null:
+			hud.visible = true
+			hud.score = score
+			hud.overload_display = _overload_display
+	elif hud != null:
+		# Im Startmenue und waehrend der Choreografie bleibt die Anzeige aus.
+		hud.visible = false
 
 func _get_visible_world_rect() -> Rect2:
 	var viewport_rect := get_viewport_rect()

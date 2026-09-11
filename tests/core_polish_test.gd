@@ -22,10 +22,18 @@ func _run() -> void:
 		print("CORE POLISH RED: landing quality contract missing")
 		quit(1)
 		return
+	# Boundaries are read from the config, not hard-coded: the contract under
+	# test is "edge inclusive, one tier lower just outside", and a tuned band
+	# must not turn that contract check into a false failure.
+	var tiers := [
+		[JumpConfig.PERFECT_CENTER_RATIO, int(JumpConfig.LandingQuality.PERFECT)],
+		[JumpConfig.RESONANCE_CENTER_RATIO, int(JumpConfig.LandingQuality.RESONANCE)],
+	]
 	for width in [120.0, 240.0, 360.0]:
 		for side in [-1.0, 1.0]:
-			for boundary in [0.08, 0.22]:
-				var expected := 2 if boundary == 0.08 else 1
+			for tier in tiers:
+				var boundary: float = tier[0]
+				var expected: int = tier[1]
 				_check(config.call("classify_landing", side * width * boundary, width) == expected, "inclusive edge width=%s boundary=%s" % [width,boundary])
 				_check(config.call("classify_landing", side * (width * boundary + 0.001), width) == expected - 1, "outside edge width=%s boundary=%s" % [width,boundary])
 		_check(config.call("classify_landing", 0.0, width) == 2, "exact center perfect")
@@ -44,6 +52,16 @@ func _run() -> void:
 	await _retry()
 	print("CORE POLISH: %d checks, %d failures" % [checks,failures])
 	quit(0 if failures == 0 else 1)
+
+## Expected tier for a physical contact offset, derived from the configured
+## bands instead of the historical 0/36/90 ladder.
+func _expected_quality_for_offset(offset: float, width: float) -> int:
+	var distance := absf(offset)
+	if distance <= JumpConfig.perfect_band_width(width) * 0.5:
+		return int(JumpConfig.LandingQuality.PERFECT)
+	if distance <= JumpConfig.resonance_band_width(width) * 0.5:
+		return int(JumpConfig.LandingQuality.RESONANCE)
+	return int(JumpConfig.LandingQuality.NORMAL)
 
 func _physical_contact(hz: int, offset: float) -> void:
 	var world := Node2D.new()
@@ -65,7 +83,7 @@ func _physical_contact(hz: int, offset: float) -> void:
 		await physics_frame
 	_check(stats.bounce == 1 and stats.land == 1, "one real bounce/contact %dHz offset=%s" % [hz,offset])
 	_check(stats.instant, "impact animation and launch available in contact callback")
-	_check(stats.quality == (2 if offset == 0 else (1 if offset == 36 else 0)), "real collision quality %dHz offset=%s" % [hz,offset])
+	_check(stats.quality == _expected_quality_for_offset(offset, platform.platform_size.x), "real collision quality %dHz offset=%s" % [hz,offset])
 	_check(platform.get("impact_count") == 1, "one platform impact")
 	_check(not jumper.bounce_from(platform, false), "duplicate rising contact rejected")
 	print("CONTACT physics=%d offset=%s bounce=%s land=%s quality=%s" % [hz,offset,stats.bounce,stats.land,stats.quality])
@@ -92,9 +110,12 @@ func _fast_diagonal_contact() -> void:
 	for frame in 30:
 		await physics_frame
 	stats.final_x = jumper.global_position.x
-	# Entry at 36px from center is RESONANCE (0.22*240=52.8). Sliding right
-	# toward center must NOT upgrade it to PERFECT.
-	_check(stats.quality == 1, "fast diagonal entry at 36px stays RESONANCE (impact_x=%.1f final_x=%.1f)" % [stats.impact_x, stats.final_x])
+	# The landing is judged at the reconstructed first-contact point, never by
+	# where the core ends up after move_and_slide keeps sliding. The expected
+	# tier is therefore derived from the measured contact offset itself, so a
+	# tuned band width cannot turn this into a false failure.
+	var expected_quality: int = JumpConfig.classify_landing(stats.impact_x, platform.platform_size.x)
+	_check(stats.quality == expected_quality, "quality follows the contact point, not the slide (impact_x=%.1f quality=%d expected=%d)" % [stats.impact_x, stats.quality, expected_quality])
 	_check(absf(stats.impact_x - 36.0) < 6.0, "impact x reflects entry, not post-slide x (impact_x=%.1f final_x=%.1f)" % [stats.impact_x, stats.final_x])
 	_check(stats.final_x > stats.impact_x, "jumper actually slid horizontally after contact")
 	world.queue_free()

@@ -51,15 +51,18 @@ func _check_reactor_frames(reactor_visual: AnimatedSprite2D) -> void:
 	_check(is_equal_approx(total_duration_ms, TOTAL_DURATION_MS), "idle loop totals 2.42 seconds")
 	_check(reactor_visual.is_playing(), "idle animation is playing")
 	_check(reactor_visual.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "ReactorVisual uses nearest pixel filtering")
-	_check(reactor_visual.scale == Vector2(1.5, 1.5), "ReactorVisual uses the approved 1.5 scale")
+	_check(reactor_visual.scale == JumpConfig.REACTOR_VISUAL_SCALE, "ReactorVisual uses the configured scale")
 
 func _check_visual_alignment(jumper: Jumper, reactor_visual: AnimatedSprite2D) -> void:
 	var collision := jumper.get_children().filter(func(child: Node): return child is CollisionShape2D).front() as CollisionShape2D
 	if collision == null or not collision.shape is RectangleShape2D:
-		_check(false, "Jumper keeps its centered 58x58 collision shape")
+		_check(false, "Jumper keeps its centered collision shape")
 		return
 	var collision_shape := collision.shape as RectangleShape2D
-	_check(collision_shape.size == JumpConfig.JUMPER_SIZE and collision.position == Vector2.ZERO, "Jumper keeps its centered 58x58 collision shape")
+	_check(collision_shape.size == JumpConfig.JUMPER_SIZE and collision.position == Vector2.ZERO, "Jumper keeps its centered collision shape")
+	# Der Fuss des Reaktors muss exakt auf der Kollider-Unterkante sitzen: sonst
+	# schwebt oder versinkt der Kern, unabhaengig von seiner Groesse.
+	_check(is_equal_approx(reactor_visual.position.x + FOOT_ANCHOR.x * reactor_visual.scale.x, 0.0), "reactor foot is horizontally centered on the collider")
 	_check(jumper.collision_layer == 1 and jumper.collision_mask == 1, "Jumper keeps its collision layer and mask")
 	var foot_position := reactor_visual.position + FOOT_ANCHOR * reactor_visual.scale
 	var collider_bottom := collision.position.y + collision_shape.size.y * 0.5

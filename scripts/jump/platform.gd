@@ -57,8 +57,10 @@ func _draw() -> void:
 	if impact_active:
 		strength = 1.0 - clampf(impact_elapsed / JumpConfig.LANDING_EFFECT_DURATIONS[impact_quality], 0.0, 1.0)
 	var socket_y: float = rect.position.y + JumpConfig.PLATFORM_EDGE_HEIGHT + strength * JumpConfig.PLATFORM_IMPACT_DEPTH[impact_quality]
-	var inset := JumpConfig.PLATFORM_CENTER_INSET_SIZE
-	draw_rect(Rect2(Vector2(-inset.x * 0.5, socket_y), inset), JumpConfig.PLATFORM_CENTER_INSET_COLOR)
+	# Die sichtbare Markierung zeigt exakt die PERFECT-Trefferzone: gleiche
+	# Breite wie perfect_band_width, damit Ziel und Belohnung deckungsgleich sind.
+	var band_width := JumpConfig.perfect_band_width(platform_size.x)
+	draw_rect(Rect2(Vector2(-band_width * 0.5, socket_y), Vector2(band_width, JumpConfig.PLATFORM_CENTER_INSET_SIZE.y)), JumpConfig.PLATFORM_CENTER_INSET_COLOR)
 	var mark := JumpConfig.PLATFORM_CENTER_MARK_SIZE
 	draw_rect(Rect2(Vector2(-mark.x * 0.5, socket_y), mark), JumpConfig.PLATFORM_CENTER_MARK_COLOR)
 	var stem := JumpConfig.PLATFORM_CENTER_STEM_SIZE
