@@ -73,11 +73,29 @@ func _check_visual_alignment(jumper: Jumper, reactor_visual: AnimatedSprite2D) -
 func _check_animation_advances_while_physics_is_frozen(jumper: Jumper, reactor_visual: AnimatedSprite2D) -> void:
 	jumper.set_physics_process(false)
 	var starting_frame := reactor_visual.frame
+	# Wanduhr und Bildwechsel selbst messen statt einer Zusicherung an der Kante.
+	# Grund (gemessen 12.09.2026): eine 0.7-s-SceneTreeTimer-Uhr feuert bis zu
+	# 9 % frueh — 636—708 ms Wanduhr fuer 700 ms Prozesszeit. Der alte
+	# Schwellwert `elapsed_ms >= 600` lag damit nur ~5,7 % von der Unterkante
+	# entfernt und kippte unter CPU-Last ohne echten Fehler (einmal beobachtet,
+	# acht Laeufe lang nicht reproduzierbar).
 	var start_time_ms := Time.get_ticks_msec()
-	await create_timer(0.7).timeout
+	var changes := 0
+	var last_frame := starting_frame
+	# Grosszuegige Frist statt knapper Kante: zwei Wechsel dauern nominal ~1 s
+	# (laengstes Bild 520 ms). Die Frist begrenzt nur den Fehlerfall.
+	while changes < 2 and Time.get_ticks_msec() - start_time_ms < 5000:
+		await process_frame
+		if reactor_visual.frame != last_frame:
+			changes += 1
+			last_frame = reactor_visual.frame
 	var elapsed_ms := Time.get_ticks_msec() - start_time_ms
-	_check(elapsed_ms >= 600, "animation advancement waits for bounded process time")
-	_check(reactor_visual.frame != starting_frame, "animation advances while Jumper physics is frozen")
+	_check(changes >= 2, "animation advances while Jumper physics is frozen")
+	# Kein Zeit-Schwellwert mehr: ab Bild 1 dauern zwei Wechsel nur 260 ms
+	# (Bilddauern 520/130/130/420...), eine Kante waere selbst wieder flaky.
+	# Die Wartedauer wird als Beleg ausgegeben, nicht zugesichert.
+	print("  · %d frame changes observed in %d ms" % [changes, elapsed_ms])
+	_check(reactor_visual.is_playing(), "idle animation keeps playing while physics is frozen")
 
 func _finish(jumper: Jumper) -> void:
 	print("REACTOR VISUAL: ALLE OK" if failures == 0 else "REACTOR VISUAL: %d FEHLER" % failures)
