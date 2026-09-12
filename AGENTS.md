@@ -5,7 +5,7 @@
 - Implement one approved feature at a time. No unsolicited refactors, UI additions, balancing changes, commits, pushes or deployments.
 - Before editing, record `git status --short` and read the relevant code/tests. Existing untracked files belong to the user: never clean, reset, overwrite or bulk-stage them.
 - Approved visual references: `assets/jump/approved/reactor-core/` and `assets/jump/approved/plush-character/`. Some references are untracked and therefore absent from new worktrees. Explicitly locate/read them before visual work; do not assume a clean worktree contains all references. Never modify approved references without explicit authorization.
-- Production reactor assets: `assets/jump/reactor_core/`. Keep the accepted reactor live; plush jump animation is paused pending user instruction. Drafts are not approved production assets.
+- Production reactor assets: `assets/jump/reactor_core/`. The reactor is the live player character. The plush character is deliberately NOT integrated (user decision) — do not wire it in, and do not propose it again. Drafts are not approved production assets.
 
 ## Task contract and isolation
 Every delegated task must specify outcome, allowed files, non-goals, references, acceptance criteria, verification commands and deliverable. Pass this file to external agents; Hermes memory is not automatically inherited.
