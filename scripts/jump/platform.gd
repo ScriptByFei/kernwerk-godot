@@ -104,10 +104,14 @@ func _draw() -> void:
 		# Resonanzchance der riskanten Route nicht erkennbar.
 		var focus_width := resonance_band_width()
 		draw_rect(Rect2(-focus_width * 0.5, socket_y, focus_width, JumpConfig.PLATFORM_CENTER_INSET_SIZE.y), Color("315c65"))
-	elif variant == Variant.RISKY:
+	if variant == Variant.RISKY:
 		# Einseitige Kerbe: die riskante Route teilt die Schmalheit mit der
 		# normalen Schmalschanze, darf aber nicht dasselbe Kennzeichen tragen.
 		# Ohne Warntext, ohne Warnfarbe, ohne Animation.
+		#
+		# WICHTIG: eigener if-Zweig, NICHT elif. Als elif hinter dem Zweig oben
+		# war dieser Code unerreichbar — die Kerbe wurde nie gezeichnet, und
+		# RISKY war allein am breiteren Band erkennbar.
 		var risk_x: float = platform_size.x * 0.5 - 9.0
 		draw_line(Vector2(risk_x, socket_y + 3.0), Vector2(risk_x, socket_y + 11.0), JumpConfig.PLATFORM_CENTER_MARK_COLOR, 2.5)
 	elif variant == Variant.NARROW:
