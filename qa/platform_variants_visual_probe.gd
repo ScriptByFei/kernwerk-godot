@@ -2,7 +2,7 @@ extends SceneTree
 const Game = preload("res://scripts/game/game.gd")
 
 ## Plattformvarianten-Visualprobe: stellt alle vier Routenvarianten untereinander
-## in denselben Ausschnitt, damit Kerben und Resonanzband vergleichbar sind.
+## in denselben Ausschnitt, damit Breite und Resonanzband vergleichbar sind.
 func _init() -> void:
 	_run.call_deferred()
 

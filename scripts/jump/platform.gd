@@ -100,20 +100,18 @@ func _draw() -> void:
 	# Breite wie perfect_band_width, damit Ziel und Belohnung deckungsgleich sind.
 	var band_width := JumpConfig.perfect_band_width(platform_size.x)
 	if variant == Variant.RESONANCE_FOCUS or variant == Variant.RISKY:
-		# Beide zeigen ihr Resonanzband sichtbar: sonst waere die bessere
-		# Resonanzchance der riskanten Route nicht erkennbar.
+		# Die riskante Route ist genauso schmal wie die normale Schmalschanze
+		# und unterscheidet sich von ihr allein durch dieses breitere Band. Es
+		# ist damit kein Zierrat, sondern ihr einziges Kennzeichen: faellt es
+		# weg, sind beide im Bild nicht mehr auseinanderzuhalten.
+		#
+		# Frueher trug sie zusaetzlich eine einseitige Kerbe am Rand. Die wurde
+		# entfernt, weil sie bei Telefonbreite (430 px Fenster -> Skalierung
+		# 0.398) nur 1 Pixel breit und 4 Pixel hoch war: technisch vorhanden,
+		# aber als Signal nicht lesbar. Ein Kennzeichen, das man nicht sieht,
+		# ist keins.
 		var focus_width := resonance_band_width()
 		draw_rect(Rect2(-focus_width * 0.5, socket_y, focus_width, JumpConfig.PLATFORM_CENTER_INSET_SIZE.y), Color("315c65"))
-	if variant == Variant.RISKY:
-		# Einseitige Kerbe: die riskante Route teilt die Schmalheit mit der
-		# normalen Schmalschanze, darf aber nicht dasselbe Kennzeichen tragen.
-		# Ohne Warntext, ohne Warnfarbe, ohne Animation.
-		#
-		# WICHTIG: eigener if-Zweig, NICHT elif. Als elif hinter dem Zweig oben
-		# war dieser Code unerreichbar — die Kerbe wurde nie gezeichnet, und
-		# RISKY war allein am breiteren Band erkennbar.
-		var risk_x: float = platform_size.x * 0.5 - 9.0
-		draw_line(Vector2(risk_x, socket_y + 3.0), Vector2(risk_x, socket_y + 11.0), JumpConfig.PLATFORM_CENTER_MARK_COLOR, 2.5)
 	elif variant == Variant.NARROW:
 		for side in [-1.0, 1.0]:
 			var notch_x: float = side * (platform_size.x * 0.5 - 9.0)

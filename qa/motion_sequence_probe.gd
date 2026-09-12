@@ -67,7 +67,7 @@ func _run() -> void:
 	game.free()
 	quit()
 
-## Eine frische Plattform je Treffer, damit die Kerbe der Landung nicht doppelt
+## Eine frische Plattform je Treffer, damit der Impact nicht doppelt
 ## aufleuchtet und jede Landung real verbucht wird.
 func _spawn(game: Node, index: int) -> JumpPlatform:
 	var platform := JumpPlatform.new()

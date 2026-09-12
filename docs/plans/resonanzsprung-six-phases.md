@@ -17,13 +17,18 @@
 6. **Run-Statistik** – `RunStats` (Höhe, PERFECT, RESONANCE, NORMAL, Kette, Overloads) getrennt vom Bestwert; Anzeige: Höhe primär, 2×2-Block. 87 Checks.
 
 ## Nacharbeit nach dem ersten Gate (dieselbe Sitzung)
-Standbilder belegen nur, DASS etwas passiert — nicht, wie es sich über die Zeit verhält. Deshalb wurden die beiden offenen Feinpunkte numerisch geprüft statt angesehen.
+Standbilder belegen nur, DASS etwas passiert — nicht, wie es sich über die Zeit verhält und nicht, wie es auf dem Gerät ankommt. Deshalb wurden die offenen Feinpunkte gemessen statt angesehen.
 
 **Gefunden und behoben:**
 - **Kameraimpuls erreichte nie ein Bild.** `perfect_impact()` setzte 3,0 Weltpixel, aber `advance_impact()` lief im selben Physik-Tick und senkte den Wert, bevor gerendert wurde. Gemessen wurden real 2,225 statt 3,0 — dieselbe Sichtbarkeitsfalle wie beim Overload. Fix: der erste `advance` nach dem Auslösen hält den vollen Ausschlag einen Tick. Messreihe jetzt `[3.0, 2.225, 1.565, 1.021, 0.593, 0.28, 0.083, 0.002, 0.0]`. Mutationsprobe: ohne Fix rot.
-- **Kerbe der riskanten Route war toter Code.** Sie stand als `elif` hinter dem Zweig für Resonanzfokus/Risiko und wurde deshalb nie erreicht; RISKY war nur am breiteren Band erkennbar. Jetzt eigener `if`-Zweig. Pixelmessung: 54 statt 50 Kerbenpixel; Mutationsprobe rot.
+- **Kerbe der riskanten Route war toter Code.** Sie stand als `elif` hinter dem Zweig für Resonanzfokus/Risiko und wurde nie erreicht. Zwischenzeitlich als eigener `if`-Zweig repariert (Pixelmessung 54 statt 50), dann aber **auf Anweisung wieder entfernt** — siehe unten.
 
-**Eigener Fehler, festgehalten:** Die erste Fassung des Kerben-Tests zählte alle abweichenden Bildpunkte zwischen schmal und riskant. Weil sich beide ohnehin über die Bandbreite unterscheiden (258 Pixel), machte das Entfernen der Kerbe nur 1 Pixel aus — der Test blieb grün und hätte den Bug nie gefunden. Erst die gezielte Messung der Kerbenfarbe ist unterscheidend.
+**Entfernt: die Kerbe der riskanten Route.**
+Nachmessung am echten Gerätemaß: bei 430 px Fensterbreite ist die Skalierung 0,398, die Kerbe damit **1 Pixel breit und 4 Pixel hoch**. Technisch vorhanden, als Signal aber nicht lesbar. Ein Kennzeichen, das man nicht sieht, ist keins. Die riskante Route ist über ihr Resonanzband eindeutig unterscheidbar: 67 Gerätepixel breit, während die schmale Variante gar kein Band zeichnet. Belegt in `qa/risky_legibility_probe.gd` bei 430 px (4 Prüfungen): schmal 0 Bandpixel, riskant 145, Markierungsfarbe neben dem Plattformkörper in beiden Fällen 0. Der alte Kerben-Test wurde entfernt, da sein Prüfgegenstand nicht mehr existiert.
+
+**Eigene Fehler, festgehalten — beide hätten falsche Ergebnisse geliefert:**
+1. Die erste Fassung des Kerben-Tests zählte alle abweichenden Bildpunkte zwischen schmal und riskant. Weil sich beide ohnehin über die Bandbreite unterscheiden, machte das Entfernen der Kerbe nur 1 Pixel aus — der Test blieb grün und hätte den Bug nie gefunden.
+2. Die erste Fassung der Lesbarkeitsprobe zählte den Plattform-Bodensatz, den **alle** Varianten zeichnen (495 Pixel bei beiden), und prüfte „außerhalb der Mitte" relativ zum **Bild**, obwohl die Plattform links neben der Bildmitte sitzt. Ergebnis: drei rote Prüfungen bei korrektem Code. Messungen werden an der Plattform verankert, nie am Bild.
 
 ## Abschluss-Gate
 - `PASS: import, 19 Suiten, main-scene smoke, Webexport` (`final3-gate.log`), PCK 3.154.220 B.
