@@ -10,7 +10,8 @@ enum Phase {
 	PLAYING,
 }
 
-## Optional authored sounds only. Empty slots are deliberately silent.
+const ContactSound = preload("res://scripts/jump/contact_sound.gd")
+## Authored contact overrides are optional; default contacts use cached PCM.
 @export var normal_landing_sound: AudioStream
 @export var resonance_landing_sound: AudioStream
 @export var perfect_landing_sound: AudioStream
@@ -26,6 +27,8 @@ var _overload_display := 0.0
 var resonance: ResonanceSystem
 ## Bestwert des laufenden Spiels, dauerhaft gespeichert (siehe RunRecord).
 var run_record: RunRecord
+## Statistik des laufenden Spiels. Getrennt vom Bestwert, der dauerhaft bleibt.
+var run_stats: RunStats
 ## Speichert den Bestwert so, dass er ein Neuladen der Seite uebersteht.
 ## Als Feld gehalten, damit Tests und QA eine eigene Datei unterschieben
 ## koennen, ohne den echten Spielstand anzufassen.
@@ -57,12 +60,19 @@ var _pause_tween: Tween
 var _is_paused := false
 
 func _ready() -> void:
+	if normal_landing_sound == null:
+		normal_landing_sound = ContactSound.make_contact(0)
+	if resonance_landing_sound == null:
+		resonance_landing_sound = ContactSound.make_contact(1)
+	if perfect_landing_sound == null:
+		perfect_landing_sound = ContactSound.make_contact(2)
 	_contact_audio = AudioStreamPlayer.new()
 	_contact_audio.name = "ContactAudio"
 	add_child(_contact_audio)
 	resonance = ResonanceSystem.new()
 	score_store = BestScoreStore.new()
 	run_record = RunRecord.new(score_store)
+	run_stats = RunStats.new()
 	platform_director = PlatformDirector.new()
 	platform_director.initialize(self, JumpConfig.PLATFORM_LAYOUT)
 	_create_hud()
@@ -295,6 +305,9 @@ func _update_score() -> void:
 	_highest_y = minf(_highest_y, jumper.global_position.y)
 	var height_score := maxi(0, int(floor((START_Y - _highest_y) / JumpConfig.SCORE_PER_UNIT)))
 	score = height_score + _landing_bonus
+	if run_stats != null:
+		# Die erreichte Hoehe waechst nur: ein Rueckfall darf sie nicht senken.
+		run_stats.raise_to(height_score)
 	difficulty = mini(
 		JumpConfig.MAX_DIFFICULTY,
 		int(floor(float(height_score) / JumpConfig.DIFFICULTY_STEP_SCORE))
@@ -314,7 +327,8 @@ func _register_resonance(quality: JumpConfig.LandingQuality) -> bool:
 		jumper.set_resonance_ratio(0.0 if overload else resonance.charge_ratio())
 	if overload:
 		_overload_display = JumpConfig.RESONANCE_OVERLOAD_DISPLAY_TIME
-		_play_overload_sound()
+	elif quality == JumpConfig.LandingQuality.NORMAL:
+		_overload_display = 0.0
 	_update_score()
 	return overload
 
@@ -326,25 +340,38 @@ func _on_overload_check(quality: JumpConfig.LandingQuality) -> bool:
 		return false
 	return _register_resonance(quality)
 
-func _play_overload_sound() -> void:
-	if resonance_landing_sound != null:
-		_play_contact_sound(resonance_landing_sound, JumpConfig.LANDING_AUDIO_DB[JumpConfig.LandingQuality.RESONANCE])
-
-func _on_landed(_platform: JumpPlatform, quality: JumpConfig.LandingQuality, bonus: int) -> void:
+func _on_landed(platform: JumpPlatform, quality: JumpConfig.LandingQuality, bonus: int) -> void:
 	if _phase != Phase.PLAYING or is_game_over:
 		return
+	# Belohnung der riskanten Route. Die Plattform entscheidet selbst, ob sie
+	# ueberhaupt eine ist: der Pfad bleibt fuer jede Landung derselbe.
+	bonus += platform.claim_route_bonus() if platform != null else 0
 	# Die Resonanz wurde bereits im Absprung-Callback verbucht (gleicher Tick,
 	# damit Overload wirkt). Hier folgen nur Punkte und Klang.
 	_landing_bonus += bonus
 	_update_score()
+	# Erst hier wird die Landung gezaehlt: derselbe Pfad wie Punkte und Klang,
+	# damit es keine zweite Buchungsstelle gibt.
+	run_stats.register(quality, run_stats.height)
+	run_stats.overloads = resonance.overload_count
 	var streams := [normal_landing_sound, resonance_landing_sound, perfect_landing_sound]
-	_play_contact_sound(streams[quality], JumpConfig.LANDING_AUDIO_DB[quality])
+	# Overload bekommt den kraeftigsten Kontakt, unabhaengig davon, welche
+	# Landung ihn geladen hat: der Moment ist der Hohepunkt der Kette.
+	if _overload_display > 0.0 and perfect_landing_sound != null:
+		streams[quality] = perfect_landing_sound
+	# One contact voice: playing an overload sound in the earlier callback
+	# would be overwritten by this landing in the very same tick.
+	var charge_pitch := 1.0 + float(resonance.last_charge) * 0.12
+	_play_contact_sound(streams[quality], JumpConfig.LANDING_AUDIO_DB[quality], charge_pitch)
+	if quality == JumpConfig.LandingQuality.PERFECT:
+		camera.perfect_impact()
 
-func _play_contact_sound(stream: AudioStream, volume_db: float) -> void:
+func _play_contact_sound(stream: AudioStream, volume_db: float, pitch := 1.0) -> void:
 	if not _audio_unlocked or stream == null:
 		return
 	_contact_audio.stream = stream
 	_contact_audio.volume_db = volume_db
+	_contact_audio.pitch_scale = pitch
 	_contact_audio.play()
 
 func _check_game_over() -> void:
@@ -375,6 +402,11 @@ func _show_game_over() -> void:
 	game_over_menu.score = score
 	game_over_menu.best = run_record.best
 	game_over_menu.is_record = record
+	game_over_menu.height = run_stats.height
+	game_over_menu.perfect_count = run_stats.perfect_count
+	game_over_menu.resonance_count = run_stats.resonance_count
+	game_over_menu.overloads = run_stats.overloads
+	game_over_menu.best_chain = run_stats.best_chain
 	# Der Riegel aus dem letzten Absturz muss fallen: die Anzeige wird nur
 	# versteckt, nicht zerstoert. Ohne das waere sie beim zweiten Mal taub.
 	game_over_menu.reset_lock()
@@ -444,6 +476,7 @@ func _restart(fast_retry := false) -> void:
 	_landing_bonus = 0
 	_overload_display = 0.0
 	resonance.reset()
+	run_stats.reset()
 	difficulty = 0
 	is_game_over = false
 	_highest_y = jumper.global_position.y
@@ -659,9 +692,13 @@ func _draw() -> void:
 	var visible_rect := _get_visible_world_rect()
 	# Keep a quiet reactor floor behind the start overlay so the transition never
 	# cuts to black: the world (platforms, shafts, the reactor) is already there.
-	draw_rect(visible_rect, Color(0.025, 0.035, 0.055), true)
+	# Die Zone richtet sich nach dem SICHTBAREN Ausschnitt, nicht nach dem
+	# Spieler-Score: sonst waere der Schacht eine Belohnungsanzeige.
+	var zone_height := _zone_height(visible_rect)
+	draw_rect(visible_rect, JumpConfig.zone_color(JumpConfig.ZONE_BACKGROUNDS, zone_height), true)
+	var shaft_color := JumpConfig.zone_color(JumpConfig.ZONE_SHAFT_COLORS, zone_height)
 	for shaft_x in [120.0, 540.0, 960.0]:
-		draw_line(Vector2(shaft_x, visible_rect.position.y), Vector2(shaft_x, visible_rect.end.y), Color(0.08, 0.13, 0.16), 8.0)
+		draw_line(Vector2(shaft_x, visible_rect.position.y), Vector2(shaft_x, visible_rect.end.y), shaft_color, 8.0)
 	if _phase == Phase.PLAYING:
 		# HUD liegt in einer eigenen CanvasLayer (ResonanceHud), damit
 		# vorbeiziehende Plattformen den Text nicht ueberdecken.
@@ -672,6 +709,11 @@ func _draw() -> void:
 	elif hud != null:
 		# Im Startmenue und waehrend der Choreografie bleibt die Anzeige aus.
 		hud.visible = false
+
+## Zonenhoehe aus dem sichtbaren Ausschnitt. Bewusst die Oberkante: sie wandert
+## monoton mit dem Aufstieg und flattert nicht mit jedem einzelnen Sprung.
+func _zone_height(visible_rect: Rect2) -> float:
+	return -visible_rect.position.y
 
 func _get_visible_world_rect() -> Rect2:
 	var viewport_rect := get_viewport_rect()

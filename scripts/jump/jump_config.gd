@@ -3,8 +3,10 @@ extends RefCounted
 
 const GRAVITY := 2300.0
 const BASE_BOUNCE_SPEED := 1580.0
-const OVERLOAD_BOUNCE_SPEED := 1740.0
-const MAX_BOUNCE_SPEED := 1800.0
+# Third actual launch is perceptibly stronger than the second charged launch.
+# Base bounce and charge multipliers stay unchanged; all launches remain capped.
+const OVERLOAD_BOUNCE_SPEED := 1880.0
+const MAX_BOUNCE_SPEED := 1960.0
 const MAX_HORIZONTAL_SPEED := 1100.0
 const HORIZONTAL_ACCELERATION := 10500.0
 const HORIZONTAL_DRAG := 12000.0
@@ -42,6 +44,26 @@ const RESONANCE_HUD_CHARGE_COLOR := Color(0.55, 0.95, 0.88)
 const RESONANCE_OVERLOAD_COLOR := Color(1.0, 0.86, 0.42)
 # Der Ring am Kontaktpunkt wird mit der Ladung heller, ohne zusaetzliche Objekte.
 const RESONANCE_RING_CHARGE_GAIN := 1.0
+# Dauerhafte Kernaufladung: der Ring um den Kern wird mit jeder Ladung groesser
+# und heller. Am bereits gesaettigten Kern selbst waere eine reine Alpha-Erhoehung
+# nicht messbar, deshalb waechst zusaetzlich der Radius nach aussen.
+const CHARGE_LIGHT_RADIUS := [18.0, 22.0, 26.0]
+const CHARGE_LIGHT_ALPHAS := [0.0, 0.10, 0.20]
+# Overload waehrend des ueberladenen Flugs: warmgoldener Kernring plus Halo,
+# gleiche Dauer wie die HUD-Anzeige, kein Vollkoerperflash.
+const OVERLOAD_LIGHT_RADIUS := 30.0
+const OVERLOAD_LIGHT_ALPHA := 0.35
+## Die Wirkung gehoert NACH AUSSEN: das Reaktorbild ist rund 192 Weltpixel breit,
+## ein Kernlicht darunter bleibt im gesaettigten Zentrum unsichtbar. Der
+## warmgoldene Ring und die flache Aura liegen deshalb ausserhalb der Silhouette.
+## Das Reaktorbild ist rund 192 Weltpixel breit; ein Ring darunter waere im
+## Koerper versteckt. Beide Radien liegen deshalb ausserhalb der Silhouette und
+## innerhalb der 280 breiten Plattform.
+const OVERLOAD_RING_RADIUS := 120.0
+const OVERLOAD_RING_WIDTH := 3.5
+const OVERLOAD_RING_FLATTEN := 0.30
+const OVERLOAD_AURA_RADIUS := 132.0
+const OVERLOAD_AURA_ALPHA := 0.11
 # Minimalistisches HUD: drei Segmente, kein Ziffern- oder Textzauber.
 const RESONANCE_HUD_ORIGIN := Vector2(44.0, 72.0)
 const RESONANCE_HUD_SEGMENT_SIZE := Vector2(44.0, 14.0)
@@ -74,6 +96,70 @@ const REACTOR_VISUAL_POSITION := Vector2(-96.0, -146.0)
 const REACTOR_VISUAL_SCALE := Vector2(2.0, 2.0)
 const LAND_ANIMATION_SPEED := 3.0
 const JUMP_ANIMATION_SPEED := 1.0
+## Routenwahl: gelegentlich liegt eine riskante Abzweigung neben der sicheren
+## Route. Beide bleiben fair erreichbar; die riskante Route ist schmaler, gibt
+## eine bessere Resonanzchance und zahlt eine einmalige, nicht farmbare Belohnung.
+const RISKY_LANDING_BONUS := 25
+const RISKY_LIFT := 150.0
+const RISKY_CHANCE := 0.18
+const RISKY_MIN_GAP_FACTOR := 0.80
+## Resonanzband der riskanten Route relativ zur vollen Breite. Bessere Chance
+## als die sichere Route (0.38), aber bewusst gedeckelt: auf einer 200 px breiten
+## Schanze waere ein Band ab 0.5 breiter als die Plattform selbst. Dann waere
+## JEDE Landung dort RESONANCE oder PERFECT, die riskante Route koennte die Kette
+## nie verlieren — "bessere Chance" waere in Wahrheit "kein Risiko". Es bleibt
+## deshalb ein echter NORMAL-Rand, und die PERFECT-Zone waechst nicht mit.
+const RISKY_RESONANCE_RATIO := 0.42
+## Mindestrand links und rechts, der auch auf der schmalen Route NORMAL bleibt.
+const RISKY_MIN_NORMAL_MARGIN := 12.0
+
+## Hoehenzonen: der Schacht wechselt mit steigender Hoehe weich zwischen fuenf
+## Stimmungen. Nur Hintergrund und vorhandene Schachtlinien aendern sich;
+## Plattformen, Kern und Trefferfarben bleiben konstant. Keine neuen Assets.
+const ZONE_NAMES := ["Reaktorschacht", "Kuehlsektion", "Hochspannung", "Instabile Zone", "Kritische Zone"]
+const ZONE_BACKGROUNDS := [
+	Color("080d12"),
+	Color("081416"),
+	Color("101522"),
+	Color("191321"),
+	Color("1b1919"),
+]
+const ZONE_SHAFT_COLORS := [
+	Color("20313b"),
+	Color("244047"),
+	Color("303d57"),
+	Color("46394f"),
+	Color("494343"),
+]
+## Hoehe in Weltpixeln, nach der die naechste Stimmung vollstaendig gilt.
+const ZONE_HEIGHT_STEP := 9000.0
+## Breite des weichen Uebergangs davor. Ohne diesen Verlauf waere der Wechsel
+## eine sichtbare Stufe mitten im Flug.
+const ZONE_BLEND_RANGE := 3500.0
+
+## Zonenindex als Fliesskommazahl: die Nachkommastellen beschreiben, wie weit
+## der Uebergang zur naechsten Stimmung fortgeschritten ist.
+static func zone_index_at(height: float) -> float:
+	var climbed := maxf(0.0, height)
+	var step := ZONE_HEIGHT_STEP
+	if step <= 0.0:
+		return 0.0
+	if climbed >= step * float(ZONE_BACKGROUNDS.size() - 1):
+		return float(ZONE_BACKGROUNDS.size() - 1)
+	var base: float = floor(climbed / step)
+	var within: float = climbed - base * step
+	var blend := minf(ZONE_BLEND_RANGE, step)
+	if within <= step - blend:
+		return base
+	return base + (within - (step - blend)) / blend
+
+## Mischfarbe der Zone fuer eine erreichte Hoehe.
+static func zone_color(palette: Array, height: float) -> Color:
+	var index := zone_index_at(height)
+	var lower := clampi(int(floor(index)), 0, palette.size() - 1)
+	var upper := mini(lower + 1, palette.size() - 1)
+	return (palette[lower] as Color).lerp(palette[upper] as Color, clampf(index - float(lower), 0.0, 1.0))
+
 const PLATFORM_BODY_COLOR := Color("233b46")
 const PLATFORM_OUTLINE_COLOR := Color("10212a")
 const PLATFORM_SHADOW_COLOR := Color("152630")
@@ -102,7 +188,7 @@ const CAMERA_HEADROOM_RESPONSE := 8.0
 const CAMERA_APEX_SPEED := 180.0
 const DEATH_DIM_DURATION := 0.18
 const DEATH_DIM_COLOR := Color(0.20, 0.24, 0.26)
-const LANDING_AUDIO_DB := [-22.0, -20.0, -18.0]
+const LANDING_AUDIO_DB := [-24.0, -20.0, -14.0]
 const DEATH_AUDIO_DB := -20.0
 
 static func classify_landing(center_distance: float, full_width: float) -> LandingQuality:
@@ -232,4 +318,15 @@ const GAME_OVER_RECORD_COLOR := Color(1.0, 0.86, 0.66)
 ## Einblenddauer der Ergebnisanzeige. Sie stoppt den Baum nicht — die Welt ist
 ## ohnehin schon eingefroren — sondern blendet nur die Ueberlagerung ein.
 const GAME_OVER_IN_DURATION := 0.22
+## Kompakter Statistikblock der Ergebnisanzeige. Labels gedaempft, Zahlen hell;
+## Warmgold fuer PERFECT/Overloads, Cyan fuer RESONANCE. Keine neue Aktion.
+const GAME_OVER_HEIGHT_LABEL := "HOEHE"
+const GAME_OVER_STAT_LABELS := ["PERFECT", "RESONANCE", "OVERLOAD", "BESTE KETTE"]
+const GAME_OVER_STAT_COLORS := [
+	Color(1.0, 0.86, 0.66),
+	Color(0.55, 0.95, 0.88),
+	Color(1.0, 0.86, 0.66),
+	Color(0.74, 0.80, 0.82),
+]
+const GAME_OVER_CHAIN_LABEL := "BESTE KETTE"
 

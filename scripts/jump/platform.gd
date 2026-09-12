@@ -2,6 +2,45 @@ class_name JumpPlatform
 extends StaticBody2D
 
 var platform_size := JumpConfig.PLATFORM_SIZE
+enum Variant { STANDARD, NARROW, RESONANCE_FOCUS, RISKY }
+const NARROW_WIDTH := 200.0
+const FOCUS_RESONANCE_RATIO := 0.44
+var variant := Variant.STANDARD
+
+# Configure before adding to the tree, so the collider has the visible size.
+func configure_variant(kind: Variant) -> void:
+	variant = kind
+	var width := JumpConfig.PLATFORM_SIZE.x
+	if kind == Variant.NARROW or kind == Variant.RISKY:
+		width = NARROW_WIDTH
+	platform_size = Vector2(width, JumpConfig.PLATFORM_SIZE.y)
+
+## Resonanzband der Plattform. Die riskante Route bietet eine bessere
+## Resonanzchance; die PERFECT-Zone waechst bewusst NICHT mit, sonst waere die
+## sichtbare Markierung nicht mehr die Trefferzone.
+func resonance_band_width() -> float:
+	var ratio: float = JumpConfig.RESONANCE_CENTER_RATIO
+	if variant == Variant.RESONANCE_FOCUS:
+		ratio = 0.44
+	elif variant == Variant.RISKY:
+		ratio = JumpConfig.RISKY_RESONANCE_RATIO
+	return platform_size.x * ratio * 2.0
+
+## Einmalige Belohnung der riskanten Route. Wie der Landebonus an die Plattform
+## gebunden: dieselbe Flaeche zahlt nie zweimal, die Route ist nicht farmbar.
+func claim_route_bonus() -> int:
+	if variant != Variant.RISKY or _bonus_claimed:
+		return 0
+	_bonus_claimed = true
+	return JumpConfig.RISKY_LANDING_BONUS
+
+func classify_contact(local_distance: float) -> JumpConfig.LandingQuality:
+	if absf(local_distance) <= JumpConfig.perfect_band_width(platform_size.x) * 0.5:
+		return JumpConfig.LandingQuality.PERFECT
+	if absf(local_distance) <= resonance_band_width() * 0.5:
+		return JumpConfig.LandingQuality.RESONANCE
+	return JumpConfig.LandingQuality.NORMAL
+
 var impact_count := 0
 var impact_quality := JumpConfig.LandingQuality.NORMAL
 var impact_elapsed := 0.0
@@ -60,6 +99,21 @@ func _draw() -> void:
 	# Die sichtbare Markierung zeigt exakt die PERFECT-Trefferzone: gleiche
 	# Breite wie perfect_band_width, damit Ziel und Belohnung deckungsgleich sind.
 	var band_width := JumpConfig.perfect_band_width(platform_size.x)
+	if variant == Variant.RESONANCE_FOCUS or variant == Variant.RISKY:
+		# Beide zeigen ihr Resonanzband sichtbar: sonst waere die bessere
+		# Resonanzchance der riskanten Route nicht erkennbar.
+		var focus_width := resonance_band_width()
+		draw_rect(Rect2(-focus_width * 0.5, socket_y, focus_width, JumpConfig.PLATFORM_CENTER_INSET_SIZE.y), Color("315c65"))
+	elif variant == Variant.RISKY:
+		# Einseitige Kerbe: die riskante Route teilt die Schmalheit mit der
+		# normalen Schmalschanze, darf aber nicht dasselbe Kennzeichen tragen.
+		# Ohne Warntext, ohne Warnfarbe, ohne Animation.
+		var risk_x: float = platform_size.x * 0.5 - 9.0
+		draw_line(Vector2(risk_x, socket_y + 3.0), Vector2(risk_x, socket_y + 11.0), JumpConfig.PLATFORM_CENTER_MARK_COLOR, 2.5)
+	elif variant == Variant.NARROW:
+		for side in [-1.0, 1.0]:
+			var notch_x: float = side * (platform_size.x * 0.5 - 9.0)
+			draw_line(Vector2(notch_x, socket_y + 3.0), Vector2(notch_x, socket_y + 9.0), JumpConfig.PLATFORM_EDGE_COLOR, 2.0)
 	draw_rect(Rect2(Vector2(-band_width * 0.5, socket_y), Vector2(band_width, JumpConfig.PLATFORM_CENTER_INSET_SIZE.y)), JumpConfig.PLATFORM_CENTER_INSET_COLOR)
 	var mark := JumpConfig.PLATFORM_CENTER_MARK_SIZE
 	draw_rect(Rect2(Vector2(-mark.x * 0.5, socket_y), mark), JumpConfig.PLATFORM_CENTER_MARK_COLOR)

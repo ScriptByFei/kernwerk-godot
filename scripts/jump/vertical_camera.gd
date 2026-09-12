@@ -3,11 +3,23 @@ extends Camera2D
 
 var target: Node2D
 var _ascent_headroom := 0.0
+var _impact_remaining := 0.0
+
+func perfect_impact() -> void:
+	_impact_remaining = 0.12
+	offset.y = 3.0
+
+func advance_impact(delta: float) -> void:
+	if _impact_remaining <= 0.0:
+		return
+	_impact_remaining = maxf(0.0, _impact_remaining - delta)
+	offset.y = 3.0 * pow(_impact_remaining / 0.12, 2.0)
 
 func _ready() -> void:
 	position = JumpConfig.CAMERA_START
 
 func _physics_process(delta: float) -> void:
+	advance_impact(delta)
 	if target == null:
 		return
 	var desired_headroom := 0.0
