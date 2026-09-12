@@ -44,6 +44,11 @@ var _held_pointers: Dictionary = {}
 var _blocked_pointers: Dictionary = {}
 var _drag_pointer := ""
 var _keyboard_blocked := false
+var pause_button: PauseButton
+var pause_menu: PauseMenu
+var _pause_layer: CanvasLayer
+var _pause_tween: Tween
+var _is_paused := false
 
 func _ready() -> void:
 	_contact_audio = AudioStreamPlayer.new()
@@ -53,6 +58,7 @@ func _ready() -> void:
 	platform_director = PlatformDirector.new()
 	platform_director.initialize(self, JumpConfig.PLATFORM_LAYOUT)
 	_create_hud()
+	_create_pause_ui()
 	_create_jumper()
 	_create_camera()
 	_highest_y = jumper.global_position.y
@@ -122,6 +128,121 @@ func _create_hud() -> void:
 	layer.layer = 5
 	add_child(layer)
 	layer.add_child(hud)
+
+func _create_pause_ui() -> void:
+	# Pausenknopf und Pausenschirm liegen im selben Layer: der Knopf ist das
+	# einzige, was der Spieler waehrend des Spiels sieht.
+	var layer := CanvasLayer.new()
+	layer.name = "PauseLayer"
+	layer.layer = JumpConfig.PAUSE_LAYER
+	add_child(layer)
+	_pause_layer = layer
+	pause_button = PauseButton.new()
+	pause_button.name = "PauseButton"
+	pause_button.visible = false
+	layer.add_child(pause_button)
+
+## Haelt das Spiel an. Der SceneTree stoppt Physik und _process; die Pause selbst
+## bleibt bedienbar, weil ihre Knoten auf PROCESS_MODE_ALWAYS stehen.
+func pause() -> void:
+	if _is_paused or _phase != Phase.PLAYING or is_game_over:
+		return
+	_is_paused = true
+	_reset_controls()
+	# Waehrend der Pause steht der Baum, das Spiel sieht also keine Eingabe. Ein
+	# Finger, der beim Pausieren noch lag, wuerde danach nie wieder ein Loslassen
+	# melden und diesen Zeiger dauerhaft sperren. Die Pause beginnt deshalb mit
+	# leerem Zeigerstand; das Startmenue ist hier laengst vorbei.
+	_held_pointers.clear()
+	_blocked_pointers.clear()
+	_cancel_pause_tween()
+	if pause_menu == null or not is_instance_valid(pause_menu):
+		pause_menu = PauseMenu.new()
+		pause_menu.name = "PauseMenu"
+		# Ein pausierter Knoten bekommt keine Eingabe. Ohne ALWAYS waere das
+		# Menue sichtbar, aber tot — kein Tap wuerde je ankommen.
+		pause_menu.process_mode = Node.PROCESS_MODE_ALWAYS
+		pause_menu.resume_requested.connect(_on_resume_requested)
+		pause_menu.restart_requested.connect(_on_restart_requested)
+		_pause_layer.add_child(pause_menu)
+	pause_menu.score = score
+	pause_menu.set_process_unhandled_input(true)
+	# Ueber dem Pausenknopf einsortiert, damit er den Schirm nicht durchstoesst.
+	_pause_layer.move_child(pause_menu, _pause_layer.get_child_count() - 1)
+	pause_menu.modulate.a = 0.0
+	pause_menu.visible = true
+	# Erst jetzt anhalten: der Menuebaum existiert vorher, damit der Wechsel nie
+	# ein Bild ohne Ueberlagerung zeigt.
+	get_tree().paused = true
+	_pause_tween = create_tween().set_pause_mode(JumpConfig.PAUSE_TWEEN_PROCESS_MODE)
+	_pause_tween.tween_property(pause_menu, "modulate:a", 1.0, JumpConfig.PAUSE_IN_DURATION)
+	pause_button.visible = false
+
+func _on_resume_requested() -> void:
+	if not _is_paused:
+		return
+	_resume()
+
+func _on_restart_requested() -> void:
+	if not _is_paused:
+		return
+	# Aus der Pause heraus denselben Neustartpfad nutzen wie nach dem Tod. Der
+	# schnelle Wiedereinstieg ist hier richtig: der Spieler kennt das Spiel.
+	get_tree().paused = false
+	_is_paused = false
+	_restart(true)
+
+## Nimmt die Pause zurueck. Der SceneTree laeuft erst wieder, wenn das Menue
+## ausgeblendet ist — sonst waere die Physik schneller als die Anzeige.
+func _resume() -> void:
+	_is_paused = false
+	_cancel_pause_tween()
+	if pause_menu != null and is_instance_valid(pause_menu):
+		pause_menu.set_process_unhandled_input(false)
+		_pause_tween = create_tween().set_pause_mode(JumpConfig.PAUSE_TWEEN_PROCESS_MODE)
+		_pause_tween.tween_property(pause_menu, "modulate:a", 0.0, JumpConfig.PAUSE_OUT_DURATION)
+		_pause_tween.tween_callback(_finish_resume)
+	else:
+		_finish_resume()
+
+func _finish_resume() -> void:
+	if pause_menu != null and is_instance_valid(pause_menu):
+		pause_menu.visible = false
+	get_tree().paused = false
+	pause_button.visible = pause_button_available()
+
+func _cancel_pause_tween() -> void:
+	if _pause_tween != null and _pause_tween.is_valid():
+		_pause_tween.kill()
+	_pause_tween = null
+
+## Der Pausenknopf faengt keinen Eingabe ab (mouse_filter IGNORE), die Flaeche
+## wertet das Spiel aus. Damit laeuft die Pause durch denselben Eingabepfad wie
+## die Steuerung und ein Finger kann nie gleichzeitig steuern und pausieren.
+func pause_button_available() -> bool:
+	if pause_button == null or not is_instance_valid(pause_button):
+		return false
+	return _phase == Phase.PLAYING and not is_game_over and not _is_paused
+
+func _update_pause_button() -> void:
+	if pause_button == null or not is_instance_valid(pause_button):
+		return
+	pause_button.visible = pause_button_available()
+
+## Trefferflaeche des Knopfes: die gezeichnete Flaeche plus Daumen-Zuschlag.
+func _pause_button_hit_rect() -> Rect2:
+	if pause_button == null or not is_instance_valid(pause_button):
+		return Rect2()
+	return PauseButton.rect_for(pause_button.size).grow(JumpConfig.PAUSE_BUTTON_HIT_PADDING)
+
+## Liefert true, wenn der Tap den Pausenknopf getroffen hat.
+func _try_pause_tap(position: Vector2) -> bool:
+	if _phase != Phase.PLAYING or is_game_over or _is_paused:
+		return false
+	if not _pause_button_hit_rect().has_point(position):
+		return false
+	pause()
+	return true
 
 func _create_jumper() -> void:
 	jumper = Jumper.new()
@@ -210,6 +331,8 @@ func _check_game_over() -> void:
 		is_game_over = true
 		_restart_timer = JumpConfig.RESTART_DELAY
 		_reset_controls()
+		if pause_button != null and is_instance_valid(pause_button):
+			pause_button.visible = false
 		jumper.shutdown()
 		camera.set_physics_process(false)
 		_death_tween = create_tween()
@@ -224,6 +347,15 @@ func _arm_death_check() -> void:
 
 func _restart(fast_retry := false) -> void:
 	_cancel_start_sequence()
+	_cancel_pause_tween()
+	# Ein Neustart darf nie in einer angehaltenen Welt landen. Aus der Pause
+	# heraus wird der Baum hier zuerst wieder freigegeben, sonst friert die
+	# frisch angelegte Szene sofort ein.
+	get_tree().paused = false
+	_is_paused = false
+	if pause_menu != null and is_instance_valid(pause_menu):
+		pause_menu.queue_free()
+		pause_menu = null
 	if _death_tween != null and _death_tween.is_valid():
 		_death_tween.kill()
 	_death_tween = null
@@ -266,11 +398,16 @@ func _restart(fast_retry := false) -> void:
 		# The initial menu choreography is not replayed on death. A clean world
 		# starts at the same platform/camera baseline and immediately launches.
 		_reset_controls()
+		# Ein Neustart aus der Pause darf keinen Zeiger aus der alten Runde
+		# mitschleppen: der zugehoerige Finger ist laengst weg.
+		_held_pointers.clear()
+		_blocked_pointers.clear()
 		_initial_bounce_fired = true
 		_phase = Phase.PLAYING
 		jumper.start_initial_bounce()
 		jumper.set_physics_process(true)
 		camera.set_physics_process(true)
+		_update_pause_button()
 	else:
 		_create_start_menu()
 	_update_score()
@@ -327,6 +464,7 @@ func _enter_playing() -> void:
 	if is_instance_valid(start_menu):
 		start_menu.queue_free()
 		start_menu = null
+	_update_pause_button()
 
 func _cancel_start_sequence() -> void:
 	if _start_tween != null and _start_tween.is_valid():
@@ -381,6 +519,15 @@ func _input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if is_game_over:
 		return
+	if _phase == Phase.PLAYING:
+		# Der Pausenknopf wird VOR der Steuerung ausgewertet. Sonst wuerde ein
+		# Tap auf den Knopf den Jumper zusaetzlich in die obere Ecke ziehen.
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			if _try_pause_tap(event.position):
+				return
+		elif event is InputEventScreenTouch and event.pressed:
+			if _try_pause_tap(event.position):
+				return
 	if _phase == Phase.START_MENU:
 		if _is_start_tap(event):
 			_start_game()

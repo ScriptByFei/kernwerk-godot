@@ -182,3 +182,38 @@ const START_IDLE_PERIOD := 3.2
 # Title glow: outline width as a fraction of the title font size, so the
 # halo keeps its proportion on every screen size.
 const START_TITLE_GLOW_RATIO := 0.055
+
+## Pausenmenue. Zeiten in Sekunden, Flaechen in Design-Einheiten (1080 breit).
+## Das Pausieren selbst setzt den SceneTree auf pause; der Ausblend-Tween laeuft
+## deshalb mit TWEEN_PAUSE_PROCESS, sonst friert er in seinem ersten Bild ein und
+## das Menue waere nie zu sehen.
+const PAUSE_IN_DURATION := 0.12
+const PAUSE_OUT_DURATION := 0.10
+const PAUSE_TWEEN_PROCESS_MODE := Tween.TWEEN_PAUSE_PROCESS
+const PAUSE_TITLE := "PAUSE"
+const PAUSE_SCORE_LABEL := "SCORE"
+const PAUSE_RESUME_LABEL := "WEITER"
+const PAUSE_RESTART_LABEL := "NEU STARTEN"
+const PAUSE_BUTTON_SIZE := Vector2(104.0, 104.0)
+const PAUSE_BUTTON_MARGIN := 44.0
+const PAUSE_BUTTON_BAR_SIZE := Vector2(9.0, 34.0)
+const PAUSE_BUTTON_BAR_GAP := 12.0
+## Trefferflaeche des Pausenknopfes. Bewusst groesser als die gezeichnete
+## Flaeche: der Daumen trifft im Spiel, nicht am Schreibtisch.
+const PAUSE_BUTTON_HIT_PADDING := 24.0
+const PAUSE_DIM_COLOR := Color(0.02, 0.03, 0.05, 0.72)
+const PAUSE_PANEL_COLOR := Color(0.055, 0.085, 0.10, 0.94)
+const PAUSE_PANEL_BORDER_COLOR := Color(0.38, 0.47, 0.48, 0.80)
+const PAUSE_TITLE_COLOR := Color(1.0, 0.965, 0.91)
+const PAUSE_SCORE_COLOR := Color(0.72, 1.0, 0.92)
+const PAUSE_SECONDARY_COLOR := Color(0.74, 0.80, 0.82)
+const PAUSE_ROW_PLATE_COLOR := Color(0.055, 0.085, 0.10, 0.32)
+const PAUSE_ROW_BORDER_COLOR := Color(0.38, 0.47, 0.48, 0.80)
+const PAUSE_BUTTON_PLATE_COLOR := Color(0.055, 0.085, 0.10, 0.32)
+const PAUSE_BUTTON_BORDER_COLOR := Color(0.38, 0.47, 0.48, 0.80)
+## Warm wie der Titel des Startbildschirms: derselbe "unter Strom"-Ton.
+const PAUSE_BUTTON_BAR_COLOR := Color(1.0, 0.86, 0.66)
+## CanvasLayer des Pausenmenues. Ueber HUD (5) und Pausenknopf (89), unter dem
+## Startmenue (10 ist dort ein eigener Layer, die Pause liegt bewusst darueber,
+## weil sie nur waehrend PLAYING existiert).
+const PAUSE_LAYER := 90
