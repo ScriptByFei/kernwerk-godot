@@ -34,7 +34,13 @@ func _test_gameplay_loop() -> void:
 	game.jumper.global_position.y = game.camera.global_position.y + JumpConfig.FALL_DEATH_MARGIN + 1.0
 	game._check_game_over()
 	_check(game.is_game_over, "falling below the camera margin triggers game over")
-	_check(is_equal_approx(game._restart_timer, JumpConfig.RESTART_DELAY), "game over starts the configured restart timer")
+	# Der Lauf endet jetzt bewusst ohne automatischen Neustart: sonst waere der
+	# erreichte Score nicht lesbar, weil die naechste Runde ihn ueberschreibt.
+	_check(game.game_over_menu != null and game.game_over_menu.visible, "der Absturz zeigt die Ergebnisanzeige")
+	_check(game.run_record.last == 100, "der beendete Lauf wird mit seinem Score verbucht")
+	_check(game.run_record.best == 100, "der erste Lauf setzt den Bestwert")
+	_check(game.game_over_menu.best == 100, "die Anzeige kennt den Bestwert")
+	_check(not game.game_over_menu.is_record, "der erste Lauf meldet keinen neuen Bestwert")
 
 	game._restart()
 	game.set_process(false)

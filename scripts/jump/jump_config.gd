@@ -150,7 +150,6 @@ const CAMERA_START := Vector2(540.0, 960.0)
 # Gameplay-Loop
 const SCORE_PER_UNIT := 10.0
 const FALL_DEATH_MARGIN := 600.0
-const RESTART_DELAY := 0.28
 const DIFFICULTY_STEP_SCORE := 100.0
 const MAX_DIFFICULTY := 5
 const DIFFICULTY_VERTICAL_BONUS := 10.0
@@ -217,3 +216,20 @@ const PAUSE_BUTTON_BAR_COLOR := Color(1.0, 0.86, 0.66)
 ## Startmenue (10 ist dort ein eigener Layer, die Pause liegt bewusst darueber,
 ## weil sie nur waehrend PLAYING existiert).
 const PAUSE_LAYER := 90
+
+## Ergebnisanzeige nach dem Absturz.
+##
+## Der Lauf endet bewusst NICHT mehr von selbst: bei einem Endless-Spiel ist
+## "wie hoch bin ich gekommen?" die zentrale Frage, und ein automatischer
+## Neustart beantwortet sie nie — der erreichte Score wird im selben Moment von
+## der neuen Runde ueberschrieben. Der Spieler entscheidet jetzt selbst.
+const GAME_OVER_TITLE := "ABSTURZ"
+const GAME_OVER_RESTART_LABEL := "NEU STARTEN"
+const GAME_OVER_BEST_LABEL := "BESTWERT"
+const GAME_OVER_RECORD_LABEL := "NEUER BESTWERT"
+## Warm wie der Starttitel und die Overload-Anzeige: derselbe "unter Strom"-Ton.
+const GAME_OVER_RECORD_COLOR := Color(1.0, 0.86, 0.66)
+## Einblenddauer der Ergebnisanzeige. Sie stoppt den Baum nicht — die Welt ist
+## ohnehin schon eingefroren — sondern blendet nur die Ueberlagerung ein.
+const GAME_OVER_IN_DURATION := 0.22
+

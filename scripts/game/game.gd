@@ -24,6 +24,8 @@ var _landing_bonus := 0
 ## ist 3/3 nur einen Tick lang wahr; der ueberladene Flug haelt die Anzeige.
 var _overload_display := 0.0
 var resonance: ResonanceSystem
+## Bestwert des laufenden Spiels (nur Sitzung, siehe RunRecord).
+var run_record: RunRecord
 var hud: ResonanceHud
 var jumper: Jumper
 var camera: VerticalCamera
@@ -34,7 +36,6 @@ var score := 0
 var difficulty := 0
 var is_game_over := false
 var _phase := Phase.START_MENU
-var _restart_timer := -1.0
 var _highest_y := START_Y
 var _death_check_armed := false
 var _start_tween: Tween
@@ -46,6 +47,7 @@ var _drag_pointer := ""
 var _keyboard_blocked := false
 var pause_button: PauseButton
 var pause_menu: PauseMenu
+var game_over_menu: GameOverMenu
 var _pause_layer: CanvasLayer
 var _pause_tween: Tween
 var _is_paused := false
@@ -55,10 +57,12 @@ func _ready() -> void:
 	_contact_audio.name = "ContactAudio"
 	add_child(_contact_audio)
 	resonance = ResonanceSystem.new()
+	run_record = RunRecord.new()
 	platform_director = PlatformDirector.new()
 	platform_director.initialize(self, JumpConfig.PLATFORM_LAYOUT)
 	_create_hud()
 	_create_pause_ui()
+	_create_game_over_ui()
 	_create_jumper()
 	_create_camera()
 	_highest_y = jumper.global_position.y
@@ -100,9 +104,9 @@ func _process(delta: float) -> void:
 	if jumper == null or camera == null:
 		return
 	if is_game_over:
-		_restart_timer -= delta
-		if _restart_timer <= 0.0:
-			_restart(true)
+		# Die Runde ist beendet und wartet auf die Entscheidung des Spielers.
+		# Hier laeuft nichts mehr weiter: kein Timer, kein automatischer
+		# Neustart. Die Ergebnisanzeige liegt bereits ueber der Welt.
 		return
 	# Full gameplay logic only after the start choreography finished.
 	if _phase == Phase.PLAYING:
@@ -141,6 +145,18 @@ func _create_pause_ui() -> void:
 	pause_button.name = "PauseButton"
 	pause_button.visible = false
 	layer.add_child(pause_button)
+
+## Ergebnisanzeige. Liegt in derselben CanvasLayer wie die Pause, wird aber
+## erst beim Absturz sichtbar. Sie muss NICHT auf PROCESS_MODE_ALWAYS stehen:
+## die Welt steht beim Absturz schon still, es gibt nichts anzuhalten.
+## `_create_pause_ui()` laeuft in `_ready` vorher und legt die Ebene an.
+func _create_game_over_ui() -> void:
+	game_over_menu = GameOverMenu.new()
+	game_over_menu.name = "GameOverMenu"
+	game_over_menu.visible = false
+	game_over_menu.restart_requested.connect(_on_game_over_restart_requested)
+	_pause_layer.add_child(game_over_menu)
+	_pause_layer.move_child(game_over_menu, _pause_layer.get_child_count() - 1)
 
 ## Haelt das Spiel an. Der SceneTree stoppt Physik und _process; die Pause selbst
 ## bleibt bedienbar, weil ihre Knoten auf PROCESS_MODE_ALWAYS stehen.
@@ -332,7 +348,9 @@ func _check_game_over() -> void:
 	var death_line_y := camera.global_position.y + JumpConfig.FALL_DEATH_MARGIN
 	if jumper.global_position.y > death_line_y:
 		is_game_over = true
-		_restart_timer = JumpConfig.RESTART_DELAY
+		# Der Lauf endet hier und der Spieler entscheidet selbst. Sonst
+		# waere der erreichte Score nicht lesbar, weil die naechste Runde
+		# ihn sofort ueberschreibt.
 		_reset_controls()
 		if pause_button != null and is_instance_valid(pause_button):
 			pause_button.visible = false
@@ -341,6 +359,34 @@ func _check_game_over() -> void:
 		_death_tween = create_tween()
 		_death_tween.tween_property(jumper, "modulate", JumpConfig.DEATH_DIM_COLOR, JumpConfig.DEATH_DIM_DURATION)
 		_play_contact_sound(death_sound, JumpConfig.DEATH_AUDIO_DB)
+		_show_game_over()
+
+## Blendet die Ergebnisanzeige ein. Erst der Tod entscheidet, ob es ein neuer
+## Bestwert war — deshalb wird der Lauf hier und nicht schon beim Start verbucht.
+func _show_game_over() -> void:
+	if game_over_menu == null or not is_instance_valid(game_over_menu):
+		return
+	var record := run_record.finish_run(score)
+	game_over_menu.score = score
+	game_over_menu.best = run_record.best
+	game_over_menu.is_record = record
+	# Der Riegel aus dem letzten Absturz muss fallen: die Anzeige wird nur
+	# versteckt, nicht zerstoert. Ohne das waere sie beim zweiten Mal taub.
+	game_over_menu.reset_lock()
+	_pause_layer.move_child(game_over_menu, _pause_layer.get_child_count() - 1)
+	game_over_menu.modulate.a = 0.0
+	game_over_menu.visible = true
+	# Die Welt steht beim Absturz schon still, deshalb braucht der Tween hier
+	# kein TWEEN_PAUSE_PROCESS: der Baum laeuft weiter.
+	var tween := create_tween()
+	tween.tween_property(game_over_menu, "modulate:a", 1.0, JumpConfig.GAME_OVER_IN_DURATION)
+
+## Neustart aus der Ergebnisanzeige. Nutzt denselben Pfad wie der schnelle
+## Wiedereinstieg — der Spieler kennt das Spiel an dieser Stelle.
+func _on_game_over_restart_requested() -> void:
+	if not is_game_over:
+		return
+	_restart(true)
 
 func _arm_death_check() -> void:
 	if jumper == null or camera == null:
@@ -359,6 +405,10 @@ func _restart(fast_retry := false) -> void:
 	if pause_menu != null and is_instance_valid(pause_menu):
 		pause_menu.queue_free()
 		pause_menu = null
+	if game_over_menu != null and is_instance_valid(game_over_menu):
+		game_over_menu.visible = false
+		game_over_menu.set_process_unhandled_input(false)
+		game_over_menu.modulate.a = 1.0
 	if _death_tween != null and _death_tween.is_valid():
 		_death_tween.kill()
 	_death_tween = null
@@ -391,7 +441,6 @@ func _restart(fast_retry := false) -> void:
 	resonance.reset()
 	difficulty = 0
 	is_game_over = false
-	_restart_timer = -1.0
 	_highest_y = jumper.global_position.y
 	_death_check_armed = false
 	_phase = Phase.START_MENU
@@ -521,6 +570,9 @@ func _input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if is_game_over:
+		# Die Ergebnisanzeige wertet den Tap selbst aus. Sie wird hier bewusst
+		# nicht doppelt geprueft: zwei Stellen fuer dieselbe Flaeche wuerden
+		# frueher oder spaeter auseinanderdriften.
 		return
 	if _phase == Phase.PLAYING:
 		# Der Pausenknopf wird VOR der Steuerung ausgewertet. Sonst wuerde ein

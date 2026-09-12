@@ -205,7 +205,9 @@ func _deterministic_reset() -> void:
 	await process_frame
 	game.jumper.position.y = game.camera.position.y + JumpConfig.FALL_DEATH_MARGIN + 1
 	game._check_game_over()
-	await create_timer(JumpConfig.RESTART_DELAY + 0.05).timeout
+	# Der Wiedereinstieg passiert jetzt auf Wunsch ueber die Ergebnisanzeige.
+	game._on_game_over_restart_requested()
+	await process_frame
 	_check(game._phase == game.Phase.PLAYING, "deterministic reset reaches PLAYING")
 	_check(game.platform_director.active_positions.slice(0, JumpConfig.PLATFORM_LAYOUT.size()) == JumpConfig.PLATFORM_LAYOUT, "retry restores the seeded initial route")
 	_check(game.jumper.global_position.x == 540.0, "retry restores the start x")
@@ -225,8 +227,17 @@ func _retry() -> void:
 		game.jumper.position.y = game.camera.position.y + JumpConfig.FALL_DEATH_MARGIN + 1
 		game._check_game_over()
 		_check(game.is_game_over and not game.jumper.is_physics_processing(), "death freezes physics")
-		await create_timer(JumpConfig.RESTART_DELAY + 0.05).timeout
-		_check(game._phase == game.Phase.PLAYING and not game.is_game_over, "automatic retry stays PLAYING")
+		# Der Lauf wartet auf die Entscheidung des Spielers; erst der Tap auf
+		# NEU STARTEN fuehrt zurueck ins Spiel.
+		_check(game.game_over_menu.visible, "die Ergebnisanzeige wartet auf Eingabe")
+		await create_timer(JumpConfig.GAME_OVER_IN_DURATION + 0.1).timeout
+		# `_phase` bleibt beim Absturz bewusst PLAYING (Sperre ist is_game_over,
+		# das HUD soll sichtbar bleiben). Entscheidend ist, dass nichts laeuft.
+		_check(not game.jumper.is_physics_processing(), "ohne Eingabe bleibt die Welt eingefroren")
+		_check(game.is_game_over, "ohne Eingabe bleibt der Lauf beendet")
+		game._on_game_over_restart_requested()
+		await process_frame
+		_check(game._phase == game.Phase.PLAYING and not game.is_game_over, "Neustart fuehrt zurueck ins Spiel")
 		_check(not is_instance_valid(game.start_menu), "death retry never restores menu")
 		_check(not game.jumper.has_horizontal_target, "retry clears steering")
 		_check(game.platform_director.active_platform_count <= JumpConfig.MAX_ACTIVE_PLATFORMS, "retry bounded platforms")
