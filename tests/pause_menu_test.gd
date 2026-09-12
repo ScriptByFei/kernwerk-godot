@@ -20,6 +20,8 @@ func _init() -> void:
 	await _test_tap_outside_does_nothing()
 	await _test_button_hidden_outside_playing()
 	await _test_no_lost_pointer_after_pause()
+	await _test_reopen_after_resume_is_not_locked()
+	await _test_restart_works_on_second_pause()
 	print("PAUSENMENUE: ALLE OK" if failures == 0 else "PAUSENMENUE: %d FEHLER" % failures)
 	quit(1 if failures > 0 else 0)
 
@@ -205,6 +207,60 @@ func _test_no_lost_pointer_after_pause() -> void:
 	game._on_resume_requested()
 	await _wait(JumpConfig.PAUSE_OUT_DURATION + 0.15)
 	_check(game.pause_button.visible, "der Knopf ist nach dem Fortsetzen wieder bedienbar")
+	game.queue_free()
+	await process_frame
+	paused = false
+
+## Wiederholtes Pausieren: das Menue wird beim Fortsetzen nur versteckt, nicht
+## zerstoert. Bleibt der Eingaberiegel stehen, ist es beim zweiten Oeffnen
+## sichtbar, aber taub — WEITER und NEU STARTEN reagieren dann nicht mehr.
+## Genau dieser Fehler ist einmal live gegangen.
+func _test_reopen_after_resume_is_not_locked() -> void:
+	var game = await _playing_game()
+	game._unhandled_input(_tap(game._pause_button_hit_rect().get_center()))
+	_check(game._is_paused, "erste Pause ueber den echten Pfad")
+
+	# Fortsetzen und die Ausblendung abwarten.
+	game.pause_menu._handle_tap(game.pause_menu.resume_rect().get_center())
+	_check(game.pause_menu._locked, "das Menue verriegelt nach der ersten Wahl")
+	await _wait(JumpConfig.PAUSE_OUT_DURATION + 0.15)
+
+	# Zweite Pause. Die Menue-Instanz ist dieselbe wie vorher.
+	game._unhandled_input(_tap(game._pause_button_hit_rect().get_center()))
+	_check(game._is_paused, "das Spiel laesst sich erneut pausieren")
+	_check(game.pause_menu._locked == false, "das wieder geoeffnete Menue ist nicht mehr verriegelt")
+
+	# Und die Aktionen muessen wirklich wieder ankommen.
+	var resume_center: Vector2 = game.pause_menu.resume_rect().get_center()
+	game.pause_menu._handle_tap(resume_center)
+	_check(game.pause_menu._locked, "WEITER greift auch beim zweiten Mal")
+	await _wait(JumpConfig.PAUSE_OUT_DURATION + 0.15)
+	_check(not paused, "die zweite Fortsetzung gibt den Baum wirklich frei")
+
+	game.queue_free()
+	await process_frame
+	paused = false
+
+## Auch der Neustart muss beim zweiten Anlauf funktionieren — also der Weg,
+## den ein Spieler wirklich nimmt: pausieren, fortsetzen, wieder pausieren,
+## dann neu starten.
+func _test_restart_works_on_second_pause() -> void:
+	var game = await _playing_game()
+	game._unhandled_input(_tap(game._pause_button_hit_rect().get_center()))
+	game.pause_menu._handle_tap(game.pause_menu.resume_rect().get_center())
+	await _wait(JumpConfig.PAUSE_OUT_DURATION + 0.15)
+
+	game._unhandled_input(_tap(game._pause_button_hit_rect().get_center()))
+	_check(game._is_paused, "zweite Pause steht")
+	game.pause_menu._handle_tap(game.pause_menu.restart_rect().get_center())
+	await process_frame
+	_check(not paused, "Neustart aus der zweiten Pause gibt den Baum frei")
+	_check(game._phase == Game.Phase.PLAYING, "Neustart aus der zweiten Pause startet die Runde")
+	_check(game.pause_menu == null, "das Menue ist danach weg")
+	var y_before: float = game.jumper.global_position.y
+	await _wait(0.2)
+	_check(game.jumper.global_position.y != y_before, "die neue Runde laeuft wirklich")
+
 	game.queue_free()
 	await process_frame
 	paused = false

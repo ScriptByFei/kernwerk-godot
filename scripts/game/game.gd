@@ -166,7 +166,10 @@ func pause() -> void:
 		pause_menu.restart_requested.connect(_on_restart_requested)
 		_pause_layer.add_child(pause_menu)
 	pause_menu.score = score
-	pause_menu.set_process_unhandled_input(true)
+	# Der Riegel aus der letzten Pause muss fallen: das Menue wird beim
+	# Fortsetzen nur versteckt, nicht zerstoert. Ohne das ist es beim zweiten
+	# Oeffnen sichtbar, aber taub.
+	pause_menu.reset_lock()
 	# Ueber dem Pausenknopf einsortiert, damit er den Schirm nicht durchstoesst.
 	_pause_layer.move_child(pause_menu, _pause_layer.get_child_count() - 1)
 	pause_menu.modulate.a = 0.0

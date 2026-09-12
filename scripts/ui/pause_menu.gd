@@ -156,7 +156,21 @@ func _draw_row(rect: Rect2, label: String, primary: bool) -> void:
 		color
 	)
 
+## Setzt den Eingaberiegel zurueck. MUSS beim erneuten Oeffnen gerufen werden.
+##
+## Ohne das ist das Menue nach dem ersten WEITER fuer immer taub: es wird beim
+## Fortsetzen nur versteckt, nicht zerstoert, und traegt den Riegel `_locked`
+## aus der alten Sitzung mit. Der zweite Aufruf der Pause zeigt dann ein
+## sichtbares, aber totes Menue — beide Zeilen reagieren nicht mehr.
+func reset_lock() -> void:
+	_locked = false
+	set_process_unhandled_input(true)
+
 func _unhandled_input(event: InputEvent) -> void:
+	# `_unhandled_input` ist nur waehrend der offenen Pause aktiv: das Menue
+	# schaltet es beim Waehlen selbst ab und `reset_lock()` beim Oeffnen wieder
+	# ein. Ein zweites Ereignis desselben Fingertipps kann deshalb nicht
+	# durchkommen, und ein `can_process()`-Riegel waere hier toter Code.
 	if _locked:
 		return
 	if event is InputEventMouseButton:
