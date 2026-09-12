@@ -58,6 +58,11 @@ var game_over_menu: GameOverMenu
 var _pause_layer: CanvasLayer
 var _pause_tween: Tween
 var _is_paused := false
+## Zeitgeber fuer die wenigen Bewegungen im Hintergrund (Lampen, Dampf). Rein
+## kosmetisch: er laeuft unabhaengig von Spielzustand und Treffern weiter,
+## damit der Schacht auch hinter dem Startmenue lebt. Kein Zustand, der
+## gespeichert oder zurueckedatziert werden muesste.
+var _background_time := 0.0
 
 func _ready() -> void:
 	if normal_landing_sound == null:
@@ -112,6 +117,7 @@ func _notification(what: int) -> void:
 		queue_redraw()
 
 func _process(delta: float) -> void:
+	_background_time += delta
 	queue_redraw()
 	if _phase == Phase.START_MENU:
 		# The menu is live (its own idle tweens draw it); gameplay is frozen.
@@ -695,7 +701,14 @@ func _draw() -> void:
 	# Die Zone richtet sich nach dem SICHTBAREN Ausschnitt, nicht nach dem
 	# Spieler-Score: sonst waere der Schacht eine Belohnungsanzeige.
 	var zone_height := _zone_height(visible_rect)
-	draw_rect(visible_rect, JumpConfig.zone_color(JumpConfig.ZONE_BACKGROUNDS, zone_height), true)
+	var zone_index: float = JumpConfig.zone_index_at(zone_height)
+	var zone_color := JumpConfig.zone_color(JumpConfig.ZONE_BACKGROUNDS, zone_height)
+	draw_rect(visible_rect, zone_color, true)
+	# Reaktorschacht als gestalteter Hintergrund. Er liegt zwischen Zonenfarbe
+	# und Schachtlinien, damit der Vordergrund (Plattformen, Kern) in jedem Fall
+	# darueber bleibt. Eigene Zeichenroutine, kein Node: kostet im Webexport
+	# nichts und laesst sich headless pruefen.
+	ShaftBackground.draw(self, visible_rect, zone_index, _background_time)
 	var shaft_color := JumpConfig.zone_color(JumpConfig.ZONE_SHAFT_COLORS, zone_height)
 	for shaft_x in [120.0, 540.0, 960.0]:
 		draw_line(Vector2(shaft_x, visible_rect.position.y), Vector2(shaft_x, visible_rect.end.y), shaft_color, 8.0)
