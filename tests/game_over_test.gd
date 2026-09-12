@@ -44,7 +44,10 @@ func _test_record_rules() -> void:
 	_check(not record.finish_run(80), "derselbe Wert ist kein neuer Bestwert")
 
 	record.reset()
-	_check(record.best == 0 and record.last == 0, "zuruecksetzen loescht beide Werte")
+	# `reset` setzt nur den Sitzungszustand zurueck. Der Bestwert bleibt —
+	# er ist jetzt dauerhaft gespeichert und soll genau das ueberleben.
+	_check(record.last == 0, "zuruecksetzen loescht den letzten Lauf")
+	_check(record.best == 80, "zuruecksetzen behaelt den Bestwert")
 
 ## Absturz: Anzeige erscheint, Lauf bleibt beendet.
 func _test_death_shows_result_and_waits() -> void:

@@ -24,8 +24,12 @@ var _landing_bonus := 0
 ## ist 3/3 nur einen Tick lang wahr; der ueberladene Flug haelt die Anzeige.
 var _overload_display := 0.0
 var resonance: ResonanceSystem
-## Bestwert des laufenden Spiels (nur Sitzung, siehe RunRecord).
+## Bestwert des laufenden Spiels, dauerhaft gespeichert (siehe RunRecord).
 var run_record: RunRecord
+## Speichert den Bestwert so, dass er ein Neuladen der Seite uebersteht.
+## Als Feld gehalten, damit Tests und QA eine eigene Datei unterschieben
+## koennen, ohne den echten Spielstand anzufassen.
+var score_store: BestScoreStore
 var hud: ResonanceHud
 var jumper: Jumper
 var camera: VerticalCamera
@@ -57,7 +61,8 @@ func _ready() -> void:
 	_contact_audio.name = "ContactAudio"
 	add_child(_contact_audio)
 	resonance = ResonanceSystem.new()
-	run_record = RunRecord.new()
+	score_store = BestScoreStore.new()
+	run_record = RunRecord.new(score_store)
 	platform_director = PlatformDirector.new()
 	platform_director.initialize(self, JumpConfig.PLATFORM_LAYOUT)
 	_create_hud()
