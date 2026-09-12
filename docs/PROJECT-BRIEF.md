@@ -6,23 +6,78 @@
 >
 > Nicht Teil des neuen Spiels: Lanes, Waffen, Bullets, Gegner, HP, Wellen, Boss, Upgrades, Shop, Meta-Progression oder Tilt-Sensoren. Der vollständige Umsetzungsplan liegt in `.hermes/plans/2026-09-04_214404-kernwerk-resonance-jump.md`; der letzte Shooter-Stand ist durch `archive/auto-shooter-phase12` gesichert.
 
+## Kernspiel — Resonanzsprung
+
+- Der Reaktor-Kern springt beim Landen **automatisch** ab; ein horizontaler Drag steuert ihn im Flug.
+- **Kein Stillstand ohne Geste:** vor dem ersten Tap bewegt sich nichts. Derselbe Tap entsperrt das Web-Audio.
+- **Höhe ist der Score.** Keine Gegner, kein Inventar — der Schacht und die Fallkante unter der Kamera sind die Herausforderung.
+- **Landezonen:** gemessen am Abstand zum Plattformmittelpunkt als Anteil der vollen Breite. PERFECT bis ±24 %, RESONANCE bis ±38 %, sonst NORMAL.
+- **Resonanz:** jede RESONANCE-/PERFECT-Landung lädt +1, maximal 3. Bei 3/3 nutzt der nächste Absprung die höhere Overload-Geschwindigkeit, danach steht die Resonanz auf 0. Eine NORMAL-Landung löscht alle Ladungen.
+- **Der Lauf endet bewusst nicht von selbst.** Nach dem Absturz entscheidet der Spieler. Ein Auto-Neustart würde den Score im selben Moment überschreiben, in dem er interessant wird.
+- **Bestwert überlebt das Neuladen** (Web: `localStorage`; Desktop: `user://`) — und „NEUER BESTWERT" wird auch gegen einen früheren Besuch verdient.
+
+## Steuerung
+
+- **Touch (Produktion):** horizontaler Drag mit konstanter Autorität über den gesamten Flugbogen.
+- **Tastatur (Dev):** A/←, D/→.
+
+Alle Werte stehen in `scripts/jump/jump_config.gd` — Schwerkraft, Absprünge, Landefenster, Score-Faktoren, Plattformabstände. Einzige Quelle für Physik-, Kamera-, Generator- und UI-Konstanten.
+
+## UI (minimalistisch)
+
+- **Im Spiel:** Score und drei Ladungssegmente als Overlay (eigener `CanvasLayer`, sonst verdecken Plattformen den Text).
+- **Menüs:** Startbildschirm, Pausenmenü (WEITER / NEU STARTEN), Ergebnisanzeige (Score, BESTWERT, bei Rekord „NEUER BESTWERT").
+- Keine Labels wie „MISS" — sanftes Feedback statt Belehrung.
+
+## Performance (Web!)
+
+Single-threaded WASM, `gl_compatibility` — CPU-Partikel, **keine** `GPUParticles2D`. Kein COOP/COEP. Vor jedem Release den Web-Export prüfen.
+
+## Smartphone-UX
+
+Safe Areas, Dynamic Island, Browserleisten, verschiedene Aspect Ratios — UI nicht an den Rand. `keep_width` statt `expand`, sonst bricht das 19.5:9-Layout auf iOS.
+
+## Entwicklung (strikt iterativ)
+
+1. Bewegung, Steuerung, Kamera ✅
+2. Resonanzmechanik und sichere Plattformgenerierung ✅
+3. Vollständiger wiederholbarer Lauf (Absturz, Pause, Neustart) ✅
+4. Startbildschirm, Ergebnisanzeige, dauerhafter Bestwert ✅
+5. Entfernen des archivierten Shooter-Codes ✅ — 164 Dateien, PCK 4.256.264 → 3.821.084 B
+6. Release-Validierung und Deployment
+
+**Kern-Test:** Fühlt sich die Steuerung mit einem Daumen präzise an? Wenn nicht → keine Inhalte bauen, erst die Physik.
+
+
+## Agenten-Rollen
+
+- **Codex** buildet (Feature-Implementation, konventionelle Commits)
+- **Claude** reviewt & balanciert
+- **Hermes** QA (Headless-Chromium-Pixel-Beweise), Deployment, Memory (Mnemosyne shared DB: Projekt-Kontext für alle Agenten)
+- Nach jeder funktionierenden Phase: Git-Commit (klein, z.B. `feat: add automatic shooting`), Fortschritt in README + Mnemosyne
+
+---
+
 ## Archiv: vorheriger Auto-Shooter-Auftrag
 
-> Die folgenden Abschnitte sind Historie, damit frühere Architekturentscheidungen nachvollziehbar bleiben. Sie gelten nicht für den Resonanzsprung-Rebuild.
+> Die folgenden Abschnitte dokumentieren den abgeschlossenen Auto-Shooter,
+> damit frühere Architekturentscheidungen nachvollziehbar bleiben. Sie gelten
+> **nicht** für den Resonanzsprung. Der Laufzeitcode ist in `20cf215` entfernt;
+> die vollständige Implementierung liegt im Git-Tag `archive/auto-shooter-phase12`.
 
-## Kernspiel
+### Kernspiel
 
 - Soldat unten auf dem Bildschirm, **exakt 3 vertikale Spuren** (links/mitte/rechts)
 - Spieler wechselt nur zwischen diesen drei X-Positionen (`current_lane` 0/1/2)
 - **Waffe feuert automatisch permanent** — keine Feuertaste
 - Von oben kommen Gegner, Hindernisse, Bonusobjekte; Lane-Wahl entscheidet über Ziel
 
-## Steuerung
+### Steuerung
 
 - **Touch:** Swipe links/rechts (eine Lane pro Geste, Grenzen geclampt) · optional dritt-Tap-Zonen
 - **Desktop (Dev):** A/←, D/→, optional 1/2/3 für direkte Lane
 
-## Waffen-/Projektilsystem
+### Waffen-/Projektilsystem
 
 - Startwerte: damage 10 · **fire_rate 1.2/s (Timo-Balancing 31.08., war 4/s)** · bullet_speed 1200 · bullet_count 1 · spread 0
 - Rate-Upgrade: **+0.1/s linear** (kein x1.5-Multiplikator mehr — Timo: „Rate nicht pro Upgrade x2, lieber 0.1 mehr")
@@ -30,52 +85,52 @@
 - Projektile fliegen gerade nach oben, Despawn außerhalb, verschwinden bei Treffer
 - Architektur vorbereitet für: Multi-Projektil, Durchschuss, Explosiv, Raketen, Shotgun, Laser, Crits, verschiedene Waffen
 
-## Gegner & Belohnungen
+### Gegner & Belohnungen
 
 - Gegner von oben, je einer Lane zugeordnet; Basiswerte: max_hp, current_hp, movement_speed, reward, enemy_type
 - **HP-Zahl sichtbar über jedem Gegner** (50/100/250/500-Staffelung)
 - Boni: +10 Damage, +10 % Fire Rate, +1 Soldier, +50 Coins, +20 HP (MVP: nicht alle komplett, Architektur vorsehen)
 - Upgrade-Objekte wie Gegner von oben — Spieler muss sie durch Beschuss aktivieren (= zentrale Lane-Entscheidung)
 
-## Zieltypen (gemeinsame Basis `LaneObject`)
+### Zieltypen (gemeinsame Basis `LaneObject`)
 
 Enemy · Upgrade · Obstacle · Reward · Gate · Boss — nicht 6 getrennte Systeme.
 
-## Spielerwerte & Kollision
+### Spielerwerte & Kollision
 
 - max_health 100; Gegner am unteren Rand → Schaden; ≤0 → Game Over
 - Mehrere Soldaten (= Formation in einer Lane, echte Feuerkraft, nicht visuell)
 
-## Ablauf
+### Ablauf
 
 Start → Gameplay → Wellen → Upgrades → stärkere Gegner → Boss → Level Complete
 Level: 60–120 s. Wave-System **datengetrieben** (Resource/JSON/Dictionary), nicht hardcodiert.
 Schwierigkeit steigt (HP, Speed, Spawnrate, Anzahl) — aber nie unlesbar.
 
-## UI (minimalistisch)
+### UI (minimalistisch)
 
 Oben: Level · Score · Coins (+ optional Boss-Progressbar) — Unten: HP · Damage · Fire Rate · Soldiers
 Game Over: Overlay mit Score/Enemies/Coins + Restart (ohne Neuladen). Level Complete: Score/Coins/Kills + Continue/Retry.
 
-## Spawn- & GameManager
+### Spawn- & GameManager
 
 - **SpawnManager** zentral: Lane, Spawnzeit, Gegnerart, Abstände, Waves (Gegner spawnt sich nicht selbst)
 - **GameManager**: State, Level, Score, Coins, Pause, Game/Victory, Restart — keine God-Class
 - Kamera statisch, keine Rotation, keine horizontale Welt
 
-## Performance (Web!)
+### Performance (Web!)
 
 Keine unnötigen `_process`, keine tausenden Nodes, wenige Partikel, kleine Texturen, kein unnötiges Physics; Object Pooling für Bullets/Enemies/Partikel vorsehen, erst implementieren wenn nötig. Regelmäßig Web-Export testen (Touch, Audio, Viewport-Scale, Mobile Safari, Pause/Resume, Browser Focus).
 
-## Smartphone-UX
+### Smartphone-UX
 
 Safe Areas, Dynamic Island, Browserleisten, verschiedene Aspect Ratios — UI nicht an den Rand.
 
-## Artstyle (MVP)
+### Artstyle (MVP)
 
 Platzhalter: Player=blauer Soldier, Gegner=rot, Upgrade=grün, Bullet=kleines Rechteck. Gameplay zuerst, Art Style später.
 
-## Entwicklungsreihenfolge (strikt iterativ)
+### Entwicklungsreihenfolge (strikt iterativ)
 
 1. Bewegung (Lanes, Player, Touch, Tastatur) ✅
 2. Shooting (WeaponController, Bullet) ✅
@@ -88,19 +143,12 @@ Platzhalter: Player=blauer Soldier, Gegner=rot, Upgrade=grün, Bullet=kleines Re
 
 **Kern-Test:** Macht es Spaß, per Lane-Wahl Ziele/Upgrades zu wählen? Wenn nicht → kein weiteres System bauen.
 
-## Codequalität & Signale
+### Codequalität & Signale
 
 Typisierung, sprechende Namen, kleine Klassen, keine Duplikate. Signale: `health_changed`, `enemy_killed`, `upgrade_collected`, `player_died`, `level_completed`.
 
 **Noch NICHT bauen:** Accounts, Multiplayer, Shop, Echtgeld, Werbung, Login, Cloud Save, Supabase, Skilltrees, Story, Inventar, Gacha, Leaderboards.
 
-## MVP-Kriterien (18 Punkte)
+### MVP-Kriterien (18 Punkte)
 
 1. Spiel startet · 2. Spieler unten · 3. drei Spuren · 4. Swipe-Wchsel · 5. Auto-Shoot · 6. Gegner von oben · 7. Gegner-HP · 8. Bullets Schaden · 9. Gegner sterben · 10. Upgrades appear · 11. Damage/FireRate-Upgrades greifen · 12. Gegner stärker über Zeit · 13. Spieler nimmt Schaden · 14. Game Over · 15. Restart · 16. einfacher Boss · 17. Level abschließbar · 18. läuft im Godot-Webexport.
-
-## Agenten-Rollen
-
-- **Codex** buildet (Feature-Implementation, konventionelle Commits)
-- **Claude** reviewt & balanciert
-- **Hermes** QA (Headless-Chromium-Pixel-Beweise), Deployment, Memory (Mnemosyne shared DB: Projekt-Kontext für alle Agenten)
-- Nach jeder funktionierenden Phase: Git-Commit (klein, z.B. `feat: add automatic shooting`), Fortschritt in README + Mnemosyne
