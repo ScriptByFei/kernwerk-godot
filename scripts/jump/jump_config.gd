@@ -124,6 +124,11 @@ const ZONE_BACKGROUNDS := [
 	Color("191321"),
 	Color("1b1919"),
 ]
+## Daempfung der mittleren Schachtlinie. Sie laeuft hinter dem Spieler; in
+## voller Staerke wirkt sie wie eine Fuehrungsschiene und markiert die
+## Sprungbahn. 0.45 haelt sie als Gliederung lesbar, nimmt ihr aber die
+## Dominanz (Astras Hinweis: "technische Hilfslinie").
+const SHAFT_CENTER_DIM := 0.45
 const ZONE_SHAFT_COLORS := [
 	Color("20313b"),
 	Color("244047"),

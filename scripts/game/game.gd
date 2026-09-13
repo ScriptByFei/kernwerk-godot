@@ -710,8 +710,19 @@ func _draw() -> void:
 	# nichts und laesst sich headless pruefen.
 	ShaftBackground.draw(self, visible_rect, zone_index, _background_time)
 	var shaft_color := JumpConfig.zone_color(JumpConfig.ZONE_SHAFT_COLORS, zone_height)
-	for shaft_x in [120.0, 540.0, 960.0]:
+	# Die MITTLERE Linie liegt exakt hinter dem Reaktor. In voller Staerke liest
+	# sie sich wie eine Fuehrungsschiene, an der der Kern haengt, und sie bleibt
+	# beim Zonenwechsel als einzige Kontur stehen. Deshalb deutlich schwaecher:
+	# sie gliedert die Flaeche, ohne die Spielbahn zu markieren. Die Randlinien
+	# behalten ihre Staerke — sie rahmen das Bild.
+	var center_shaft_color := Color(
+		shaft_color.r * JumpConfig.SHAFT_CENTER_DIM,
+		shaft_color.g * JumpConfig.SHAFT_CENTER_DIM,
+		shaft_color.b * JumpConfig.SHAFT_CENTER_DIM,
+		shaft_color.a)
+	for shaft_x in [120.0, 960.0]:
 		draw_line(Vector2(shaft_x, visible_rect.position.y), Vector2(shaft_x, visible_rect.end.y), shaft_color, 8.0)
+	draw_line(Vector2(540.0, visible_rect.position.y), Vector2(540.0, visible_rect.end.y), center_shaft_color, 8.0)
 	if _phase == Phase.PLAYING:
 		# HUD liegt in einer eigenen CanvasLayer (ResonanceHud), damit
 		# vorbeiziehende Plattformen den Text nicht ueberdecken.
