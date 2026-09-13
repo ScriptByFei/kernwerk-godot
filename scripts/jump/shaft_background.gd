@@ -35,6 +35,14 @@ const DOOR_BASE := Color("0a1216")
 const DOOR_PANEL := Color("0d181c")
 const DOOR_PANEL_DEEP := Color("081019")
 const DOOR_FUGE := Color("0b1418")
+## Lesbarkeit entsteht ueber Kontrast INNERHALB der Tuer (dunkle Ritz/Verstrebung
+## gegen helles Blatt), nicht ueber absolute Helligkeit. Die Regel begrenzt nur
+## das HELLE Ende (<= 0f1820, 1.904:1 gegen die Plattform). Das dunkle Ende ist
+## nach unten frei: daraus entsteht der Strukturkontrast.
+## Hell/Dunkel ergeben 2.002 statt der 1.021, die eine reine Helligkeitsstufung
+## hergibt — deshalb sind die Verstrebungen jetzt dunkle Baender statt heller.
+const DOOR_BRACE := Color("03050a")
+const DOOR_GAP := 8.0
 const PEARL := Color("0e1719")
 const LAMP_CORE := Color("d97b2a")
 const VENT_SLOT := Color("04080b")
@@ -183,16 +191,70 @@ static func _draw_far_layer(canvas: CanvasItem, visible_rect: Rect2, width: floa
 static func door_rect(top: float) -> Rect2:
 	return Rect2(280.0, top, 520.0, 760.0)
 
+## Zwei Blattflaechen links und rechts neben der Mittelritze. Zwischen ihnen
+## bleibt die (bereits gezeichnete) Schachtfuge sichtbar: die Ritze selbst.
+static func door_leaf_rects(top: float) -> Array[Rect2]:
+	var door := door_rect(top)
+	var half := door.size.x * 0.5
+	return [
+		Rect2(door.position.x, top, half - DOOR_GAP * 0.5, door.size.y),
+		Rect2(door.position.x + half + DOOR_GAP * 0.5, top, half - DOOR_GAP * 0.5, door.size.y),
+	]
+
+## Zwei durchgehende Verstrebungen als X: von der oberen Aussenecke diagonal
+## zur gegenueberliegenden unteren. Kanten statt Flaechen, dunkel auf dem hellen
+## Blatt — das traegt die Tuerlesbarkeit (2.0 statt 1.0 Kontrast). Zwei lange
+## Vierecke statt vier kurzer: gleiche Lesbarkeit, halbe Zeichenlast.
+static func door_brace_quads(top: float) -> Array[PackedVector2Array]:
+	var door := door_rect(top)
+	var half := door.size.x * 0.5
+	var cx := door.position.x + half
+	var y_top := top + door.size.y * 0.24
+	var y_bottom := top + door.size.y * 0.76
+	var inset := 30.0
+	var out: Array[PackedVector2Array] = []
+	for dir in [-1.0, 1.0]:
+		out.append(_diagonal_quad(
+			Vector2(cx + dir * (half - inset), y_top),
+			Vector2(cx - dir * (half - inset), y_bottom),
+			9.0))
+	return out
+
+## Huellboxen der Verstrebungen, nur fuer Geometriepruefungen.
+static func door_brace_bounds(top: float) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for quad in door_brace_quads(top):
+		var r := Rect2(quad[0], Vector2.ZERO)
+		for p in quad:
+			r = r.expand(p)
+		out.append(r)
+	return out
+
+## Schraeges Balkenstueck als geschlossenes Viereck (dick in der Normalen).
+static func _diagonal_quad(a: Vector2, b: Vector2, thickness: float) -> PackedVector2Array:
+	var n := (b - a).orthogonal().normalized() * (thickness * 0.5)
+	return PackedVector2Array([a + n, b + n, b - n, a - n])
+
 static func _draw_door_frame(canvas: CanvasItem, top: float, alpha: float) -> void:
 	var door := door_rect(top)
-	# Ein dunkles, geschlossenes Stahlblatt; sehr geringer Kontrast zur Wand,
-	# aber heller als die Hohlraeume dahinter, damit die Tuer als geschlossene
-	# Flaeche erkennbar ist (nicht als dunkler Schacht).
+	# Grundlage: hellstes Blatt (Obergrenze der Regel). Es bestimmt die Lesbarkeit
+	# gegen den dunklen Reaktorraum. Die beiden Blatthaaelften sind dieselbe
+	# Flaeche in derselben Farbe und werden deshalb NICHT einzeln gezeichnet.
 	canvas.draw_rect(door, _fade(DOOR_PANEL, alpha))
-	# Gravurlinie quer teilt das Panel — grosse flache Rechtecke, gedaempft.
-	# Die durchlaufende Schachtfuge (0b1014, x 280..800) laeuft bereits durch
-	# die Tuer und unterteilt sie zusaetzlich in Ebenen.
-	canvas.draw_rect(Rect2(door.position.x + 18.0, door.position.y + door.size.y * 0.68, door.size.x - 36.0, 3.0), _fade(DOOR_FUGE, alpha))
+	var cx := door.position.x + door.size.x * 0.5
+	# Mittelritze: dunkle Naht, trennt die beiden Blatthaaelften.
+	canvas.draw_rect(Rect2(cx - DOOR_GAP * 0.5, top, DOOR_GAP, door.size.y), _fade(DOOR_PANEL_DEEP, alpha))
+	# Eine Querfuge je Blattseite teilt die Blatter in Ebenen und betont den
+	# Querriegel des Zielbilds. Zwei Waagerechte (statt vier): halbe Last.
+	var y_fuge := top + door.size.y * 0.5
+	for dir in [-1.0, 1.0]:
+		var x_start: float = cx + dir * (DOOR_GAP * 0.5 + 6.0) if dir > 0.0 else door.position.x + 18.0
+		var x_end: float = door.end.x - 18.0 if dir > 0.0 else cx - DOOR_GAP * 0.5 - 6.0
+		canvas.draw_rect(Rect2(x_start, y_fuge, x_end - x_start, 5.0), _fade(DOOR_PANEL_DEEP, alpha))
+	# Verstrebungen als X — die eigentliche Tuerlesbarkeit. Dunkle Baender gegen
+	# das helle Blatt (2.0) statt heller Baender gegen dunkles Blatt (1.0).
+	for quad in door_brace_quads(top):
+		canvas.draw_colored_polygon(quad, _fade(DOOR_BRACE, alpha))
 
 ## Perlenkette: kurze, diskrete helle Segmente in der Mittelachse der Tuer.
 ## Sie gliedern die Tuer, ohne eine durchgezogene Linie (Sprungbahn) zu bilden.
