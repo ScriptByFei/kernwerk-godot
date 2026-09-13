@@ -31,6 +31,8 @@ const MAX_PRIMITIVES := 700
 const CAMERA_HEIGHT := 1200.0
 
 const FRAMES := 20
+var measured_rect := Rect2()
+var measured_zone := 0.0
 
 func _init() -> void:
 	_run.call_deferred()
@@ -64,14 +66,19 @@ func _measure_game() -> float:
 	game.camera.set_physics_process(false)
 	game.camera.position.y = -CAMERA_HEIGHT + JumpConfig.CAMERA_LEAD
 	game.camera.force_update_scroll()
+	await process_frame
+	measured_rect = game._get_visible_world_rect()
+	measured_zone = JumpConfig.zone_index_at(-measured_rect.position.y)
 	return await _sample(game)
 
 ## b) Nur der Hintergrund, auf demselben sichtbaren Ausschnitt.
 func _measure_background() -> float:
 	var canvas := BackgroundOnly.new()
 	root.add_child(canvas)
-	canvas.rect = Rect2(0.0, -CAMERA_HEIGHT, 1080.0, 2342.0)
-	canvas.zone = JumpConfig.zone_index_at(CAMERA_HEIGHT)
+	canvas.rect = measured_rect
+	canvas.position = -measured_rect.position
+	canvas.zone = measured_zone
+	print("Identischer Mess-Ausschnitt: ", measured_rect, " zone=", measured_zone)
 	return await _sample(canvas)
 
 ## Median der gezeichneten Primitive ueber mehrere Bilder, nach einer

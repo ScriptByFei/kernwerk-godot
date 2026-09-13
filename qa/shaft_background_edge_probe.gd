@@ -64,21 +64,21 @@ func _check_degenerate_inputs() -> void:
 	var canvas := ProbeCanvas.new()
 	root.add_child(canvas)
 	for width in [0.0, 1.0, -10.0]:
-		_draw_once(canvas, Rect2(0.0, 0.0, width, 100.0), 0.0, 1.0)
+		await _draw_once(canvas, Rect2(0.0, 0.0, width, 100.0), 0.0, 1.0)
 		_check(true, "Breite %.0f ohne Absturz" % width)
 	for size in [Vector2(1.0, 1.0), Vector2(8000.0, 200.0)]:
-		_draw_once(canvas, Rect2(Vector2.ZERO, size), 0.0, 1.0)
+		await _draw_once(canvas, Rect2(Vector2.ZERO, size), 0.0, 1.0)
 		_check(true, "Fenster %s ohne Absturz" % size)
 	for y in [-1.0e9, 0.0, 1.0e9]:
-		_draw_once(canvas, Rect2(0.0, y, WIDTH, VIEW_HEIGHT), 0.0, 1.0)
+		await _draw_once(canvas, Rect2(0.0, y, WIDTH, VIEW_HEIGHT), 0.0, 1.0)
 		_check(true, "Kamerahoehe %.0f ohne Absturz" % y)
 	# Ueberlaufende Zeit.
 	for t in [0.0, 1.0e6, 1.0e9]:
-		_draw_once(canvas, Rect2(0.0, -1200.0, WIDTH, VIEW_HEIGHT), 0.0, t)
+		await _draw_once(canvas, Rect2(0.0, -1200.0, WIDTH, VIEW_HEIGHT), 0.0, t)
 		_check(true, "Zeit %.0f ohne Absturz" % t)
 	# Jede Zone, auch ausserhalb des gueltigen Bereichs.
 	for z in [-3.0, 0.0, 0.54, 0.56, 2.0, 1.0e6]:
-		_draw_once(canvas, Rect2(0.0, -1200.0, WIDTH, VIEW_HEIGHT), z, 1.0)
+		await _draw_once(canvas, Rect2(0.0, -1200.0, WIDTH, VIEW_HEIGHT), z, 1.0)
 		_check(true, "Zonenindex %.2f ohne Absturz" % z)
 	# Echte Bilder rendern lassen, damit _draw() ueberhaupt laeuft.
 	for frame in range(4):
@@ -100,7 +100,11 @@ func _draw_once(canvas: ProbeCanvas, rect: Rect2, zone: float, time: float) -> v
 	canvas.rect = rect
 	canvas.zone = zone
 	canvas.time = time
+	var before := canvas.draws
 	canvas.queue_redraw()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	_check(canvas.draws > before, "JEDE Eingabe wurde gezeichnet: %s zone=%s" % [rect, zone])
 
 ## Extremwerte muessen endliche Koordinaten liefern.
 func _check_extreme_heights() -> void:
