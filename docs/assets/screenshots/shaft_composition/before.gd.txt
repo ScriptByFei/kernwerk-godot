@@ -133,7 +133,6 @@ static func draw(canvas: CanvasItem, visible_rect: Rect2, zone_index: float, tim
 	_draw_far_layer(canvas, visible_rect, width, alpha, time)
 	_draw_mid_layer(canvas, visible_rect, width, alpha, time)
 	_draw_near_layer(canvas, visible_rect, width, alpha, time)
-	_draw_atmosphere(canvas, visible_rect, time, alpha)
 
 ## Gemeinsame Geometrie fuer Zeichnung UND Tests. Vollstaendige Umrisse,
 ## nicht nur Mittelpunkte: kein Flansch darf in die Ruhezone hineinragen.
@@ -174,56 +173,17 @@ static func _draw_far_layer(canvas: CanvasItem, visible_rect: Rect2, width: floa
 	var camera := visible_rect.get_center().y
 	var first := first_visible_tile(0, camera, visible_rect.position.y)
 	var count := visible_tile_count(0, camera, visible_rect.position.y, visible_rect.end.y)
+	## Perlenkette vor den Fugen: kurz, diskret, in der Mittelachse, als
+	## Gliederung der Tuer, nicht als durchgezogene Sprungbahn.
 	for offset in range(count):
-		var index := first + offset
-		var top := tile_world_y(0, camera, index)
-		_draw_facility_module(canvas, index, top, alpha)
-
-## Upward order at the playable entry: A B C D B. Longer blocks vary C/D
-## placement, while doors have at least three solid bays between them.
-## Identity is ONLY a world index, never the camera-shifted drawing coordinate.
-static func module_kind(index: int) -> int:
-	var upward := -index
-	var slot := posmod(upward, 12)
-	if slot == 0 or slot == 7:
-		return 0 # A: door
-	if slot == 2:
-		return 2 # C: maintenance
-	if slot == 3:
-		return 3 # D: service, reachable before zone fade
-	if slot == 9:
-		return 2 + tile_pick(0, int(floor(float(upward) / 12.0)), 91, 2)
-	return 1 # B: quiet closed panel
-
-static func _draw_facility_module(canvas: CanvasItem, index: int, top: float, alpha: float) -> void:
-	var kind := module_kind(index)
-	var bay := door_rect(top)
-	if kind == 0:
+		var top := tile_world_y(0, camera, first + offset)
 		_draw_door_frame(canvas, top, alpha)
-		return
-	canvas.draw_rect(bay, _fade(DOOR_BASE if kind == 1 else DOOR_PANEL_DEEP, alpha))
-	# Closed panels have no centre seam, repeated X, or luminous centre marks.
-	var joint := top + 180.0 + tile_value(0, index, 88) * 380.0
-	canvas.draw_rect(Rect2(280.0, joint, 520.0, 8.0), _fade(DOOR_BRACE, alpha))
-	if kind == 2:
-		# Wartungsstruktur: eine lange Schraege plus ein breiter Laufsteg-Rost.
-		# Große Formen statt Kleinteile — der Rost ist in Geraetepixeln ~18 hoch.
-		canvas.draw_colored_polygon(_diagonal_quad(Vector2(296, top + 120), Vector2(782, top + 400), 22), _fade(DOOR_BRACE, alpha))
-		canvas.draw_rect(Rect2(280, top + 470, 520, 46), _fade(DOOR_PANEL, alpha))
-		canvas.draw_rect(Rect2(280, top + 470, 520, 8), _fade(DOOR_BRACE, alpha))
-		canvas.draw_rect(Rect2(280, top + 508, 520, 8), _fade(DOOR_BRACE, alpha))
-		for slot in range(3):
-			canvas.draw_rect(Rect2(300 + slot * 160, top + 488, 120, 12), _fade(DOOR_BRACE, alpha))
-	elif kind == 3:
-		# Technische Wartungssektion: eingelassenes Servicefeld mit zwei breiten
-		# Schienen und dunkler Mittelnaht — deutlich anders als das ruhige Panel B.
-		canvas.draw_rect(Rect2(314, top + 100, 452, 520), _fade(DOOR_PANEL, alpha))
-		canvas.draw_rect(Rect2(332, top + 124, 416, 472), _fade(DOOR_BASE, alpha))
-		for rail in range(2):
-			var rail_y: float = top + 200.0 + float(rail) * 250.0
-			canvas.draw_rect(Rect2(332, rail_y, 416, 48), _fade(DOOR_PANEL, alpha))
-			canvas.draw_rect(Rect2(332, rail_y + 42.0, 416, 24), _fade(DOOR_BRACE, alpha))
-		canvas.draw_rect(Rect2(524, top + 124, 20, 472), _fade(DOOR_BRACE, alpha))
+		_draw_pearl_chain(canvas, top, alpha)
+	for offset in range(count):
+		var top := tile_world_y(0, camera, first + offset)
+		canvas.draw_rect(Rect2(0.0, top, 280.0, 4.0), _fade(FAR_SEAM, alpha))
+		canvas.draw_rect(Rect2(280.0, top, 520.0, 4.0), _fade(Color("0b1014"), alpha))
+		canvas.draw_rect(Rect2(800.0, top, 280.0, 4.0), _fade(FAR_SEAM, alpha))
 
 ## Massive Stahltuer in der Spielmitte: ruhige, grosse, dunkle Flaechen mit
 ## sehr geringem Kontrast, keine Maschinen. Sie ist die Wand selbst, keine
@@ -296,81 +256,50 @@ static func _draw_door_frame(canvas: CanvasItem, top: float, alpha: float) -> vo
 	for quad in door_brace_quads(top):
 		canvas.draw_colored_polygon(quad, _fade(DOOR_BRACE, alpha))
 
-## Compatibility for earlier geometry probes. Central pearls were removed;
-## the replacement assertion is in shaft_composition_test.gd.
-static func pearl_segments(_top: float) -> Array[Rect2]:
-	return []
+## Perlenkette: kurze, diskrete helle Segmente in der Mittelachse der Tuer.
+## Sie gliedern die Tuer, ohne eine durchgezogene Linie (Sprungbahn) zu bilden.
+## Alle Werte bleiben unter dem Kontrast-Cap (Ruhezonen-Luma <= 0.088).
+static func pearl_segments(top: float) -> Array[Rect2]:
+	var tile_index := int(top / 760.0)
+	var segs: Array[Rect2] = []
+	# Zwei kurze Segmente je Tuerfeld, deutlich unter der Kachelhoehe verteilt.
+	for slot in range(2):
+		var local := tile_value(1, tile_index, slot + 40)
+		var y := top + 260.0 * float(slot + 1) + local * 240.0
+		var h := 14.0 + tile_value(1, tile_index, slot + 70) * 16.0
+		segs.append(Rect2(536.0, y, 8.0, h))
+	return segs
+
+static func _draw_pearl_chain(canvas: CanvasItem, top: float, alpha: float) -> void:
+	for seg in pearl_segments(top):
+		canvas.draw_rect(seg, _fade(PEARL, alpha))
 
 ## Breite Zylinder hinter den Einbaugeraeten. Schwarze Luecken bleiben offen.
 static func _draw_mid_layer(canvas: CanvasItem, visible_rect: Rect2, width: float, alpha: float, time: float) -> void:
-	# One continuous cable duct on the left; the right gets two large cylinders.
-	_shaded_rect(canvas, Rect2(132, visible_rect.position.y, 128, visible_rect.size.y), Color("030609"), Color("182129"), alpha)
-	for body in right_conduit_rects(visible_rect):
-		canvas.draw_rect(body, _fade(Color("020405"), alpha))
-		var lit_w: float = body.size.x * 0.30
-		_shaded_rect(canvas, Rect2(body.position.x + 10.0, body.position.y, lit_w, body.size.y), Color("080d12"), Color("5c7178"), alpha)
-		_shaded_rect(canvas, Rect2(body.position.x + lit_w + 14.0, body.position.y, 7.0, body.size.y), Color("4a5f68"), Color("4a5f68"), alpha)
-		_shaded_rect(canvas, Rect2(body.position.x + lit_w + 21.0, body.position.y, body.size.x - lit_w - 21.0, body.size.y), Color("03070a"), Color("03070a"), alpha)
+	for side in [-1.0, 1.0]:
+		var x := 214.0 if side < 0.0 else width - 270.0
+		canvas.draw_rect(Rect2(x, visible_rect.position.y, 56.0, visible_rect.size.y), _fade(Color("0e1419"), alpha))
+		canvas.draw_rect(Rect2(x + 10.0, visible_rect.position.y, 24.0, visible_rect.size.y), _fade(Color("11191f"), alpha))
 	var camera := visible_rect.get_center().y
 	var first := first_visible_tile(1, camera, visible_rect.position.y)
 	var count := visible_tile_count(1, camera, visible_rect.position.y, visible_rect.end.y)
 	for offset in range(count):
 		var index := first + offset
 		var top := tile_world_y(1, camera, index)
-		if posmod(index, 2) == 0:
-			# Widely spaced heavy mounting saddles interrupt the clean cylinders.
-			var collar := Rect2(906, top + 390, 162, 88)
-			if collar.intersects(visible_rect):
-				canvas.draw_rect(collar.grow(8), _fade(Color("020405"), alpha))
-				_shaded_rect(canvas, collar, Color("293640"), Color("080c10"), alpha)
-				canvas.draw_rect(Rect2(914, top + 394, 138, 10), _fade(Color("4b514d"), alpha))
-				canvas.draw_rect(Rect2(962, top + 418, 100, 46), _fade(Color("10181e"), alpha))
-		if posmod(index, 4) != 0:
-			continue
-		var side := -1.0 if posmod(index, 8) == 0 else 1.0
-		var body := machinery_rect(width, side, top + 110)
-		if body.intersects(visible_rect):
-			canvas.draw_rect(body.grow(6), _fade(Color("020405"), alpha))
-			_draw_inset_light(canvas, lamp_surface(width, side, top + 110), time + float(index), alpha, 0)
-
-static func right_conduit_rects(rect: Rect2) -> Array[Rect2]:
-	return [Rect2(912, rect.position.y, 64, rect.size.y), Rect2(990, rect.position.y, 72, rect.size.y)]
-
-## At most one steam plume and one metal reflection, globally (not per bay).
-## Candidate ownership is fixed to mid-layer indices; time only changes opacity.
-static func atmosphere_events(rect: Rect2, time: float) -> Array[Dictionary]:
-	var events: Array[Dictionary] = []
-	var camera := rect.get_center().y
-	var first := first_visible_tile(1, camera, rect.position.y)
-	var count := visible_tile_count(1, camera, rect.position.y, rect.end.y)
-	for offset in range(count):
-		var index := first + offset
-		if posmod(index, 3) != 0:
-			continue
-		var top := tile_world_y(1, camera, index)
-		var phase := fposmod(time + float(posmod(index, 5)), 18.0)
-		if phase < 5.0:
-			var r := Rect2(142, top + 150 - phase * 12, 110, 100)
-			if r.intersects(rect):
-				events.append({"rect": r, "strength": sin(phase / 5.0 * PI) * 0.035, "warm": false})
-				break
-	for offset in range(count):
-		var index := first + offset
-		var phase := fposmod(time + float(posmod(index, 7)), 23.0)
-		if posmod(index, 4) == 0 and phase < 4.0:
-			var r := Rect2(996, tile_world_y(1, camera, index) + 250, 52, 210)
-			if r.intersects(rect):
-				events.append({"rect": r, "strength": sin(phase / 4.0 * PI) * 0.12, "warm": true})
-				break
-	return events
-
-static func _draw_atmosphere(canvas: CanvasItem, rect: Rect2, time: float, alpha: float) -> void:
-	for event in atmosphere_events(rect, time):
-		var r: Rect2 = event.rect
-		var color := Color("9d612b") if event.warm else STEAM
-		# Three nested translucent sheets, fixed primitive count and bounded footprint.
-		for inset in range(3):
-			_shaded_rect(canvas, r.grow(-float(inset) * 10), Color(color, 0), color, alpha * float(event.strength) / 3.0)
+		for side in [-1.0, 1.0]:
+			var slot := 0 if side < 0.0 else 1
+			var y := top + 70.0 + float(slot) * 190.0 + tile_value(1, index, slot) * 64.0
+			var body := machinery_rect(width, side, y)
+			if not body.intersects(visible_rect):
+				continue
+			canvas.draw_rect(body, _fade(Color("030405"), alpha))
+			canvas.draw_rect(Rect2(body.position + Vector2(4.0, 4.0), body.size - Vector2(12.0, 16.0)), _fade(Color("11191f"), alpha))
+			var light := lamp_surface(width, side, y)
+			_draw_inset_light(canvas, light, time + float(index), alpha, tile_pick(1, index, slot + 13, 3))
+			canvas.draw_rect(Rect2(body.position + Vector2(12.0, 198.0), Vector2(112.0, 36.0)), _fade(Color("1e160f"), alpha))
+			for slit in range(3):
+				canvas.draw_rect(Rect2(body.position + Vector2(18.0, 202.0 + slit * 10.0), Vector2(100.0, 5.0)), _fade(VENT_SLOT, alpha))
+			canvas.draw_rect(Rect2(212.0 if side < 0.0 else width - 272.0, y + 252.0, 60.0, 16.0), _fade(Color("10171c"), alpha))
 
 ## Licht sitzt IM Metallkasten. Breite warme Reflexflaechen, dunkle Fassung,
 ## zwei eingelassene Leuchtfenster; kein Schein im leeren Schacht.
@@ -411,12 +340,9 @@ static func _draw_near_layer(canvas: CanvasItem, visible_rect: Rect2, width: flo
 	var module := pipe_module_rect(camera)
 	for side in [-1.0, 1.0]:
 		var span := foreground_pipe_span(width, side)
-		if side > 0.0:
-			continue # Right mass belongs to the continuous double conduit.
 		# Nahe Ebene: die LINKE Rohrspalte wird vollstaendig aus der nahtlosen
 		# Kachel aufgebaut (durchgehendes Rohr, eigener Flansch in der Textur).
-		# Die rechte Spalte ist KEIN Spiegel: dort laufen zwei große Kabelkanaele
-		# der mittleren Ebene durch, hier nur ihre dunkle Randmaske.
+		# Die rechte Spalte behaelt ihren prozeduralen Koerper unveraendert.
 		if pipe_tile_enabled and side == PIPE_TILE_SIDE:
 			_draw_pipe_tiles(canvas, visible_rect, alpha)
 			continue
@@ -434,8 +360,6 @@ static func _draw_near_layer(canvas: CanvasItem, visible_rect: Rect2, width: flo
 		var index := first + offset
 		var top := tile_world_y(2, camera, index)
 		for side in [-1.0, 1.0]:
-			if posmod(index, 4) != 1 or side > 0.0:
-				continue
 			var span := foreground_pipe_span(width, side)
 			for band in range(3):
 				if pipe_tile_enabled and side == PIPE_TILE_SIDE:
@@ -458,7 +382,7 @@ static func _draw_near_layer(canvas: CanvasItem, visible_rect: Rect2, width: flo
 				_draw_deck(canvas, deck, alpha)
 		var side := -1.0 if tile_pick(2, index, 8, 2) == 0 else 1.0
 		var center := valve_center(width, side, top)
-		if posmod(index, 7) == 3 and center.y - 36.0 < visible_rect.end.y and center.y + 36.0 > visible_rect.position.y:
+		if center.y - 36.0 < visible_rect.end.y and center.y + 36.0 > visible_rect.position.y:
 			_draw_valve(canvas, center, alpha)
 	# Dunkle innere Rohrkoerper schirmen Licht von Plattformauslegern ab.
 	# Sie ueberdecken auch die inneren Enden der Stege: echte Ueberlappung.

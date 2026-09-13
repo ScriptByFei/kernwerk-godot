@@ -91,11 +91,7 @@ func _run() -> void:
 			# Lesbarkeit, ein kurzes Stueck taete es nicht.
 			for b in braces:
 				_check(b.size.y > door.size.y * 0.4, "Verstrebung ueberspannt einen grossen Teil der Tuer")
-			for seg in Background.pearl_segments(top):
-				_check(seg.size.x <= 12.0 and seg.size.y >= 8.0 and seg.size.y <= 60.0, "Perlen sind kurze Striche")
-				_check(seg.position.x + seg.size.x * 0.5 >= 530.0 and seg.position.x + seg.size.x * 0.5 <= 550.0, "Perlen sitzen in der Mittelachse")
-				_check(seg.end.y <= door.end.y and seg.position.y >= top, "Perlen liegen im Tuerfeld")
-				_check(seg.size.y < Background.layer_tile_height(0) * 0.3, "Perlen sind nie eine durchgezogene Linie")
+			_check(Background.pearl_segments(top).is_empty(), "keine Perlen-Fuehrung in der Spielmitte")
 	_check(_door_contrast_ok(), "alle Tuerfarben halten den Plattformkontrast >= 1.81")
 	print("SHAFT GEOMETRY: %d checks, %d failures" % [checks, failures])
 	quit(1 if failures else 0)

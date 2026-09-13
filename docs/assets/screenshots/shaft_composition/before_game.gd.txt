@@ -722,9 +722,6 @@ func _draw() -> void:
 		shaft_color.a)
 	for shaft_x in [120.0, 960.0]:
 		draw_line(Vector2(shaft_x, visible_rect.position.y), Vector2(shaft_x, visible_rect.end.y), shaft_color, 8.0)
-	# The facility supplies its own wall structure, not a central guide rail.
-	# Restore the legacy line continuously as the shaft artwork fades out.
-	center_shaft_color.a *= 1.0 - ShaftBackground.opacity_for_zone(zone_index)
 	draw_line(Vector2(540.0, visible_rect.position.y), Vector2(540.0, visible_rect.end.y), center_shaft_color, 8.0)
 	if _phase == Phase.PLAYING:
 		# HUD liegt in einer eigenen CanvasLayer (ResonanceHud), damit
