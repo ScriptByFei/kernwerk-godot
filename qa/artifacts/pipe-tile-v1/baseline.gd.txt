@@ -1,22 +1,6 @@
 class_name ShaftBackground
 extends RefCounted
 
-## Prototyp-Rohrmodul: GENAU EINE linke Weltinstanz aus der freigegebenen
-## Materialreferenz (96x300, Flansch+Schaf). Ersetzt nur eine band-Zelle.
-const PIPE_MODULE := preload("res://assets/jump/shaft_pipe/pipe_module_candidate_v2.png")
-## Nahtlose Kachel aus demselben freigegebenen Material (Kappe/Verjuengung durch
-## gerade Schaftzeilen ersetzt). Wird fuer ALLE linken Zellen wiederholt.
-const PIPE_TILE := preload("res://assets/jump/shaft_pipe/pipe_tile_candidate_v3.png")
-const PIPE_TILE_SIDE := -1.0
-const PIPE_INSTANCE_INDEX := 0
-const PIPE_INSTANCE_BAND := 1
-const PIPE_INSTANCE_SIDE := -1.0
-const PIPE_SECTION_HEIGHT := 300.0
-const PIPE_SECTION_WIDTH := 96.0
-## QA control restores the original procedural path, not just texture visibility.
-static var pipe_module_enabled := true
-## Schaltet die durchgehende linke Rohrspalte an/aus (QA-Gegenprobe).
-static var pipe_tile_enabled := true
 ## Zone 1: schwarze Hohlraeume, ueberlappende Maschinen, eingelassenes Warmlicht.
 ## Zustandslos. Alle Positionen entstehen aus Kamera und Kachelnummer.
 const LAYER_COUNT := 3
@@ -274,24 +258,13 @@ static func _shaded_rect(canvas: CanvasItem, rect: Rect2, left: Color, right: Co
 
 ## Vorderste Rohrmasse dunkler und schaerfer als hintere Gehaeuse.
 static func _draw_near_layer(canvas: CanvasItem, visible_rect: Rect2, width: float, alpha: float, _time: float) -> void:
-	var camera := visible_rect.get_center().y
-	var module := pipe_module_rect(camera)
 	for side in [-1.0, 1.0]:
 		var span := foreground_pipe_span(width, side)
-		# Nahe Ebene: die LINKE Rohrspalte wird vollstaendig aus der nahtlosen
-		# Kachel aufgebaut (durchgehendes Rohr, eigener Flansch in der Textur).
-		# Die rechte Spalte behaelt ihren prozeduralen Koerper unveraendert.
-		if pipe_tile_enabled and side == PIPE_TILE_SIDE:
-			_draw_pipe_tiles(canvas, visible_rect, alpha)
-			continue
-		for segment in pipe_body_segments(visible_rect, side):
-			canvas.draw_rect(Rect2(span.x, segment.x, span.y - span.x, segment.y), _fade(Color("030507"), alpha))
-			_shaded_rect(canvas, Rect2(span.x + 10.0, segment.x, 34.0, segment.y), Color("06090c"), Color("1a2024"), alpha)
-			_shaded_rect(canvas, Rect2(span.x + 44.0, segment.x, 28.0, segment.y), Color("1a2024"), Color("070a0c"), alpha)
-			canvas.draw_rect(Rect2(span.x + (64.0 if side < 0.0 else 10.0), segment.x, 6.0, segment.y), _fade(Color("32312b"), alpha))
-	# Einzelmodul-Prototyp (QA-Referenz) liegt vor Stegen, Ventilen und Randmaske.
-	if pipe_module_enabled and module.intersects(visible_rect):
-		_draw_pipe_module(canvas, module.position.y, alpha)
+		canvas.draw_rect(Rect2(span.x, visible_rect.position.y, span.y - span.x, visible_rect.size.y), _fade(Color("030507"), alpha))
+		_shaded_rect(canvas, Rect2(span.x + 10.0, visible_rect.position.y, 34.0, visible_rect.size.y), Color("06090c"), Color("1a2024"), alpha)
+		_shaded_rect(canvas, Rect2(span.x + 44.0, visible_rect.position.y, 28.0, visible_rect.size.y), Color("1a2024"), Color("070a0c"), alpha)
+		canvas.draw_rect(Rect2(span.x + (64.0 if side < 0.0 else 10.0), visible_rect.position.y, 6.0, visible_rect.size.y), _fade(Color("32312b"), alpha))
+	var camera := visible_rect.get_center().y
 	var first := first_visible_tile(2, camera, visible_rect.position.y)
 	var count := visible_tile_count(2, camera, visible_rect.position.y, visible_rect.end.y)
 	for offset in range(count):
@@ -300,10 +273,6 @@ static func _draw_near_layer(canvas: CanvasItem, visible_rect: Rect2, width: flo
 		for side in [-1.0, 1.0]:
 			var span := foreground_pipe_span(width, side)
 			for band in range(3):
-				if pipe_tile_enabled and side == PIPE_TILE_SIDE:
-					continue
-				if pipe_module_enabled and index == PIPE_INSTANCE_INDEX and band == PIPE_INSTANCE_BAND and side == PIPE_INSTANCE_SIDE:
-					continue
 				var y := top + band * 300.0 + (90.0 if side > 0.0 else 0.0)
 				if y + 40.0 < visible_rect.position.y or y > visible_rect.end.y:
 					continue
@@ -330,45 +299,6 @@ static func _draw_near_layer(canvas: CanvasItem, visible_rect: Rect2, width: flo
 		_shaded_rect(canvas, Rect2(inner.x + 48.0, visible_rect.position.y, inner.y - inner.x - 48.0, visible_rect.size.y), Color("11191f"), Color("020304"), alpha)
 	for x in [0.0, width - 26.0]:
 		canvas.draw_rect(Rect2(x, visible_rect.position.y, 26.0, visible_rect.size.y), _fade(Color("010101"), alpha))
-
-static func pipe_module_rect(camera: float) -> Rect2:
-	return Rect2(10.0, tile_world_y(2, camera, PIPE_INSTANCE_INDEX) + PIPE_INSTANCE_BAND * 300.0, PIPE_SECTION_WIDTH, PIPE_SECTION_HEIGHT)
-
-## Omit the entire old body in this cell, including pixels under transparent
-## texture margins. Clipped intervals also work when the owning tile is offscreen.
-static func pipe_body_segments(rect: Rect2, side: float) -> Array[Vector2]:
-	var segments: Array[Vector2] = []
-	var cut := pipe_module_rect(rect.get_center().y)
-	if not pipe_module_enabled or side != PIPE_INSTANCE_SIDE or not cut.intersects(rect):
-		segments.append(Vector2(rect.position.y, rect.size.y))
-		return segments
-	if cut.position.y > rect.position.y:
-		segments.append(Vector2(rect.position.y, cut.position.y - rect.position.y))
-	if cut.end.y < rect.end.y:
-		segments.append(Vector2(cut.end.y, rect.end.y - cut.end.y))
-	return segments
-
-static func _draw_pipe_module(canvas: CanvasItem, top: float, alpha: float) -> void:
-	canvas.draw_texture_rect(PIPE_MODULE, Rect2(10.0, top, PIPE_SECTION_WIDTH, PIPE_SECTION_HEIGHT), false, Color(1.0, 1.0, 1.0, alpha))
-
-## Durchgehende linke Rohrspalte: die nahtlose Kachel wird ueber den sichtbaren
-## Bereich gestapelt. Gleiches Parallax wie die nahe Ebene (tile_world_y ueber
-## dieselbe Kamerahoehe) und gleicher Zonen-Alpha. Kein eigenes Raster, damit
-## das Rohr beim Scrollen exakt mit der uebrigen nahen Ebene laeuft.
-static func pipe_tiles_rects(rect: Rect2) -> Array[Rect2]:
-	var rects: Array[Rect2] = []
-	var camera := rect.get_center().y
-	var base := tile_world_y(2, camera, 0)
-	var first := int(floor((rect.position.y - base) / PIPE_SECTION_HEIGHT))
-	var last := int(ceil((rect.end.y - base) / PIPE_SECTION_HEIGHT))
-	for n in range(first, last + 1):
-		rects.append(Rect2(10.0, base + n * PIPE_SECTION_HEIGHT, PIPE_SECTION_WIDTH, PIPE_SECTION_HEIGHT))
-	return rects
-
-static func _draw_pipe_tiles(canvas: CanvasItem, visible_rect: Rect2, alpha: float) -> void:
-	for r in pipe_tiles_rects(visible_rect):
-		if r.intersects(visible_rect):
-			canvas.draw_texture_rect(PIPE_TILE, r, false, Color(1.0, 1.0, 1.0, alpha))
 
 static func _draw_deck(canvas: CanvasItem, deck: Rect2, alpha: float) -> void:
 	var p := deck.position
