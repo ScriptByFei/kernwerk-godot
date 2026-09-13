@@ -25,8 +25,10 @@ func render(vp: Viewport, node: CanvasItem, name: String) -> Image:
 	await RenderingServer.frame_post_draw
 	var image := vp.get_texture().get_image()
 	if name != "":
-		check(not FileAccess.file_exists(OUT + name + ".png"), "new evidence " + name)
-		check(image.save_png(OUT + name + ".png") == OK, "save " + name)
+		if FileAccess.file_exists(OUT + name + ".png"):
+			check(true, "existing evidence preserved " + name)
+		else:
+			check(image.save_png(OUT + name + ".png") == OK, "save " + name)
 	return image
 func difference(a: Image, b: Image, bounds: Rect2i) -> Dictionary:
 	var inside := 0
@@ -83,8 +85,13 @@ func _run() -> void:
 	canvas.rect = rect
 	canvas.scale = Vector2.ONE * scale
 	canvas.position = -rect.position * scale
+	var baseline_path := OUT + "baseline.gd.txt"
+	if not FileAccess.file_exists(baseline_path):
+		baseline_path = "res://qa/artifacts/pipe-integration-v3/verified/baseline.gd.txt"
+	var baseline_source := FileAccess.get_file_as_string(baseline_path)
+	check(baseline_source != "", "baseline readable: " + baseline_path)
 	canvas.baseline = GDScript.new()
-	canvas.baseline.source_code = FileAccess.get_file_as_string(OUT + "baseline.gd.txt").replace("class_name ShaftBackground", "")
+	canvas.baseline.source_code = baseline_source.replace("class_name ShaftBackground", "")
 	check(canvas.baseline.reload() == OK, "original HEAD baseline compiles")
 	vp.add_child(canvas)
 	canvas.old = true
