@@ -205,23 +205,32 @@ const AMBIENCE_DB := -18.0
 ## Pegel, der als Aus bedeutet. AudioStreamPlayer kennt kein "aus": der leise
 ## Pegel ist der Schalter fuer die Spannungsschicht.
 const AMBIENCE_SILENCE_DB := -80.0
-## Pegel der Spannungsschicht bei Stufe 1 und bei MAX_DIFFICULTY. Bei voller
-## Stufe liegt sie 6 dB ueber dem Grundklang: deutlich staerker, ohne das
-## Fundament zu verdecken.
-const AMBIENCE_TENSION_LOW_DB := -26.0
-const AMBIENCE_TENSION_DB := -12.0
+## Pegel der Spannungsschicht bei Stufe 1 und bei MAX_DIFFICULTY.
+##
+## Der Hoechstpegel liegt UNTER dem Grundklang. Der erste Entwurf hatte -12.0 dB,
+## also 6 dB ueber dem Bett — auf dem Telefon war das am Ende penetrant und zu
+## laut (Timo, 14.09.). Der Grundklang bleibt das Fundament; die Spannung legt
+## nur Dichte darauf, sie uebernimmt nicht das Feld.
+const AMBIENCE_TENSION_LOW_DB := -28.0
+const AMBIENCE_TENSION_DB := -23.0
 ## Dauer des Uebergangs, wenn die Schwierigkeit steigt. Ohne Ueberblendung
-## springt die Atmosphaere bei jeder Stufe hoerbar um.
-const AMBIENCE_TENSION_FADE := 2.5
+## springt die Atmosphaere bei jeder Stufe hoerbar um. Kurz gehalten: ein langer
+## Aufbau klingt nach Absicht, wo nur ein Wechsel gemeint ist.
+const AMBIENCE_TENSION_FADE := 1.5
 
 ## Pegel der Spannungsschicht zur Schwierigkeit. Stufe 0 ist Stille — die
-## Atmosphaere soll wachsen, nicht von Anfang an da sein. Darueber wird linear
-## von einem leisen Schimmer bis zum Hoechstpegel geblendet.
+## Atmosphaere soll wachsen, nicht von Anfang an da sein.
+##
+## Der Verlauf ist EASE-OUT, nicht linear: der groessere Teil des Anstiegs liegt
+## frueh, danach bleibt es stabil. Linear baute sich der Klang ueber den GANZEN
+## Lauf auf — am Ende klang das penetrant (Timo, 14.09.), weil es nie zur Ruhe
+## kam. So ist nach der Haelfte der Strecke praktisch nichts mehr zu erwarten.
 static func ambience_tension_db(difficulty: int) -> float:
 	if difficulty <= 0:
 		return AMBIENCE_SILENCE_DB
 	var top := maxf(2.0, float(MAX_DIFFICULTY))
-	var share := clampf(float(difficulty - 1) / (top - 1.0), 0.0, 1.0)
+	var position := clampf(float(difficulty - 1) / (top - 1.0), 0.0, 1.0)
+	var share := 1.0 - (1.0 - position) * (1.0 - position)
 	return lerpf(AMBIENCE_TENSION_LOW_DB, AMBIENCE_TENSION_DB, share)
 
 static func classify_landing(center_distance: float, full_width: float) -> LandingQuality:

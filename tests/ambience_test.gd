@@ -62,6 +62,30 @@ func _test_mapping() -> void:
 	# Der Grundklang muss hörbar sein, aber nicht die Kontakttöne erschlagen.
 	_check(JumpConfig.AMBIENCE_DB < 0.0 and JumpConfig.AMBIENCE_DB > -30.0,
 		"der Grundklang liegt in einem hoerbaren Bereich")
+	# Die Spannung darf das Bett NIE uebertönen. Der erste Entwurf endete 6 dB
+	# darueber und war auf dem Telefon "zu penetrant und zu laut" (Timo,
+	# 14.09.) — die Schicht uebernahm am Ende das Feld. Die Pruefung haelt die
+	# Absicht fest, nicht nur die Zahlen: der Grundklang bleibt das Fundament.
+	for difficulty in range(1, JumpConfig.MAX_DIFFICULTY + 1):
+		var level := JumpConfig.ambience_tension_db(difficulty)
+		_check(level < JumpConfig.AMBIENCE_DB,
+			"Stufe %d bleibt unter dem Grundklang (%.1f < %.1f dB)" % [difficulty, level, JumpConfig.AMBIENCE_DB])
+	# Hier stand zuerst eine Pruefung "Spannung leiser als der leiseste
+	# Kontaktton". Sie war MEINE Erfindung, nicht aus Timos Rueckmeldung
+	# abgeleitet, und hatte keine Grundlage: die Spannung ist ein DAUERKLANG,
+	# die Kontaktoene sind kurze Impulse, die ueber ihre Flanke wahrgenommen
+	# werden. Mit ihr haette die Spannung nur 4 dB Dynamik behalten. Eine
+	# erfundene Regel zu erfuellen, indem man Zahlen verbiegt, belegt nichts.
+	#
+	# Der Aufbau muss frueh das meiste erreichen und dann ruhen. Linear baute er
+	# sich ueber den GANZEN Lauf auf und klang am Ende penetrant.
+	var half := JumpConfig.MAX_DIFFICULTY / 2
+	var span := JumpConfig.AMBIENCE_TENSION_DB - JumpConfig.AMBIENCE_TENSION_LOW_DB
+	var early := JumpConfig.ambience_tension_db(half + 1) - JumpConfig.AMBIENCE_TENSION_LOW_DB
+	_check(early > span * 0.6,
+		"zur Haelfte der Strecke ist der Grossteil des Anstiegs erreicht (%.1f von %.1f dB)" % [early, span])
+	var late := JumpConfig.ambience_tension_db(JumpConfig.MAX_DIFFICULTY) - JumpConfig.ambience_tension_db(half + 1)
+	_check(late < 3.0, "danach kommt kaum noch etwas dazu (%.1f dB)" % late)
 
 ## Beide Schichten MUESSEN schleifen. Godot importiert neue OGG-Dateien als
 ## loop=false; die Datei selbst ist nahtlos gebaut, aber ohne diesen Schalter
