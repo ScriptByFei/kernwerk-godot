@@ -138,6 +138,12 @@ const ZONE_SHAFT_COLORS := [
 ]
 ## Hoehe in Weltpixeln, nach der die naechste Stimmung vollstaendig gilt.
 const ZONE_HEIGHT_STEP := 9000.0
+## Die gestalteten Schacht-Hintergruende gelten nur fuer die ersten beiden
+## Stimmungen. Zone 1 (Reaktorschacht) laeuft bis 0.55 des Zonenindex und blendet
+## dort aus; Zone 2 (Kuehlsektion) uebernimmt und blendet bis 1.55 aus. Oberhalb
+## bleibt die reine Zonenfarbe — die hoeheren Zonen sind bewusst ungestaltet.
+const SHAFT_ZONE_FADE_START := 0.55
+const SHAFT_ZONE_FADE_END := 1.55
 ## Breite des weichen Uebergangs davor. Ohne diesen Verlauf waere der Wechsel
 ## eine sichtbare Stufe mitten im Flug.
 const ZONE_BLEND_RANGE := 3500.0

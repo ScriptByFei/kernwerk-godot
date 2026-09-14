@@ -750,6 +750,9 @@ func _draw() -> void:
 	# und Schachtlinien, damit der Vordergrund (Plattformen, Kern) in jedem Fall
 	# darueber bleibt. Eigene Zeichenroutine, kein Node: kostet im Webexport
 	# nichts und laesst sich headless pruefen.
+	# Die Kuehlsektion liegt hinter dem Reaktorschacht: waehrend der Kreuzblendung
+	# (Zonenindex 0.75 bis 1.25) sind beide sichtbar, danach traegt sie allein.
+	ShaftBackground.draw_cooling(self, visible_rect, zone_index)
 	ShaftBackground.draw(self, visible_rect, zone_index, _background_time)
 	var shaft_color := JumpConfig.zone_color(JumpConfig.ZONE_SHAFT_COLORS, zone_height)
 	# Die MITTLERE Linie liegt exakt hinter dem Reaktor. In voller Staerke liest

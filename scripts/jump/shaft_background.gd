@@ -1,6 +1,7 @@
 class_name ShaftBackground
 extends RefCounted
 
+const JumpConfig = preload("res://scripts/jump/jump_config.gd")
 ## Prototyp-Rohrmodul: GENAU EINE linke Weltinstanz aus der freigegebenen
 ## Materialreferenz (96x300, Flansch+Schaf). Ersetzt nur eine band-Zelle.
 const PIPE_MODULE := preload("res://assets/jump/shaft_pipe/pipe_module_candidate_v2.png")
@@ -17,6 +18,17 @@ const PIPE_SECTION_WIDTH := 96.0
 static var pipe_module_enabled := true
 ## Schaltet die durchgehende linke Rohrspalte an/aus (QA-Gegenprobe).
 static var pipe_tile_enabled := true
+## Zone 2 (Kuehlsektion): schwere Kondensatorbank, gestapelt als durchgehende
+## Wand. Erzeugt von pixel-builder (gpt-image-2), freigestellt ueber die
+## Magenta-Pipeline. Die Kachel ist 250x320 und wird vertikal wiederholt.
+## Gemessen: 0,00 % warme Pixel (die Zone ist kalt), mittlere Helligkeit 31/255
+## (der Spieler bleibt das hellste Element), Umbruchfaktor 2.05 gegen die
+## typische Nachbarzeilendifferenz.
+const COOLING_TILE := preload("res://assets/jump/cooling_section/cooling_register_tile_v1.png")
+const COOLING_TILE_SIZE := Vector2(250.0, 320.0)
+## Die Bank sitzt links, wo der Reaktorschacht sein Rohr hatte. Rechts bleibt die
+## ruhige Flaeche — dort ist die Bahn frei.
+const COOLING_TILE_X := 26.0
 ## Zone 1: schwarze Hohlraeume, ueberlappende Maschinen, eingelassenes Warmlicht.
 ## Zustandslos. Alle Positionen entstehen aus Kamera und Kachelnummer.
 const LAYER_COUNT := 3
@@ -24,6 +36,12 @@ const LAYER_PARALLAX := [0.22, 0.40, 0.62]
 const LAYER_TILE_HEIGHT := [760.0, 640.0, 900.0]
 const QUIET_HALF_WIDTH := 260.0
 const ZONE_FADE_START := 0.55
+## Fenster, in dem die Kuehlsektion ausblendet (oben). Sie laeuft bis 1.55 voll
+## durch — das ist das Ende der Kuehlsektion — und ist bei 2.0 verschwunden,
+## bevor Zone 3 beginnt. Das Einblenden liegt in [0.0, ZONE_FADE_START] und
+## spiegelt damit genau das Ausblenden des Reaktorschachts.
+const COOLING_FADE_OUT_START := 1.55
+const COOLING_FADE_OUT_END := 2.0
 const FAR_WALL := Color("070c11")
 const FAR_PANEL := Color("0f1820")
 const FAR_SEAM := Color("17242f")
@@ -81,12 +99,51 @@ static func visible_tile_count(layer: int, camera_y: float, screen_top: float, s
 	var first_top := tile_world_y(layer, camera_y, first)
 	return int(floor((screen_bottom - first_top) / tile)) + 1
 
+## Deckkraft eines gestalteten Hintergrunds ueber dem Zonenindex.
+##
+## Jeder gestaltete Schacht hat ein Fenster, in dem er gilt: er blendet am Anfang
+## seines Fensters ein und am Ende aus. Zone 1 liegt in [0.0, 0.55], Zone 2 in
+## [1.0, 1.55]. Dazwischen ueberlappen sie sich — der Uebergang ist ein
+## Kreuzblenden, kein Umschalten, sonst waere mitten im Flug ein Schnitt zu sehen.
+##
+## ACHTUNG bei der Umstellung: die erste Fassung war eine reine Ausblendung fuer
+## Zone 1. Beim Kreuzblenden muss Zone 1 AB 1.0 ausblenden (vorher: nichts), und
+## Zone 2 muss ab 1.0 EINblenden. Wer nur den Fade-Wert umbenennt, bekommt an
+## genau dieser Stelle einen Sprung.
+static func layer_opacity(zone_index: float, fade_in_start: float, fade_in_end: float, fade_out_start: float, fade_out_end: float) -> float:
+	if zone_index <= fade_in_start or zone_index >= fade_out_end:
+		return 0.0
+	if zone_index < fade_in_end:
+		if fade_in_end <= fade_in_start:
+			return 1.0
+		return (zone_index - fade_in_start) / (fade_in_end - fade_in_start)
+	if zone_index <= fade_out_start:
+		return 1.0
+	if fade_out_end <= fade_out_start:
+		return 0.0
+	return 1.0 - (zone_index - fade_out_start) / (fade_out_end - fade_out_start)
+
+## Zone 1: der Reaktorschacht. Unveraendert seit dem Einbau — er blendet von 1.0
+## auf 0 zwischen Index 0.0 und ZONE_FADE_START.
 static func opacity_for_zone(zone_index: float) -> float:
 	if zone_index <= 0.0:
 		return 1.0
 	if zone_index >= ZONE_FADE_START:
 		return 0.0
 	return 1.0 - zone_index / ZONE_FADE_START
+
+## Zone 2: die Kuehlsektion.
+##
+## Die Kreuzblendung entsteht NICHT dadurch, dass der Reaktorschacht laenger
+## stehen bleibt — der blendet wie bisher aus. Sie entsteht, weil die
+## Kuehlsektion GENAU IN DIESEM FENSTER einblendet: [0.0, 0.55]. Damit ist an
+## jeder Stelle des Uebergangs genau eine der beiden Schichten tragend, und es
+## gibt keine Luecke, in der nur die flache Zonenfarbe steht.
+##
+## Nach oben laeuft sie bis 1.55 voll durch (die ganze Kuehlsektion) und blendet
+## dann bis 2.0 aus — Zone 3 bleibt ungestaltet.
+static func cooling_opacity_for_zone(zone_index: float) -> float:
+	return layer_opacity(zone_index, 0.0, ZONE_FADE_START, COOLING_FADE_OUT_START, COOLING_FADE_OUT_END)
 
 static func detail_allowed(world_x: float, view_width: float) -> bool:
 	return absf(world_x - view_width * 0.5) > QUIET_HALF_WIDTH
@@ -124,6 +181,35 @@ static func tile_pick(layer: int, index: int, slot: int, count: int) -> int:
 	var value := tile_seed(layer, index) + slot * 40503
 	value ^= value >> 11
 	return absi(value) % count
+
+## Rechtecke der gestapelten Kondensatorbank. Gemeinsame Quelle fuer Zeichnen UND
+## Pruefung — beim Rohr hatte ich zwei Stellen, von denen eine den Riegel umging;
+## die Positionen entstehen deshalb hier an genau einer Stelle.
+##
+## Gleiche Parallax-Formel wie die nahe Ebene (`tile_world_y`), damit die Bank
+## beim Scrollen exakt mit dem uebrigen Schacht laeuft und nicht wandert.
+static func cooling_tile_rects(rect: Rect2) -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	var camera := rect.get_center().y
+	var base := tile_world_y(2, camera, 0)
+	var height := COOLING_TILE_SIZE.y
+	if height <= 0.0:
+		return rects
+	var first := int(floor((rect.position.y - base) / height))
+	var last := int(ceil((rect.end.y - base) / height))
+	for n in range(first, last + 1):
+		rects.append(Rect2(COOLING_TILE_X, base + n * height, COOLING_TILE_SIZE.x, height))
+	return rects
+
+## Zeichnet die Kuehlsektion hinter den bestehenden Schacht. Eigene Schicht, damit
+## die Zonenkreuzblendung unabhaengig von Zone 1 steuerbar ist.
+static func draw_cooling(canvas: CanvasItem, visible_rect: Rect2, zone_index: float) -> void:
+	var alpha := cooling_opacity_for_zone(zone_index)
+	if alpha <= 0.0 or visible_rect.size.x <= 0.0 or visible_rect.size.y <= 0.0:
+		return
+	for tile in cooling_tile_rects(visible_rect):
+		if tile.intersects(visible_rect):
+			canvas.draw_texture_rect(COOLING_TILE, tile, false, Color(1.0, 1.0, 1.0, alpha))
 
 static func draw(canvas: CanvasItem, visible_rect: Rect2, zone_index: float, time: float) -> void:
 	var alpha := opacity_for_zone(zone_index)

@@ -26,6 +26,8 @@ func _run() -> void:
 		_check_quiet_center()
 		_check_detail_placement()
 		_check_zone_gate()
+		_check_cooling_gate()
+		_check_cooling_coverage()
 	_finish()
 
 func _check_layers() -> void:
@@ -175,12 +177,92 @@ func _check_detail_placement() -> void:
 	var right := ShaftBackground.panel_field_span(width, 1.0)
 	_check(left.y - left.x > 100.0 and right.y - right.x > 100.0, "links und rechts bleibt echte Panelflaeche")
 
+## Kuehlsektion: eigenes Fenster, Kreuzblendung mit dem Reaktorschacht, und nach
+## oben hin sauber aus, bevor Zone 3 beginnt.
+func _check_cooling_gate() -> void:
+	# Am Boden ist sie aus — dort gilt der Reaktorschacht.
+	_check(ShaftBackground.cooling_opacity_for_zone(0.0) == 0.0, "am Boden ist die Kuehlsektion aus")
+	# Der Kernpunkt: im Fenster, in dem der Reaktorschacht ausblendet, blendet
+	# die Kuehlsektion ein. Sonst staende dort nur die flache Zonenfarbe.
+	var covered := true
+	var gap := 0.0
+	for step in range(1, 12):
+		var index := float(step) / 20.0  # 0.05 bis 0.55
+		var total := ShaftBackground.opacity_for_zone(index) + ShaftBackground.cooling_opacity_for_zone(index)
+		gap = maxf(gap, 1.0 - total)
+		if total < 0.99:
+			covered = false
+	_check(covered, "im Uebergang traegt immer eine der beiden Schichten (groesste Luecke %.3f)" % gap)
+	# In der Kuehlsektion selbst laeuft sie voll.
+	_check(is_equal_approx(ShaftBackground.cooling_opacity_for_zone(1.0), 1.0), "in der Kuehlsektion ist sie voll sichtbar")
+	_check(is_equal_approx(ShaftBackground.cooling_opacity_for_zone(1.55), 1.0), "sie laeuft bis 1.55 voll durch")
+	# Und nach oben aus, bevor die naechste Stimmung beginnt.
+	_check(ShaftBackground.cooling_opacity_for_zone(2.0) == 0.0, "bei 2.0 ist sie aus")
+	_check(ShaftBackground.cooling_opacity_for_zone(3.2) == 0.0, "in den hoeheren Zonen bleibt sie aus")
+	# Stetig: kein Sprung zwischen zwei feinen Abtastungen.
+	#
+	# Die Grenze wird HERGELEITET, nicht geraten. Mein erster Versuch nahm 0.1
+	# fest an und schlug bei 0.111 an — das war die Steigung der Ausblendrampe
+	# selbst, also genau das erwuenschte Verhalten. Eine geratene Schranke kann
+	# einen korrekten Verlauf nicht von einem Sprung unterscheiden. Die
+	# Schrittweite der Abtastung geteilt durch die kuerzeste Rampe ist die
+	# groesste Steigung, die ein STETIGER Verlauf hier haben darf.
+	var sample_step := 0.05
+	var shortest_ramp: float = minf(ShaftBackground.ZONE_FADE_START,
+		ShaftBackground.COOLING_FADE_OUT_END - ShaftBackground.COOLING_FADE_OUT_START)
+	var allowed := sample_step / shortest_ramp * 1.05  # 5 % Toleranz fuer Rundung
+	var previous := -1.0
+	var max_step := 0.0
+	for step in range(41):
+		var value := ShaftBackground.cooling_opacity_for_zone(float(step) / 20.0)
+		if previous >= 0.0:
+			max_step = maxf(max_step, absf(value - previous))
+		previous = value
+	_check(max_step <= allowed,
+		"der Verlauf ist stetig (groesster Schritt %.3f, erlaubt %.3f bei Abtastung %.2f)"
+			% [max_step, allowed, sample_step])
+	# Gegenprobe, dass die Pruefung ueberhaupt etwas messen KANN: ein echter
+	# Sprung muss auffallen. Waere `allowed` so gross wie der ganze Wertebereich,
+	# ginge jede Rampe durch.
+	_check(allowed < 0.5, "die Grenze ist scharf genug, um einen Sprung zu erkennen")
+
+## Die gestapelte Bank muss den sichtbaren Bereich lueckenlos decken.
+func _check_cooling_coverage() -> void:
+	var top := -12000.0
+	var bottom := top + 2342.0
+	var rect := Rect2(0.0, top, 1080.0, bottom - top)
+	var tiles := ShaftBackground.cooling_tile_rects(rect)
+	_check(tiles.size() >= 8, "es werden genug Kacheln gezeichnet (%d)" % tiles.size())
+	if tiles.is_empty():
+		return
+	# Lueckenlos und ohne Ueberlappung: jede Kachel beginnt dort, wo die vorige
+	# endet. Beim Rohr war genau das die Fehlerklasse, die eine Pruefung braucht.
+	var seamless := true
+	var expected_height := ShaftBackground.COOLING_TILE_SIZE.y
+	for i in range(1, tiles.size()):
+		if not is_equal_approx(tiles[i].position.y, tiles[i - 1].end.y):
+			seamless = false
+		if not is_equal_approx(tiles[i].size.y, expected_height):
+			seamless = false
+	_check(seamless, "die Kacheln stossen lueckenlos aneinander")
+	# Sie decken den Bereich wirklich ab: Oberkante der ersten <= top, Unterkante
+	# der letzten >= bottom.
+	_check(tiles[0].position.y <= top, "die erste Kachel beginnt vor dem Ausschnitt")
+	_check(tiles[tiles.size() - 1].end.y >= bottom, "die letzte Kachel reicht ueber den Ausschnitt hinaus")
+	# Und sie steht links, wo der Schacht sein Rohr hatte — die Spielbahn in der
+	# Mitte bleibt frei.
+	var right_edge := ShaftBackground.COOLING_TILE_X + ShaftBackground.COOLING_TILE_SIZE.x
+	_check(right_edge < 280.0, "die Bank bleibt links der Ruhezone (Rand bei %.0f)" % right_edge)
+
 ## Nur der Reaktorschacht wird gestaltet; die hoeheren Zonen bleiben unberuehrt.
 func _check_zone_gate() -> void:
 	_check(is_equal_approx(ShaftBackground.opacity_for_zone(0.0), 1.0), "im Reaktorschacht ist der Hintergrund voll sichtbar")
-	_check(is_equal_approx(ShaftBackground.opacity_for_zone(1.0), 0.0), "in der Kuehlsektion ist er vollstaendig ausgeblendet")
+	_check(ShaftBackground.opacity_for_zone(1.0) <= 0.0, "ab der Kuehlsektion ist er vollstaendig ausgeblendet")
 	var mid := ShaftBackground.opacity_for_zone(0.5)
 	_check(mid > 0.0 and mid < 1.0, "im Uebergang wird geblendet statt gesprungen")
+	# Der Reaktorschacht blendet unveraendert aus; die Kreuzblendung leistet die
+	# Kuehlsektion, die im GLEICHEN Fenster einblendet (siehe _check_cooling_gate).
+	_check(is_equal_approx(ShaftBackground.opacity_for_zone(1.0), 0.0), "ab der Kuehlsektion ist er vollstaendig ausgeblendet")
 	_check(is_equal_approx(ShaftBackground.opacity_for_zone(-1.0), 1.0), "unterhalb der Zone bleibt er sichtbar")
 	_check(ShaftBackground.opacity_for_zone(3.2) == 0.0, "in den hoeheren Zonen bleibt er aus")
 	var decreasing := true
