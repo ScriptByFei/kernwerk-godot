@@ -1,0 +1,89 @@
+<script>
+/*
+ * iOS-Ton: Safari startet mit der Audio-Kategorie "ambient". Die wird vom
+ * Stummschalter (Kippschalter) des Geraets stummgeschaltet — das Spiel ist dann
+ * komplett tonlos, obwohl technisch alles laeuft. Genau das war der Befund vom
+ * 14.09.2026: im Desktop-Browser ist am Ausgang messbar Ton, auf dem iPhone
+ * hoert man nichts.
+ *
+ * "playback" schaltet die Seite in die Medien-Kategorie; sie ignoriert damit
+ * den Stummschalter, so wie es ein Video oder Musikplayer tut. Verfuegbar ab
+ * iOS 16.4 ueber navigator.audioSession.
+ *
+ * Der Umweg ueber ein stilles <audio>-Element fuer aeltere Geraete laeuft NUR
+ * dort: er hat einen Nebeneffekt (AirPlay-Ziel und eine Abspielanzeige in der
+ * Mitteilungszentrale), den wir nicht wollen, wenn es nicht noetig ist.
+ *
+ * Die ganze Datei steigt auf allen anderen Plattformen sofort aus. Android und
+ * Desktop verhalten sich unveraendert.
+ */
+(function () {
+  'use strict';
+
+  function isIOS() {
+    var agent = navigator.userAgent || '';
+    if (/iPad|iPhone|iPod/.test(agent)) {
+      return true;
+    }
+    // iPadOS meldet sich seit Version 13 als Mac. Ein Mac mit Touchpunkten ist
+    // in Wirklichkeit ein iPad.
+    return /Macintosh/.test(agent) && navigator.maxTouchPoints > 1;
+  }
+
+  if (!isIOS()) {
+    return;
+  }
+
+  function usePlaybackCategory() {
+    if (!navigator.audioSession) {
+      return false;
+    }
+    try {
+      navigator.audioSession.type = 'playback';
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  usePlaybackCategory();
+
+  var silentElement = null;
+
+  function armSilentElement() {
+    if (silentElement) {
+      return;
+    }
+    try {
+      silentElement = document.createElement('audio');
+      silentElement.setAttribute('playsinline', '');
+      silentElement.setAttribute('loop', '');
+      silentElement.preload = 'auto';
+      silentElement.volume = 0.001;
+      // Gueltiges WAV mit einem Sample Stille.
+      silentElement.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=';
+      document.body.appendChild(silentElement);
+      var started = silentElement.play();
+      if (started && typeof started.catch === 'function') {
+        started.catch(function () {
+          silentElement = null;
+        });
+      }
+    } catch (error) {
+      silentElement = null;
+    }
+  }
+
+  function onFirstContact() {
+    // Erneut versuchen: manche iOS-Versionen lassen die Kategorie erst nach
+    // einer Beruehrung setzen.
+    if (!usePlaybackCategory()) {
+      armSilentElement();
+    }
+  }
+
+  ['pointerdown', 'touchstart', 'click'].forEach(function (name) {
+    window.addEventListener(name, onFirstContact, { passive: true });
+  });
+})();
+</script>
