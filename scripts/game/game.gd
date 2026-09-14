@@ -11,6 +11,7 @@ enum Phase {
 }
 
 const ContactSound = preload("res://scripts/jump/contact_sound.gd")
+const Ambience = preload("res://scripts/jump/ambience_player.gd")
 ## Authored contact overrides are optional; default contacts use cached PCM.
 @export var normal_landing_sound: AudioStream
 @export var resonance_landing_sound: AudioStream
@@ -18,6 +19,7 @@ const ContactSound = preload("res://scripts/jump/contact_sound.gd")
 @export var death_sound: AudioStream
 
 var _contact_audio: AudioStreamPlayer
+var ambience: Ambience
 var _audio_unlocked := false
 var _death_tween: Tween
 var _landing_bonus := 0
@@ -58,6 +60,9 @@ var game_over_menu: GameOverMenu
 var _pause_layer: CanvasLayer
 var _pause_tween: Tween
 var _is_paused := false
+## Nur fuer Pruefungen: laesst das Klangbett auch in einem Skriptlauf (`-s`)
+## starten, damit der echte Startpfad gemessen werden kann.
+var run_ambience_in_tests := false
 ## Zeitgeber fuer die wenigen Bewegungen im Hintergrund (Lampen, Dampf). Rein
 ## kosmetisch: er laeuft unabhaengig von Spielzustand und Treffern weiter,
 ## damit der Schacht auch hinter dem Startmenue lebt. Kein Zustand, der
@@ -74,6 +79,12 @@ func _ready() -> void:
 	_contact_audio = AudioStreamPlayer.new()
 	_contact_audio.name = "ContactAudio"
 	add_child(_contact_audio)
+	# Das Klangbett wird hier nur ANGELEGT. Gestartet wird es beim ersten
+	# Spielzug (`_enter_playing`) und nur, wenn `ambience_allowed` es zulaesst:
+	# in einem Testlauf bleibt es aus, sonst hinterlaesst jeder Suite-Lauf eine
+	# noch spielende OGG-Wiedergabe und der Gate schlaegt an.
+	ambience = Ambience.new()
+	ambience.attach(self)
 	resonance = ResonanceSystem.new()
 	score_store = BestScoreStore.new()
 	run_record = RunRecord.new(score_store)
@@ -92,6 +103,14 @@ func _ready() -> void:
 	camera.set_physics_process(false)
 	_create_start_menu()
 	queue_redraw()
+
+## Startet das Klangbett. Eigener oeffentlicher Pfad, weil Pruefungen ihn
+## brauchen: in einem Skriptlauf startet es nicht von allein.
+func start_ambience() -> void:
+	if ambience == null:
+		return
+	ambience.play()
+	ambience.set_difficulty(difficulty, false)
 
 func _create_start_menu() -> void:
 	_reset_controls()
@@ -318,6 +337,11 @@ func _update_score() -> void:
 		JumpConfig.MAX_DIFFICULTY,
 		int(floor(float(height_score) / JumpConfig.DIFFICULTY_STEP_SCORE))
 	)
+	# Die Atmosphaere waechst mit derselben Stufe wie der Anspruch. `_update_score`
+	# laeuft nur bei echter Aenderung des Punktestands, deshalb wird hier auf
+	# Gleichheit geprueft statt bei jedem Bild einen Tween neu zu setzen.
+	if ambience != null:
+		ambience.set_difficulty(difficulty)
 
 ## Einziger Verbuchungspfad fuer eine Landung. Wird sowohl vom Absprung-Callback
 ## des Jumpers als auch direkt (Tests, Sonderfaelle) aufgerufen. Liefert zurueck,
@@ -484,6 +508,10 @@ func _restart(fast_retry := false) -> void:
 	resonance.reset()
 	run_stats.reset()
 	difficulty = 0
+	# Kein eigener Riegel fuer das Klangbett: `_update_score()` laeuft am Ende
+	# dieses Aufbaus und setzt Stufe 0, womit die Spannung von selbst
+	# zurueckfaellt. Eine zusaetzliche Zeile hier waere toter Code — die
+	# Mutationsprobe blieb mit ihr gruen, ohne sie ebenso.
 	is_game_over = false
 	_highest_y = jumper.global_position.y
 	_death_check_armed = false
@@ -557,6 +585,12 @@ func _enter_playing() -> void:
 	jumper.set_physics_process(true)
 	camera.set_physics_process(true)
 	_phase = Phase.PLAYING
+	# Das Klangbett startet mit dem ersten echten Spielzug, nicht schon beim
+	# Laden. Zwei Gruende: Web-Audio gibt auf Mobilgeraeten erst nach einer
+	# Beruehrung etwas aus, ein Start davor waere wirkungslos — und ein
+	# Hintergrundton vor der ersten Eingabe ist auf einem Telefon unerwartet.
+	if Ambience.ambience_allowed(OS.get_cmdline_args().has("-s"), run_ambience_in_tests):
+		start_ambience()
 	if is_instance_valid(start_menu):
 		start_menu.queue_free()
 		start_menu = null
@@ -571,6 +605,14 @@ func _exit_tree() -> void:
 	_cancel_start_sequence()
 	if _death_tween != null and _death_tween.is_valid():
 		_death_tween.kill()
+	# Beim Verlassen des Baums darf kein Ton weiterlaufen. Das ist nicht nur
+	# Hygiene: ein noch spielender OGG-Stream haelt beim Prozessende Ressourcen
+	# offen, Godot meldet dann "resources still in use", und der Gate wertet
+	# jede zeilenanfaengliche ERROR-Zeile als Fehler — betroffen waere jede
+	# Suite, die ein Game baut, nicht nur die des Klangbetts.
+	if ambience != null:
+		ambience.shutdown()
+		ambience = null
 
 func _on_start_menu_exiting(menu: StartMenu) -> void:
 	# Ignore a superseded menu that is still exiting after a restart replaced

@@ -196,6 +196,34 @@ const DEATH_DIM_COLOR := Color(0.20, 0.24, 0.26)
 const LANDING_AUDIO_DB := [-24.0, -20.0, -14.0]
 const DEATH_AUDIO_DB := -20.0
 
+## Klangbett (Atmosphaere). Beide Schichten sind je 40 s lang und laufen als
+## nahtlose Schleife; die Dateien entstehen aus `tools/make_ambience.py`. Damit
+## sie sich nicht auseinanderziehen lassen, haben sie dieselbe Laenge.
+const AMBIENCE_STREAM_PATH := "res://assets/jump/audio/shaft_ambience.ogg"
+const AMBIENCE_TENSION_STREAM_PATH := "res://assets/jump/audio/shaft_tension.ogg"
+const AMBIENCE_DB := -18.0
+## Pegel, der als Aus bedeutet. AudioStreamPlayer kennt kein "aus": der leise
+## Pegel ist der Schalter fuer die Spannungsschicht.
+const AMBIENCE_SILENCE_DB := -80.0
+## Pegel der Spannungsschicht bei Stufe 1 und bei MAX_DIFFICULTY. Bei voller
+## Stufe liegt sie 6 dB ueber dem Grundklang: deutlich staerker, ohne das
+## Fundament zu verdecken.
+const AMBIENCE_TENSION_LOW_DB := -26.0
+const AMBIENCE_TENSION_DB := -12.0
+## Dauer des Uebergangs, wenn die Schwierigkeit steigt. Ohne Ueberblendung
+## springt die Atmosphaere bei jeder Stufe hoerbar um.
+const AMBIENCE_TENSION_FADE := 2.5
+
+## Pegel der Spannungsschicht zur Schwierigkeit. Stufe 0 ist Stille — die
+## Atmosphaere soll wachsen, nicht von Anfang an da sein. Darueber wird linear
+## von einem leisen Schimmer bis zum Hoechstpegel geblendet.
+static func ambience_tension_db(difficulty: int) -> float:
+	if difficulty <= 0:
+		return AMBIENCE_SILENCE_DB
+	var top := maxf(2.0, float(MAX_DIFFICULTY))
+	var share := clampf(float(difficulty - 1) / (top - 1.0), 0.0, 1.0)
+	return lerpf(AMBIENCE_TENSION_LOW_DB, AMBIENCE_TENSION_DB, share)
+
 static func classify_landing(center_distance: float, full_width: float) -> LandingQuality:
 	if full_width <= 0.0:
 		return LandingQuality.NORMAL
