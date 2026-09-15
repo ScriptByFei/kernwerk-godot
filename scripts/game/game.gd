@@ -39,6 +39,20 @@ var hud: ResonanceHud
 var jumper: Jumper
 var camera: VerticalCamera
 var platform_director: PlatformDirector
+## Seed der Plattformgenerierung fuer diesen Run.
+##
+## Ein produktiver Lauf darf nicht bei jedem Neustart dieselbe Strecke zeigen:
+## sonst wiederholt der Spieler denselben Sprungbogen und lernt die Strecke
+## statt das Spiel. Bei jedem Neustart wird deshalb ein neuer Seed gezogen.
+##
+## In einem Skriptlauf (`-s`) bleibt er fest, sonst waeren QA-Proben und Suiten
+## nicht reproduzierbar — dieselbe Regel wie beim Klangbett
+## (`Ambience.ambience_allowed`), nur mit umgekehrtem Zweck.
+var run_seed := JumpConfig.PLATFORM_RUN_SEED
+## Hebt die Festlegung auf. Nur fuer Pruefungen, die die Zufaelligkeit selbst
+## messen wollen — sie koennen den Skriptlauf nicht verlassen.
+var force_random_seed := false
+var _seed_random := RandomNumberGenerator.new()
 var start_menu: CanvasLayer
 var is_dragging := false
 var score := 0
@@ -89,7 +103,9 @@ func _ready() -> void:
 	score_store = BestScoreStore.new()
 	run_record = RunRecord.new(score_store)
 	run_stats = RunStats.new()
-	platform_director = PlatformDirector.new()
+	_seed_random.randomize()
+	roll_run_seed()
+	platform_director = PlatformDirector.new(run_seed)
 	platform_director.initialize(self, JumpConfig.PLATFORM_LAYOUT)
 	_create_hud()
 	_create_pause_ui()
@@ -103,6 +119,20 @@ func _ready() -> void:
 	camera.set_physics_process(false)
 	_create_start_menu()
 	queue_redraw()
+
+## Ist der Run-Seed in diesem Lauf zufaellig? Reine Funktion, damit beide
+## Richtungen pruefbar sind: im Skriptlauf fest (Reproduzierbarkeit), im
+## produktiven Lauf zufaellig (Abwechslung), und `forced` schlaegt beides.
+static func run_seed_is_random(runs_as_script: bool, forced: bool) -> bool:
+	return forced or not runs_as_script
+
+## Zieht den Seed fuer den naechsten Run. Wird beim Aufbau UND bei jedem
+## Neustart gerufen, damit sich die Strecke tatsaechlich aendert.
+func roll_run_seed() -> void:
+	if run_seed_is_random(OS.get_cmdline_args().has("-s"), force_random_seed):
+		run_seed = _seed_random.randi()
+	else:
+		run_seed = JumpConfig.PLATFORM_RUN_SEED
 
 ## Startet das Klangbett. Eigener oeffentlicher Pfad, weil Pruefungen ihn
 ## brauchen: in einem Skriptlauf startet es nicht von allein.
@@ -307,7 +337,7 @@ func _create_jumper() -> void:
 	jumper = Jumper.new()
 	jumper.name = "Jumper"
 	jumper.position = JumpConfig.PLATFORM_LAYOUT[0] - Vector2(0.0, JumpConfig.PLATFORM_SIZE.y)
-	jumper.velocity.y = -JumpConfig.BASE_BOUNCE_SPEED
+	jumper.velocity.y = -JumpConfig.pace_bounce(0, false)
 	# Das ResonanceSystem entscheidet direkt beim Absprung ueber Overload, damit
 	# die Kraft im selben Physik-Tick wirkt wie die ausloesende Landung.
 	jumper.overload_check = _on_overload_check
@@ -333,9 +363,14 @@ func _update_score() -> void:
 	if run_stats != null:
 		# Die erreichte Hoehe waechst nur: ein Rueckfall darf sie nicht senken.
 		run_stats.raise_to(height_score)
+	# Die Stufe kommt aus der bewaeltigten HOEHE, nicht aus dem Punktestand:
+	# der traegt zusaetzlich Landeboni der riskanten Route und wuerde die
+	# Schwierigkeit durch Gluecksfunde springen lassen, statt sie an das zu
+	# binden, was der Spieler tatsaechlich geklettert ist.
+	var climbed := float(height_score) * JumpConfig.SCORE_PER_UNIT
 	difficulty = mini(
 		JumpConfig.MAX_DIFFICULTY,
-		int(floor(float(height_score) / JumpConfig.DIFFICULTY_STEP_SCORE))
+		int(floor(climbed / JumpConfig.DIFFICULTY_STEP_HEIGHT))
 	)
 	# Die Atmosphaere waechst mit derselben Stufe wie der Anspruch. `_update_score`
 	# laeuft nur bei echter Aenderung des Punktestands, deshalb wird hier auf
@@ -491,8 +526,11 @@ func _restart(fast_retry := false) -> void:
 	if is_instance_valid(start_menu):
 		start_menu.queue_free()
 		start_menu = null
-	if platform_director == null:
-		platform_director = PlatformDirector.new()
+	# Jeder Neustart bekommt eine neue Strecke. Der Director wird nicht
+	# wiederverwendet: sein interner Zufallsstrom laeuft sonst weiter und die
+	# Route waere nur eine Fortsetzung derselben Folge.
+	roll_run_seed()
+	platform_director = PlatformDirector.new(run_seed)
 	platform_director.initialize(self, JumpConfig.PLATFORM_LAYOUT)
 	_create_jumper()
 	_create_camera()

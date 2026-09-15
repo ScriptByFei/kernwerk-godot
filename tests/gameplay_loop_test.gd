@@ -25,11 +25,34 @@ func _test_gameplay_loop() -> void:
 	_check(game.score == 10, "score increases by one point per ten pixels of height")
 	_check(game.difficulty == 0, "difficulty stays at zero before the first score step")
 
+	# Die Schwierigkeit haengt seit dem Tempoumbau an der HOEHE
+	# (DIFFICULTY_STEP_HEIGHT = 1250), nicht mehr am Punktestand. Bei 1000 px ist
+	# die erste Stufe deshalb noch nicht erreicht — genau das ist die Aenderung.
 	game.jumper.global_position.y = game.START_Y - 1000.0
 	game._update_score()
 	_check(game.score == 100, "score reaches 100 at 1000 pixels of height")
-	_check(game.difficulty == 1, "difficulty rises after one difficulty score step")
+	_check(game.difficulty == 0, "unterhalb der ersten Hoehenstufe bleibt die Schwierigkeit null")
 
+	game.jumper.global_position.y = game.START_Y - JumpConfig.DIFFICULTY_STEP_HEIGHT
+	game._update_score()
+	_check(game.difficulty == 1, "mit der ersten Hoehenstufe steigt die Schwierigkeit")
+	# Und sie waechst weiter, statt frueh stehen zu bleiben: die Hoechststufe lag
+	# vorher nach rund 17 Sprossen, jetzt nach rund 29. Das ist der Kern der
+	# Beschwerde "nach Stufe 5 praktisch fertig".
+	_check(JumpConfig.MAX_DIFFICULTY * JumpConfig.DIFFICULTY_STEP_HEIGHT > 5000.0,
+		"die Schwierigkeit ist nicht mehr bei 5000px ausentwickelt")
+
+	# `_highest_y` ist ein Minimum-Tracker und geht nie zurueck. Die Hoehenstufe
+	# von oben muss deshalb ausdruecklich zurueckgesetzt werden, sonst traegt der
+	# Test seine eigene Vorgeschichte in die Score-Erwartung hinein (125 statt 100).
+	# BEIDE setzen: `_update_score` zieht `_highest_y` per minf auf die
+	# Springposition herunter. Nur den Tracker zurueckzusetzen genuegt nicht,
+	# der Springer stuende sonst weiter auf der Hoehe der Vorgeschichte.
+	game.jumper.global_position.y = game.START_Y - 1000.0
+	game._highest_y = game.START_Y - 1000.0
+	game._landing_bonus = 0
+	game._update_score()
+	_check(game.score == 100, "der Ausgangspunkt fuer die Sterbepruefung steht wieder auf 100")
 	game.camera.global_position = JumpConfig.CAMERA_START
 	game.jumper.global_position.y = game.camera.global_position.y + JumpConfig.FALL_DEATH_MARGIN + 1.0
 	game._check_game_over()
@@ -68,8 +91,12 @@ func _test_platform_director_difficulty() -> void:
 	base_director.maintain(-1800.0, 120.0, 0)
 	hard_director.maintain(-1800.0, 120.0, 2)
 
-	var base_gap := base_director.active_positions[7].y - base_director.active_positions[8].y
-	var hard_gap := hard_director.active_positions[7].y - hard_director.active_positions[8].y
+	# Nur die HAUPTROUTE messen. Die riskante Abzweigung liegt mit RISKY_LIFT
+	# absichtlich hoeher und wuerde als Abstand zwischen zwei Nachbarn falsch
+	# gelesen — genau daran ist diese Pruefung nach dem Tempoumbau gescheitert,
+	# ohne dass sich an den Abstaenden etwas geaendert haette.
+	var base_gap := _main_route_gap(base_director)
+	var hard_gap := _main_route_gap(hard_director)
 	_check(base_gap == JumpConfig.PLATFORM_VERTICAL_GAP, "difficulty zero keeps the base vertical gap")
 	_check(hard_gap == JumpConfig.PLATFORM_VERTICAL_GAP + 2.0 * JumpConfig.DIFFICULTY_VERTICAL_BONUS, "difficulty adds the configured vertical bonus")
 	_check(
@@ -81,6 +108,17 @@ func _test_platform_director_difficulty() -> void:
 	base_world.queue_free()
 	hard_world.queue_free()
 	await process_frame
+
+## Abstand zwischen zwei aufeinanderfolgenden Sprossen der Hauptroute.
+## Abzweigungen werden uebersprungen: sie haengen nicht in der Kette.
+func _main_route_gap(director: PlatformDirector) -> float:
+	var ys: Array[float] = []
+	for platform in director._active_platforms:
+		if platform.variant != JumpPlatform.Variant.RISKY:
+			ys.append(platform.position.y)
+	if ys.size() < 8:
+		return -1.0
+	return ys[6] - ys[7]
 
 func _check(condition: bool, description: String) -> void:
 	if condition:

@@ -136,8 +136,14 @@ func _physics_process(delta: float) -> void:
 				_resolve_landing(platform, false, contact_center.x)
 				break
 
+## Gravitation der laufenden Stufe. Die Tempoleiter skaliert Gravitation und
+## Absprungkraft GEMEINSAM, damit hoeheres Tempo nicht auch hoehere Spruenge
+## bedeutet. Vor dem ersten Absprung gilt die ruhige Stufe.
+func current_gravity() -> float:
+	return JumpConfig.pace_gravity(_held_charges(), _pending_overload)
+
 func apply_gravity(delta: float) -> void:
-	velocity.y += JumpConfig.GRAVITY * delta
+	velocity.y += current_gravity() * delta
 
 func set_horizontal_intent(intent: float) -> void:
 	has_horizontal_target = false
@@ -213,7 +219,9 @@ func _resolve_landing(platform: JumpPlatform, is_overload: bool, contact_center_
 ## The first launch has no preceding landing. Normal landing bounces retain
 ## their existing land -> jump sequence and physics.
 func start_initial_bounce() -> void:
-	velocity.y = -JumpConfig.BASE_BOUNCE_SPEED
+	# Der Startabsprung laeuft immer auf der ruhigen Stufe: der Spieler hat noch
+	# nichts geleistet, ein schnellerer erster Sprung waere nicht verdient.
+	velocity.y = -JumpConfig.pace_bounce(0, false)
 	_bounce_sequence = [&"jump"]
 	_play_next_bounce_animation()
 	bounced.emit()
@@ -221,11 +229,11 @@ func start_initial_bounce() -> void:
 func _apply_bounce(is_overload: bool) -> void:
 	_pending_overload = is_overload
 	_overload_remaining = JumpConfig.RESONANCE_OVERLOAD_DISPLAY_TIME if is_overload else 0.0
-	var bounce_speed := JumpConfig.OVERLOAD_BOUNCE_SPEED if is_overload else JumpConfig.BASE_BOUNCE_SPEED
-	# Landequalitaet und Resonanzstand multiplizieren sich, danach greift die
-	# Kappung: kein Bonus hebt den Deckel von MAX_BOUNCE_SPEED an.
-	var chained := bounce_speed * (1.0 + JumpConfig.resonance_bounce_bonus(int(round(_resonance_ratio * JumpConfig.RESONANCE_MAX_CHARGES))))
-	velocity.y = -minf(chained * JumpConfig.LANDING_BOUNCE_MULTIPLIERS[last_landing_quality], JumpConfig.MAX_BOUNCE_SPEED)
+	# Die Tempoleiter steckt in `pace_bounce` (Faktor UND Ladungsaufschlag).
+	# Hier kommt nur noch die Landequalitaet dazu, danach greift die Kappung.
+	var charges := int(round(_resonance_ratio * JumpConfig.RESONANCE_MAX_CHARGES))
+	var bounce_speed := JumpConfig.pace_bounce(charges, is_overload)
+	velocity.y = -minf(bounce_speed * JumpConfig.LANDING_BOUNCE_MULTIPLIERS[last_landing_quality], JumpConfig.MAX_BOUNCE_SPEED)
 	_bounce_sequence = [&"land", &"jump"]
 	_play_next_bounce_animation()
 	bounced.emit()

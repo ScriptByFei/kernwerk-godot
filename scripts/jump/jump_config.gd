@@ -1,12 +1,64 @@
 class_name JumpConfig
 extends RefCounted
 
-const GRAVITY := 2300.0
-const BASE_BOUNCE_SPEED := 1580.0
+## Physik. Gravitation und Absprungkraft werden seit dem Tempoumbau (15.09.2026)
+## als PAAR gefuehrt: eine Stufe skaliert beide gemeinsam.
+##
+## Warum das Paar und nicht nur die Kraft: Der Scheitel ist v^2/(2g). Erhoeht man
+## nur v, waechst der Sprung quadratisch — schneller hiesse dann auch hoeher und
+## damit unfairer. Mit g -> k^2*g und v -> k*v bleibt der Scheitel EXAKT gleich
+## und nur die Flugdauer sinkt (t ~ 1/k). Schneller ohne hoeher ist genau das.
+##
+## Basiswerte sind die alte Einstellung um Faktor 1.30 gestrafft: das mittlere
+## Tempo (1/3) fuehlt sich damit an wie das bisherige Spiel, die Stufen darum
+## herum sind neu.
+const GRAVITY := 3887.0
+const BASE_BOUNCE_SPEED := 2054.0
 # Third actual launch is perceptibly stronger than the second charged launch.
 # Base bounce and charge multipliers stay unchanged; all launches remain capped.
-const OVERLOAD_BOUNCE_SPEED := 1880.0
-const MAX_BOUNCE_SPEED := 1960.0
+const OVERLOAD_BOUNCE_SPEED := 4144.0
+## Gravitation der Overload-Phase. Sie ist deutlich hoeher als jede normale
+## Stufe, damit der laengere Flug trotzdem KUERZER dauert:
+## gemessen 0,660 s gegen 0,717 s bei 2/3 und 0,856 s im Basissprung.
+##
+## Der alte Overload war 1,456 s lang und damit 27 % LANGSAMER als ein normaler
+## Sprung — er belohnte den Spieler mit einem Gefuehl von Schwerfaelligkeit.
+## Genau das war der Verstoss gegen "Overload darf den Spielfluss nicht
+## verlangsamen". Die hoehere Gravitation ist der Hebel dagegen.
+const OVERLOAD_GRAVITY := 11180.0
+## Deckel aller Absprungkraefte. Er muss ueber dem groessten tatsaechlich
+## erreichbaren Wert liegen, sonst flacht er die Tempoleiter ab, statt Unfaelle
+## zu verhindern: Overload + PERFECT ergibt 4144 * 1.05 = 4351, der Deckel laesst
+## also 49 px/s Luft. Die alte Grenze 1960 haette hier jede Overload gekappt.
+const MAX_BOUNCE_SPEED := 4400.0
+## Tempoleiter der Resonanzladungen, relativ zur Basisstufe (Index = Ladungen).
+##
+## 0/3 ist die ruhige Stufe, 2/3 die schnellste. Die Spreizung ist bewusst
+## moderat: zwischen 0/3 und 2/3 liegen rund 25 % Flugdauer. Mehr waere auf dem
+## Telefon nicht mehr steuerbar, weniger waere nicht spuerbar.
+const RESONANCE_PACE_FACTORS := [0.88, 1.0, 1.16, 1.16]
+
+## Absprungkraft der aktuellen Stufe, einschliesslich Ladungsaufschlag.
+static func pace_bounce(charges: int, overload: bool) -> float:
+	if overload:
+		return OVERLOAD_BOUNCE_SPEED
+	var index := clampi(charges, 0, RESONANCE_PACE_FACTORS.size() - 1)
+	var factor: float = RESONANCE_PACE_FACTORS[index]
+	return BASE_BOUNCE_SPEED * factor * (1.0 + resonance_bounce_bonus(charges))
+
+## Gravitation der aktuellen Stufe. Sie waechst mit dem QUADRAT des Faktors,
+## damit der Scheitel konstant bleibt (siehe Kommentar bei GRAVITY).
+##
+## Der Ladungsaufschlag steckt BEIDSEITIG drin: erhoeht man nur die Kraft,
+## waechst der Scheitel mit dem Quadrat des Aufschlags — 3/3 sprang dadurch 5,7 %
+## hoeher als 2/3. Mit dem Aufschlag auch in der Gravitation ist der Scheitel
+## ueber ALLE Stufen identisch und der Aufschlag wirkt als reine Temposteigerung.
+static func pace_gravity(charges: int, overload: bool) -> float:
+	if overload:
+		return OVERLOAD_GRAVITY
+	var index := clampi(charges, 0, RESONANCE_PACE_FACTORS.size() - 1)
+	var factor: float = RESONANCE_PACE_FACTORS[index] * (1.0 + resonance_bounce_bonus(charges))
+	return GRAVITY * factor * factor
 const MAX_HORIZONTAL_SPEED := 1100.0
 const HORIZONTAL_ACCELERATION := 10500.0
 const HORIZONTAL_DRAG := 12000.0
@@ -102,6 +154,12 @@ const JUMP_ANIMATION_SPEED := 1.0
 const RISKY_LANDING_BONUS := 25
 const RISKY_LIFT := 150.0
 const RISKY_CHANCE := 0.18
+## Angebot der riskanten Abzweigung innerhalb einer Risk/Choice-Sequenz. Sie ist
+## der Ort, an dem die Wahl PLANMAESSIG kommt: "Risk-Routen spaeter haeufiger
+## anbieten" ist damit eine Eigenschaft der Form, nicht nur eine Zahl. Innerhalb
+## der Sequenz ist das Angebot die Regel, nicht die Ausnahme — der Spieler soll
+## die Wahl als Muster erkennen, nicht als Gluecksfall.
+const RISKY_PATTERN_CHANCE := 0.75
 const RISKY_MIN_GAP_FACTOR := 0.80
 ## Resonanzband der riskanten Route relativ zur vollen Breite. Bessere Chance
 ## als die sichere Route (0.38), aber bewusst gedeckelt: auf einer 200 px breiten
@@ -284,8 +342,19 @@ const CAMERA_START := Vector2(540.0, 960.0)
 # Gameplay-Loop
 const SCORE_PER_UNIT := 10.0
 const FALL_DEATH_MARGIN := 600.0
-const DIFFICULTY_STEP_SCORE := 100.0
-const MAX_DIFFICULTY := 5
+## Schwierigkeit haengt an der BEWAELTIGTEN HOEHE, nicht am Punktestand.
+##
+## Vorher lief sie ueber `score` und war bei Hoehe 5000 voll ausgeschoepft — nach
+## rund 17 Sprossen passierte danach nichts mehr, der Rest des Runs war
+## Wiederholung. Jetzt liegt die Hoechststufe bei Hoehe 8750, also nach etwa 29
+## Sprossen, und bis dahin bewegt sich die Kurve weiter.
+##
+## Bewusst NICHT gekoppelt: die Atmosphaere. `AMBIENCE_TENSION_DB` beschreibt,
+## wie laut die Spannungsschicht am ENDE des Laufs sein darf, und bleibt
+## unveraendert — sonst wuerde dieselbe Anhebung den Klang nachjustieren, den
+## Timo gerade abgenommen hat.
+const DIFFICULTY_STEP_HEIGHT := 1250.0
+const MAX_DIFFICULTY := 7
 const DIFFICULTY_VERTICAL_BONUS := 10.0
 const DIFFICULTY_HORIZONTAL_BONUS := 20.0
 

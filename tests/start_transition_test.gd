@@ -127,7 +127,12 @@ func _timeline(fps: int, touch: bool) -> void:
 	time += dt
 	_check(game._phase == game.Phase.PLAYING, "handoff within one %d FPS step of .92s (%.4f)" % [fps, time])
 	_check(stats.bounces == 1, "exactly one first bounce")
-	_check(game.jumper.velocity.y == -JumpConfig.BASE_BOUNCE_SPEED, "initial bounce speed unchanged")
+	# Der Startabsprung laeuft auf der ruhigen Tempostufe 0/3 (seit dem
+	# Tempoumbau). `BASE_BOUNCE_SPEED` ist die mittlere Stufe — die Erwartung
+	# muss die Stufe nennen, sonst prueft sie eine Zahl, die das Spiel an dieser
+	# Stelle gar nicht mehr verwendet.
+	_check(is_equal_approx(game.jumper.velocity.y, -JumpConfig.pace_bounce(0, false)),
+		"initial bounce uses the calm pace step")
 	_check(game.jumper._reactor_visual.animation == &"jump", "initial launch has no landing animation delay")
 	_check(game.jumper.is_physics_processing() and game.camera.is_physics_processing(), "physics/follow enabled after finale")
 	game._fire_initial_bounce()

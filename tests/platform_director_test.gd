@@ -29,7 +29,7 @@ func _test_initialization_and_generation() -> void:
 	var generated_count := director.active_platform_count
 	director.maintain(0.0, 1920.0)
 	_check(director.active_platform_count == generated_count, "unchanged camera bounds do not duplicate ledges")
-	_check(_has_valid_generated_transitions(director.active_positions), "generated ledges preserve safe vertical and horizontal transitions")
+	_check(_has_valid_generated_transitions(director), "generated ledges preserve safe vertical and horizontal transitions")
 	world.queue_free()
 	await process_frame
 
@@ -75,7 +75,20 @@ func _has_one_way_collisions(world: Node) -> bool:
 			return false
 	return true
 
-func _has_valid_generated_transitions(positions: Array[Vector2]) -> bool:
+## Geprueft wird die HAUPTROUTE. Die riskante Abzweigung wird uebersprungen: sie
+## ist mit RISKY_LIFT absichtlich hoeher gesetzt und haengt nicht in der Kette,
+## gegen die hier gemessen wird.
+##
+## Diese Pruefung war vorher nur AUS VERSEHEN gruen: sie verglich jeden
+## Nachbarn als waere er die Hauptroute, und im geprueften Seed trat damals
+## keine Abzweigung auf. So wurde sie zum Tempoumbau rot, ohne dass sich an den
+## Abstaenden etwas geaendert haette. Die Route selbst war die ganze Zeit in
+## Ordnung — die Messung war zu weit gefasst.
+func _has_valid_generated_transitions(director: PlatformDirector) -> bool:
+	var positions: Array[Vector2] = []
+	for platform in director._active_platforms:
+		if platform.variant != JumpPlatform.Variant.RISKY:
+			positions.append(platform.position)
 	for platform_index in range(6, positions.size() - 1):
 		var current_position := positions[platform_index]
 		var next_position := positions[platform_index + 1]

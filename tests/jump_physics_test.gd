@@ -12,7 +12,23 @@ func _init() -> void:
 
 	jumper.velocity = Vector2.ZERO
 	jumper.apply_gravity(0.5)
-	_check(jumper.velocity.y == JumpConfig.GRAVITY * 0.5, "gravity accelerates a resting jumper downward")
+	# Die Gravitation ist seit dem Tempoumbau STUFENABHAENGIG: die Tempoleiter
+	# skaliert Gravitation und Absprungkraft gemeinsam. Ein frischer Springer
+	# steht auf der ruhigen Stufe 0/3, also ist genau deren Wert zu erwarten —
+	# nicht mehr die Basiskonstante.
+	# is_equal_approx, NICHT ==: Vector2 rechnet in float32. Der alte Wert
+	# GRAVITY * 0.5 = 1150.0 war zufaellig exakt darstellbar, der neue ist es
+	# nicht — die exakte Gleichheit scheiterte also an der Zahlendarstellung,
+	# nicht am Verhalten.
+	_check(is_equal_approx(jumper.velocity.y, JumpConfig.pace_gravity(0, false) * 0.5),
+		"gravity accelerates a resting jumper downward")
+	# Gegenprobe, dass die Pruefung ueberhaupt etwas unterscheiden KANN: auf der
+	# schnellsten Stufe muss die Gravitation hoeher sein, sonst waere die Leiter
+	# wirkungslos und die Pruefung oben beliebig.
+	_check(JumpConfig.pace_gravity(2, false) > JumpConfig.pace_gravity(0, false),
+		"die schnelle Stufe zieht staerker als die ruhige")
+	_check(JumpConfig.pace_gravity(0, true) > JumpConfig.pace_gravity(2, false),
+		"die Overload-Phase ist schneller als jede normale Stufe")
 
 	jumper.velocity.y = 240.0
 	_check(jumper.bounce_from(platform, false), "descending platform contact bounces")
@@ -22,10 +38,17 @@ func _init() -> void:
 
 	jumper.velocity.y = -240.0
 	_check(not jumper.bounce_from(platform, false), "rising platform contact never bounces")
-	_check(
-		JumpConfig.BASE_BOUNCE_SPEED * JumpConfig.BASE_BOUNCE_SPEED / (2.0 * JumpConfig.GRAVITY) >= 540.0,
-		"base bounce reaches at least 540px"
-	)
+	# Scheitel der mittleren Stufe (1/3). Jede Stufe haelt denselben Scheitel,
+	# deshalb genuegt eine Stichprobe — geprueft wird sie aber ueber ALLE Stufen,
+	# sonst koennte eine Stufe allein aus der Reihe fallen.
+	var base_apex := JumpConfig.pace_bounce(1, false) * JumpConfig.pace_bounce(1, false) / (2.0 * JumpConfig.pace_gravity(1, false))
+	_check(base_apex >= 540.0, "base bounce reaches at least 540px")
+	var apex_ok := true
+	for charges in range(JumpConfig.RESONANCE_MAX_CHARGES + 1):
+		var apex := JumpConfig.pace_bounce(charges, false) * JumpConfig.pace_bounce(charges, false) / (2.0 * JumpConfig.pace_gravity(charges, false))
+		if absf(apex - base_apex) > 0.5:
+			apex_ok = false
+	_check(apex_ok, "jede Tempostufe springt gleich hoch (nur die Dauer aendert sich)")
 
 	jumper.set_horizontal_intent(1.0)
 	jumper.velocity.x = 0.0

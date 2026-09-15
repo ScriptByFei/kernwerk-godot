@@ -205,9 +205,11 @@ func _test_restart_resets_tension() -> void:
 	# Eine Weile spielen: die Spannung muss mit der Stufe steigen.
 	# ACHTUNG: `score` ist abgeleitet. `_update_score` rechnet ihn aus `_highest_y`
 	# neu, ein direkt gesetztes `score` wird sofort ueberschrieben. Die Hoehe ist
-	# deshalb die Stellschraube — 3 * DIFFICULTY_STEP_SCORE * SCORE_PER_UNIT.
+	# deshalb die Stellschraube — 3 * DIFFICULTY_STEP_HEIGHT.
 	game._phase = Game.Phase.PLAYING
-	game._highest_y -= 3.0 * JumpConfig.DIFFICULTY_STEP_SCORE * JumpConfig.SCORE_PER_UNIT
+	# Die Schwierigkeit haengt seit dem Tempoumbau an der HOEHE
+	# (DIFFICULTY_STEP_HEIGHT), nicht mehr am Punktestand.
+	game._highest_y -= 3.0 * JumpConfig.DIFFICULTY_STEP_HEIGHT
 	game._update_score()
 	_check(game.difficulty == 3, "die Schwierigkeit steht auf 3 (Ist: %d)" % game.difficulty)
 	_check(game.ambience.tension_target_db() > JumpConfig.AMBIENCE_SILENCE_DB,
