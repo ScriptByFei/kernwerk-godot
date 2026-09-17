@@ -24,14 +24,54 @@ func _init() -> void:
 				check(B.module_kind(i) == kind, "camera cannot change identity")
 		check(kinds.size() == 4, "all four kinds reached")
 		var reached := {}
-		for height in [0.0, 1800.0, 4500.0]:
+		# Die Probehoehen aus der Konfiguration ABLEITEN, nicht als Pixelzahlen
+		# hinschreiben. Der Grund, gemessen:
+		#
+		# `zone_index_at` liefert ueber das ganze PLATEAU einer Zone exakt 0.0 —
+		# der Uebergang beginnt erst danach. Das Plateau ist `step - blend` hoch,
+		# frueher 9000-3500 = 5500 px, jetzt 3000-1200 = 1800 px. Prozentual ist
+		# das praktisch gleich (61 % -> 60 %), aber die fest eingetragenen Hoehen
+		# 1800 und 4500 px lagen nur zufaellig im alten Plateau. Nach der Stauchung
+		# lagen sie im Uebergang bzw. hinter der Zone, und die Pruefung "voll
+		# sichtbar" schlug zu Recht an.
+		#
+		# Gesammelt wird ueber ALLE Probehoehen (gemeinsames `reached`). Ein
+		# einzelner Ausschnitt zeigt nur 4 Kacheln (Typen 0/1/2) — Typ 3 (Service)
+		# liegt im 12er-Takt deutlich weiter. Deshalb MEHRERE Hoehen abtasten,
+		# statt die Pruefung abzuschwaechen: mit 3 Punkten auf dem gestauchten
+		# Plateau wurde Typ 3 nicht mehr erreicht (gemessen), mit einer feineren
+		# Abtastung ueber das ganze Fenster schon.
+		# Die Hoehe der ERSTEN Zone kommt aus den Spans — nicht aus
+		# ZONE_HEIGHT_STEP, das nur noch eine Nennkonstante fuer grobe
+		# Rueckwaertsrechnungen ist. Sonst haengt die Probe an einem Wert, der
+		# nicht die tatsaechliche Zonengroesse beschreibt.
+		var first_span: float = JumpConfig.ZONE_HEIGHT_SPANS[0]
+		var top_limit: float = B.ZONE_FADE_START * first_span
+		var sample_offset: float = 1170.0 - 260.0
+		var samples := 12
+		for step_i in range(samples):
+			var height: float = float(step_i) / float(samples - 1) * maxf(top_limit - sample_offset, 1.0)
 			var camera: float = -height + 260.0
 			var rect := Rect2(0, camera - 1170, 1080, 2340)
-			check(B.opacity_for_zone(JumpConfig.zone_index_at(-rect.position.y)) == 1.0, "actual zone fully visible")
+			var index: float = JumpConfig.zone_index_at(-rect.position.y)
+			check(index < B.ZONE_FADE_START, "Probehoehe liegt im Fenster des Schachts (Index %.2f < %.2f)" % [index, B.ZONE_FADE_START])
+			check(B.opacity_for_zone(index) == 1.0, "actual zone fully visible")
 			var first: int = B.first_visible_tile(0, camera, rect.position.y)
 			for i in range(first, first + B.visible_tile_count(0, camera, rect.position.y, rect.end.y)):
 				reached[B.module_kind(i)] = true
-		check(reached.size() == 4, "all modules reached before fade")
+		check(reached.size() == 4, "all modules reached before fade (erreicht: %d)" % reached.size())
+		# Und die Absicht dahinter als eigene Regel festhalten: damit alle vier
+		# Modultypen erscheinen, muss die ERSTE Zone hoch genug sein. Die Fernwand
+		# laeuft mit Parallax 0.22 und verschiebt sich im Fenster nur um 0.22 *
+		# Fensterhoehe; ein zu kurzes Fenster zeigt dauerhaft denselben Kachelsatz.
+		# Gemessen: 1650 px Fenster -> 3 Typen, 4400 px Fenster -> 4 Typen.
+		# Genau deshalb ist Zone 1 groesser als die uebrigen. Ohne diese Pruefung
+		# blieb eine gleichmaessige Stauchung unbemerkt (Mutationsprobe M3).
+		var window: float = B.ZONE_FADE_START * first_span
+		var far_shift: float = B.layer_parallax(0) * window
+		var tiles_spanned: float = far_shift / B.layer_tile_height(0)
+		check(tiles_spanned >= 1.0,
+			"die Fernwand verschiebt sich im ersten Zonenfenster um mindestens eine Kachel (%.2f)" % tiles_spanned)
 		var variants := {}
 		for block in range(-40, 40):
 			variants[B.module_kind(-(block * 12 + 9))] = true

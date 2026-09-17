@@ -792,6 +792,11 @@ func _draw() -> void:
 	# (Zonenindex 0.75 bis 1.25) sind beide sichtbar, danach traegt sie allein.
 	ShaftBackground.draw_cooling(self, visible_rect, zone_index)
 	ShaftBackground.draw(self, visible_rect, zone_index, _background_time)
+	# Zone 4 (instabil) und Zone 5 (kritisch) liegen ueber der Zonenfarbe, aber
+	# unter den Schachtlinien und dem Spielinhalt. Zone 3 (Hochspannung) kommt
+	# spaeter in das offene Fenster [1.55, 2.55] — hier ist dafuer nichts zu tun.
+	ShaftBackground.draw_zone4(self, visible_rect, zone_index, _background_time)
+	ShaftBackground.draw_zone5(self, visible_rect, zone_index, _background_time)
 	var shaft_color := JumpConfig.zone_color(JumpConfig.ZONE_SHAFT_COLORS, zone_height)
 	# Die MITTLERE Linie liegt exakt hinter dem Reaktor. In voller Staerke liest
 	# sie sich wie eine Fuehrungsschiene, an der der Kern haengt, und sie bleibt

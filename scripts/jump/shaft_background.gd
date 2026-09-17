@@ -211,6 +211,287 @@ static func draw_cooling(canvas: CanvasItem, visible_rect: Rect2, zone_index: fl
 		if tile.intersects(visible_rect):
 			canvas.draw_texture_rect(COOLING_TILE, tile, false, Color(1.0, 1.0, 1.0, alpha))
 
+## ---------------------------------------------------------------------------
+## Hoehere Zonen: Instabile Zone (4) und Kritische Zone (5)
+##
+## Beide prozedural — kein Artwork, kein Generator. Die Formensprache bleibt die
+## des Bauwerks, damit der Schacht als EIN Ort liest und nicht als Sammlung.
+##
+## Fenster im Zonenindex (`zone_index_at` deckelt bei 4.0):
+##   Zone 4: ein [2.55, 3.00], aus [3.55, 4.00]
+##   Zone 5: ein [3.55, 4.00], bleibt voll
+## Der Abschnitt [1.55, 2.55] ist bewusst frei: dort kommt spaeter Zone 3
+## (Hochspannung) als eigene Schicht hinein, ohne dass hier etwas umgebaut wird.
+##
+## Beide Schichten liegen in derselben linken Feldbreite wie die Kuehlsektion
+## (rechte Kante 274 < 280) — die Spielbahn in der Mitte bleibt in jeder Zone
+## frei von gesetzter Einzelheit.
+## ---------------------------------------------------------------------------
+const Z4_MODULE_HEIGHT := 640.0
+const Z4_FIELD_X := 24.0
+const Z4_FIELD_WIDTH := 250.0
+const Z4_ROWS := 3
+## Schraegstellung der verschobenen Platten. Sie ist der ganze Ausdruck von
+## "instabil": eine gerade Wand mit Rissen liest sich als Schaden, eine
+## verschobene Wand als Versagen.
+const Z4_TILT := 0.18
+const Z4_FADE_IN_START := 2.55
+const Z4_FADE_IN_END := 3.00
+const Z4_FADE_OUT_START := 3.55
+const Z4_FADE_OUT_END := 4.00
+## Kalter Stahl mit Violettstich — die Zone ist instabil, nicht warm.
+const Z4_PLATE := Color("1a1620")
+const Z4_PLATE_DEEP := Color("120f18")
+const Z4_SEAM := Color("09070e")
+## Kalte Kante der verschobenen Platte. Sie ist eine duenne LINIE (4 Weltpixel)
+## und keine Flaeche — die harte 1.81-Regel des Projekts gilt fuer Flaechen in
+## der Ruhezone. Gemessen liegt sie mit 1.34 gegen den Plattformkoerper und
+## bleibt damit als Kante lesbar, ohne die Ruhezone zu beruehren.
+const Z4_EDGE := Color("2a2334")
+const Z4_CABLE := Color("06050b")
+const Z4_CABLE_LIT := Color("2a2334")
+## Vereinzelt ein Kurzschluss. Gedaempft: der Hintergrund darf nie heller
+## leuchten als der Kern (LAMP_CORE).
+const Z4_SPARK := Color("7a4e22")
+const Z4_RAIL := Color("0d0b12")
+const Z4_RAIL_EDGE := Color("2f2839")
+
+const Z5_MODULE_HEIGHT := 580.0
+const Z5_FIELD_X := 24.0
+const Z5_FIELD_WIDTH := 250.0
+const Z5_FADE_IN_START := 3.55
+const Z5_FADE_IN_END := 4.00
+## Die letzte Zone blendet nicht aus: der Zonenindex erreicht 4.0 als Grenze.
+## Ein Fenster mit fade_out_start == fade_out_end wuerde bei genau 4.0 auf 0
+## springen — deshalb liegt das Ende jenseits des erreichbaren Bereichs.
+const Z5_FADE_OUT_START := 4.00
+const Z5_FADE_OUT_END := 99.0
+const Z5_PLATE := Color("171410")
+const Z5_PLATE_DEEP := Color("131210")
+## Gluehende Naht: schmal, nicht flaechig. Sie ist das Signal, nicht die Flaeche.
+const Z5_SEAM_GLOW := Color("6b4620")
+## Gefahrenband: trotz Warnfarbe eine grosse Flaeche, deshalb im dunklen Bereich
+## gehalten. Gemessen 1.85 gegen den Plattformkoerper.
+const Z5_HAZARD := Color("1c160c")
+const Z5_STROBE := Color("7a5a28")
+const Z5_HOUSING := Color("0b0a08")
+const Z5_RAIL_EDGE := Color("3a332a")
+
+static func zone4_opacity_for_zone(zone_index: float) -> float:
+	return layer_opacity(zone_index, Z4_FADE_IN_START, Z4_FADE_IN_END, Z4_FADE_OUT_START, Z4_FADE_OUT_END)
+
+static func zone5_opacity_for_zone(zone_index: float) -> float:
+	return layer_opacity(zone_index, Z5_FADE_IN_START, Z5_FADE_IN_END, Z5_FADE_OUT_START, Z5_FADE_OUT_END)
+
+## Gemeinsame Quelle fuer Zeichnung UND Pruefung: die Plattenfelder der Zone 4.
+## Jede Zelle traegt ihren WELTindex (Modulnummer n, Zeile row) mit. Die
+## Verschieberichtung wird ausschliesslich daraus abgeleitet, niemals aus der
+## kameraverschoenen Zeichenkoordinate — sonst wandert das Muster beim Scrollen.
+static func zone4_cells(rect: Rect2) -> Array[Dictionary]:
+	var cells: Array[Dictionary] = []
+	var module := Z4_MODULE_HEIGHT
+	if module <= 0.0 or Z4_ROWS <= 0:
+		return cells
+	var camera := rect.get_center().y
+	var base := tile_world_y(2, camera, 0)
+	var row_h := module / float(Z4_ROWS)
+	var first := int(floor((rect.position.y - base) / module))
+	var last := int(ceil((rect.end.y - base) / module))
+	for n in range(first, last + 1):
+		for row in range(Z4_ROWS):
+			var y: float = base + float(n) * module + float(row) * row_h
+			cells.append({"rect": Rect2(Z4_FIELD_X, y, Z4_FIELD_WIDTH, row_h), "n": n, "row": row})
+	return cells
+
+## Nur die Geometrie, fuer Abdeckungs- und Ruhezonenpruefungen.
+static func zone4_plate_rects(rect: Rect2) -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	for cell in zone4_cells(rect):
+		rects.append(cell.rect)
+	return rects
+
+## Verschiebung einer Platte: Vorzeichen aus Modulnummer und Zeile.
+static func zone4_plate_shift(n: int, row: int, row_height: float) -> float:
+	var tilt: float = Z4_TILT * row_height
+	return tilt if posmod(n + row, 2) == 0 else -tilt
+
+## Kabelstrang rechts: eine gesetzte Einzelheit, deshalb ausserhalb der Ruhezone
+## und mit fester Achse.
+static func zone4_rail_span(view_width: float) -> Vector2:
+	return Vector2(view_width - 96.0, view_width - 58.0)
+
+## Farbklassifikation als GEMEINSAME QUELLE fuer Zeichnung und Pruefung.
+##
+## Die harte 1.81-Regel des Projekts schuetzt FLAECHEN in der Ruhezone: eine
+## grosse Flaeche darf den Plattformkoerper nicht verschlucken. Sie gilt NICHT
+## fuer duenne Linien und Leuchtakzente — sonst waeren die Randlaternen des
+## Schachts (d97b2a, Ratio 0.45) seit jeher ein Regelbruch, obwohl sie
+## abgenommen sind. Deshalb zwei Kategorien mit zwei verschiedenen Regeln:
+##
+##   surfaces: grosse Flaechen, muessen gegen den Plattformkoerper >= 1.81 halten
+##   accents:  duenne Linien und Leuchtpunkte, muessen DUNKLER als der Spielerkern
+##             bleiben (der Hintergrund leuchtet nie heller als der Spieler),
+##             und sie duerfen nur schmal vorkommen
+##
+## Wer eine Farbe von `accents` nach `surfaces` verschiebt, muss sie abdunkeln —
+## genau das war bei Z5_HAZARD noetig (Band ist eine Flaeche, nicht eine Linie).
+static func zone45_surfaces() -> Dictionary:
+	return {
+		"Z4_PLATE": Z4_PLATE,
+		"Z4_PLATE_DEEP": Z4_PLATE_DEEP,
+		"Z4_SEAM": Z4_SEAM,
+		"Z4_RAIL": Z4_RAIL,
+		"Z5_PLATE": Z5_PLATE,
+		"Z5_PLATE_DEEP": Z5_PLATE_DEEP,
+		"Z5_HAZARD": Z5_HAZARD,
+		"Z5_HOUSING": Z5_HOUSING,
+	}
+
+static func zone45_accents() -> Dictionary:
+	return {
+		"Z4_EDGE": Z4_EDGE,
+		"Z4_CABLE_LIT": Z4_CABLE_LIT,
+		"Z4_SPARK": Z4_SPARK,
+		"Z4_RAIL_EDGE": Z4_RAIL_EDGE,
+		"Z5_SEAM_GLOW": Z5_SEAM_GLOW,
+		"Z5_STROBE": Z5_STROBE,
+		"Z5_RAIL_EDGE": Z5_RAIL_EDGE,
+	}
+
+## QA-Gegenprobe: schaltet Zeichnung UND Deckkraft der neuen Zonen ab. Wird nur
+## von qa/zone45_cost_sweep.gd gesetzt — die Produktion liest es nie.
+static var zone45_disabled := false
+
+## Der Spielerkern als Messlatte fuer Akzente. `LAMP_CORE` wurde eigens auf
+## d97b2a abgesenkt, weil die Randlaternen vorher heller waren als der Kern.
+static func player_core_luminance() -> float:
+	return LAMP_CORE.get_luminance()
+
+static func draw_zone4(canvas: CanvasItem, visible_rect: Rect2, zone_index: float, time: float) -> void:
+	if zone45_disabled:
+		return
+	var alpha := zone4_opacity_for_zone(zone_index)
+	if alpha <= 0.0 or visible_rect.size.x <= 0.0 or visible_rect.size.y <= 0.0:
+		return
+	var row_h := Z4_MODULE_HEIGHT / float(Z4_ROWS)
+	for cell in zone4_cells(visible_rect):
+		var plate: Rect2 = cell.rect
+		if not plate.intersects(visible_rect):
+			continue
+		var shift := zone4_plate_shift(cell.n, cell.row, row_h)
+		# Verschobene Platte: als Viereck mit gekippter Kante, nicht als Rechteck.
+		canvas.draw_colored_polygon(
+			PackedVector2Array([
+				Vector2(plate.position.x + shift, plate.position.y),
+				Vector2(plate.end.x + shift, plate.position.y),
+				Vector2(plate.end.x - shift, plate.end.y),
+				Vector2(plate.position.x - shift, plate.end.y),
+			]), _fade(Z4_PLATE if shift > 0.0 else Z4_PLATE_DEEP, alpha))
+		# Fuge zwischen zwei Platten: dunkel und durchgehend, sie ist die Naht.
+		canvas.draw_rect(Rect2(Z4_FIELD_X, plate.end.y - 6.0, Z4_FIELD_WIDTH, 6.0), _fade(Z4_SEAM, alpha))
+		# Kalte Kante auf der Hochseite: traegt die Lesbarkeit der Verschiebung.
+		canvas.draw_rect(Rect2(Z4_FIELD_X, plate.position.y, Z4_FIELD_WIDTH, 4.0), _fade(Z4_EDGE, alpha))
+		# Freiliegender Kabelstrang in der Fuge.
+		for c in range(2):
+			var cy: float = plate.end.y - 6.0 + float(c) * 3.0
+			canvas.draw_line(Vector2(Z4_FIELD_X + 12.0, cy), Vector2(Z4_FIELD_X + Z4_FIELD_WIDTH - 12.0, cy), _fade(Z4_CABLE, alpha), 2.0)
+	# Ein Kurzschluss je Modul, und nur an einem Platz ausserhalb der Ruhezone.
+	var camera := visible_rect.get_center().y
+	var base := tile_world_y(2, camera, 0)
+	var first := int(floor((visible_rect.position.y - base) / Z4_MODULE_HEIGHT))
+	var last := int(ceil((visible_rect.end.y - base) / Z4_MODULE_HEIGHT))
+	for n in range(first, last + 1):
+		if tile_pick(2, n, 41, 3) != 0:
+			continue
+		var sx: float = Z4_FIELD_X + 40.0 + tile_value(2, n, 42) * (Z4_FIELD_WIDTH - 90.0)
+		var sy: float = base + float(n) * Z4_MODULE_HEIGHT + 60.0 + tile_value(2, n, 43) * (Z4_MODULE_HEIGHT - 130.0)
+		if sy < visible_rect.position.y - 20.0 or sy > visible_rect.end.y + 20.0:
+			continue
+		var pulse := 0.55 + 0.45 * sin(time * 5.0 + float(n))
+		canvas.draw_rect(Rect2(sx, sy, 26.0, 6.0), _fade(Z4_SPARK, alpha * pulse))
+		canvas.draw_rect(Rect2(sx + 8.0, sy + 6.0, 10.0, 4.0), _fade(Z4_SPARK, alpha * pulse * 0.6))
+	# Rechter Kabelkanal: ruhig, aber nicht leer.
+	var rail := zone4_rail_span(visible_rect.size.x)
+	canvas.draw_rect(Rect2(rail.x, visible_rect.position.y, rail.y - rail.x, visible_rect.size.y), _fade(Z4_RAIL, alpha))
+	canvas.draw_rect(Rect2(rail.x, visible_rect.position.y, 4.0, visible_rect.size.y), _fade(Z4_RAIL_EDGE, alpha))
+	for bracket in range(first, last + 1):
+		var by: float = base + float(bracket) * Z4_MODULE_HEIGHT + 210.0
+		if by + 26.0 < visible_rect.position.y or by > visible_rect.end.y:
+			continue
+		canvas.draw_rect(Rect2(rail.x - 16.0, by, rail.y - rail.x + 16.0, 26.0), _fade(Z4_PLATE_DEEP, alpha))
+
+## Gefahrenband der Zone 5: zwei Schraegen als Vierecke. Dieselbe Bauart wie die
+## Tuerverstrebungen — kein Huellbox-Rechteck, sonst wird aus der Schraege ein
+## Block.
+static func zone5_hazard_quads(x: float, y: float, width: float, height: float) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var step := 56.0
+	var thickness := 16.0
+	var travel := width + height
+	var offset := 0.0
+	while offset < travel:
+		out.append(_diagonal_quad(
+			Vector2(x + offset, y + height),
+			Vector2(x + offset - height, y),
+			thickness))
+		offset += step
+	return out
+
+static func zone5_plate_rects(rect: Rect2) -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	var module := Z5_MODULE_HEIGHT
+	if module <= 0.0:
+		return rects
+	var camera := rect.get_center().y
+	var base := tile_world_y(2, camera, 0)
+	var first := int(floor((rect.position.y - base) / module))
+	var last := int(ceil((rect.end.y - base) / module))
+	for n in range(first, last + 1):
+		rects.append(Rect2(Z5_FIELD_X, base + float(n) * module, Z5_FIELD_WIDTH, module * 0.5))
+		rects.append(Rect2(Z5_FIELD_X, base + float(n) * module + module * 0.5, Z5_FIELD_WIDTH, module * 0.44))
+	return rects
+
+static func draw_zone5(canvas: CanvasItem, visible_rect: Rect2, zone_index: float, time: float) -> void:
+	if zone45_disabled:
+		return
+	var alpha := zone5_opacity_for_zone(zone_index)
+	if alpha <= 0.0 or visible_rect.size.x <= 0.0 or visible_rect.size.y <= 0.0:
+		return
+	var plates := zone5_plate_rects(visible_rect)
+	for plate in plates:
+		if not plate.intersects(visible_rect):
+			continue
+		canvas.draw_rect(plate, _fade(Z5_PLATE, alpha))
+		canvas.draw_rect(Rect2(plate.position.x, plate.position.y, plate.size.x, 5.0), _fade(Z5_RAIL_EDGE, alpha))
+		for quad in zone5_hazard_quads(plate.position.x - 20.0, plate.position.y + 8.0, plate.size.x, plate.size.y * 0.34):
+			canvas.draw_colored_polygon(quad, _fade(Z5_HAZARD, alpha))
+		# Gluehende Naht am unteren Rand: schmal, mit ruhigem Puls.
+		var seam_y: float = plate.end.y - 7.0
+		var pulse := 0.78 + 0.22 * sin(time * 1.6 + plate.position.y * 0.004)
+		canvas.draw_rect(Rect2(plate.position.x, seam_y, plate.size.x, 7.0), _fade(Z5_SEAM_GLOW, alpha * pulse))
+		canvas.draw_rect(Rect2(plate.position.x, plate.end.y, plate.size.x, 8.0), _fade(Z5_PLATE_DEEP, alpha))
+	# Notlichtgehaeuse: das Licht sitzt IM Kasten, nicht im leeren Schacht.
+	var camera := visible_rect.get_center().y
+	var base := tile_world_y(2, camera, 0)
+	var first := int(floor((visible_rect.position.y - base) / Z5_MODULE_HEIGHT))
+	var last := int(ceil((visible_rect.end.y - base) / Z5_MODULE_HEIGHT))
+	for n in range(first, last + 1):
+		if posmod(n, 2) != 0:
+			continue
+		var hy: float = base + float(n) * Z5_MODULE_HEIGHT + 96.0
+		if hy + 120.0 < visible_rect.position.y or hy > visible_rect.end.y:
+			continue
+		var housing := Rect2(Z5_FIELD_X + 34.0, hy, 96.0, 112.0)
+		canvas.draw_rect(housing, _fade(Z5_HOUSING, alpha))
+		canvas.draw_rect(Rect2(housing.position.x + 8.0, housing.position.y + 10.0, 80.0, 5.0), _fade(Z5_RAIL_EDGE, alpha))
+		canvas.draw_rect(Rect2(housing.position.x + 8.0, housing.end.y - 15.0, 80.0, 5.0), _fade(Z5_RAIL_EDGE, alpha))
+		var blink := 0.35 + 0.65 * maxf(0.0, sin(time * 2.2 + float(n) * 1.7))
+		canvas.draw_rect(Rect2(housing.position.x + 22.0, housing.position.y + 38.0, 52.0, 36.0), _fade(Z5_STROBE, alpha * blink))
+	# Rechter Kanal, gleiche Bauart wie in Zone 4.
+	var rail := zone4_rail_span(visible_rect.size.x)
+	canvas.draw_rect(Rect2(rail.x, visible_rect.position.y, rail.y - rail.x, visible_rect.size.y), _fade(Z5_PLATE_DEEP, alpha))
+	canvas.draw_rect(Rect2(rail.x, visible_rect.position.y, 4.0, visible_rect.size.y), _fade(Z5_RAIL_EDGE, alpha))
+
 static func draw(canvas: CanvasItem, visible_rect: Rect2, zone_index: float, time: float) -> void:
 	var alpha := opacity_for_zone(zone_index)
 	if alpha <= 0.0 or visible_rect.size.x <= 0.0 or visible_rect.size.y <= 0.0:

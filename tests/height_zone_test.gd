@@ -17,10 +17,58 @@ func _run() -> void:
 		_finish()
 		return
 	_check(JumpConfig.ZONE_HEIGHT_STEP > 0.0 and JumpConfig.ZONE_BLEND_RANGE > 0.0, "Zonenhoehe und Uebergangsbreite sind positiv")
+	# Die Kopplung als Regel festhalten: `zone_index_at` klemmt
+	# `blend = minf(ZONE_BLEND_RANGE, span)`. Waere blend >= span, gaebe es kein
+	# Plateau mehr — die Zonen liefen permanent ineinander. Ohne diese Pruefung
+	# bricht es still, sobald jemand nur EINE der beiden Konstanten anfasst.
+	_check(JumpConfig.ZONE_BLEND_RANGE < JumpConfig.ZONE_HEIGHT_STEP,
+		"die Uebergangsbreite ist kleiner als die kleinste Zonenschrittweite")
+	for span_value in JumpConfig.ZONE_HEIGHT_SPANS:
+		var span: float = span_value
+		_check(JumpConfig.ZONE_BLEND_RANGE < span,
+			"die Uebergangsbreite ist kleiner als jede Zonenhöhe (%.0f)" % span)
+		# Und das Plateau muss spuerbar bleiben: mindestens die Haelfte jeder
+		# Zone steht in einer einzigen Stimmung, sonst ist es keine Zone mehr.
+		var share: float = (span - JumpConfig.ZONE_BLEND_RANGE) / span
+		_check(share >= 0.5, "je Zone bleibt mindestens die Haelfte stabil (%.0f %%)" % (share * 100.0))
+	_check(JumpConfig.ZONE_HEIGHT_SPANS.size() == JumpConfig.ZONE_BACKGROUNDS.size(),
+		"es gibt so viele Zonenhoehen wie Stimmungen")
+	# Die Umkehrfunktion muss die Umkehrung sein: Index -> Hoehe -> Index.
+	# Der gueltige Bereich endet bei der LETZTEN Zone (Index = Anzahl-1); darueber
+	# deckelt `zone_index_at`, und eine Rundreise kann dort nicht existieren.
+	# Genau deshalb prueft die Schleife nur bis `size-1` — mein erster Versuch
+	# lief bis `size` und meldete korrektes Verhalten als Fehler.
+	var roundtrip_ok := true
+	var checked := 0
+	for i in range(JumpConfig.ZONE_HEIGHT_SPANS.size() - 1):
+		for frac_value in [0.0, 0.25, 0.5, 0.75, 1.0]:
+			var frac: float = frac_value
+			var index: float = float(i) + frac
+			var height: float = JumpConfig.zone_height_for_index(index)
+			var back: float = JumpConfig.zone_index_at(height)
+			if absf(back - index) > 0.001:
+				roundtrip_ok = false
+			checked += 1
+	_check(roundtrip_ok, "Index -> Hoehe -> Index ist eine Rundreise (%d Punkte)" % checked)
+	# Und die Zonengrenzen liegen dort, wo die Spans es sagen.
+	var floor_ok := true
+	for i in range(JumpConfig.ZONE_HEIGHT_SPANS.size()):
+		var expected := 0.0
+		for k in range(i):
+			expected += JumpConfig.ZONE_HEIGHT_SPANS[k]
+		if absf(JumpConfig.zone_floor(i) - expected) > 0.001:
+			floor_ok = false
+	_check(floor_ok, "die Zonenunterkanten stimmen mit den Spans ueberein")
 	var step: float = JumpConfig.ZONE_HEIGHT_STEP
 	var ground := JumpConfig.zone_color(JumpConfig.ZONE_BACKGROUNDS, 0.0)
 	_check(ground.is_equal_approx(JumpConfig.ZONE_BACKGROUNDS[0]), "am Boden gilt die erste Stimmung")
-	var high := JumpConfig.zone_color(JumpConfig.ZONE_BACKGROUNDS, 9.0 * step)
+## Zonenfarbe jenseits des Deckels: die fuenfte Stimmung.
+	# Die Gesamthoehe kommt aus den Spans, nicht mehr aus einer festen
+	# Schrittweite: mit 4.0 * ZONE_HEIGHT_STEP (32000) haette die Abtastung weit
+	# hinter dem Deckel (24000) gelegen und Zone 5 nie erreicht.
+	var total: float = JumpConfig.zone_total_height()
+	_check(total > 0.0, "der Schacht hat eine positive Gesamthoehe (%.0f)" % total)
+	var high := JumpConfig.zone_color(JumpConfig.ZONE_BACKGROUNDS, total * 2.0)
 	_check(high.is_equal_approx(JumpConfig.ZONE_BACKGROUNDS[4]), "ganz oben gilt die fuenfte Stimmung, gedeckelt")
 	# Jede Zone wird tatsaechlich erreicht, und die Zuordnung waechst monoton.
 	var reached := {}
@@ -30,9 +78,9 @@ func _run() -> void:
 	var previous_color := JumpConfig.zone_color(JumpConfig.ZONE_BACKGROUNDS, 0.0)
 	# Feine Abtastung (5 Weltpixel): so laesst sich ein Sprung von einem echten
 	# Verlauf unterscheiden, statt nur eine willkuerliche Schranke zu treffen.
-	var samples := int(4.0 * step / 5.0)
+	var samples := int(total / 5.0)
 	for sample in range(samples):
-		var climbed := float(sample) / float(samples - 1) * 4.0 * step
+		var climbed := float(sample) / float(samples - 1) * total
 		var index: float = JumpConfig.zone_index_at(climbed)
 		reached[int(round(index))] = true
 		if index < previous - 0.0001:

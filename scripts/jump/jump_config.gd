@@ -194,8 +194,25 @@ const ZONE_SHAFT_COLORS := [
 	Color("46394f"),
 	Color("494343"),
 ]
-## Hoehe in Weltpixeln, nach der die naechste Stimmung vollstaendig gilt.
-const ZONE_HEIGHT_STEP := 9000.0
+## Hoehe jeder Zone in Weltpixeln (Zone 1 .. Zone 5).
+##
+## Am 17.09.2026 von 9000 je Zone auf diese Werte umgestellt (Timo). Grund:
+## gemessen kommt ein idealisierter Ein-Daumen-Spieler auf rund 50 px/s. Mit
+## 9000 px je Zone begann die Instabile Zone bei 22950 px — das sind etwa 7,6
+## Minuten FEHLERFREIES Spiel, die Zonen 4 und 5 waren praktisch unerreichbar.
+##
+## Zone 1 bleibt bewusst GROESSER als die uebrigen. Der Reaktorschacht ist die
+## praegendste und aufwendigste Zone, und seine Fernwand laeuft mit Parallax
+## 0.22: im Fenster bis ZONE_FADE_START verschiebt sie sich nur um 0.22 * Hoehe.
+## Gemessen zeigt ein 1650 px hohes Fenster nur 3 der 4 Modultypen (die Kacheln
+## bleiben -2..1), ein 4400 px hohes Fenster alle 4. Eine gleichmaessige
+## Stauchung haette also eine der vier gestalteten Wandarten aus Zone 1
+## entfernt. Das ist der Grund fuer die ungleiche Aufteilung.
+const ZONE_HEIGHT_SPANS := [8000.0, 4000.0, 4000.0, 4000.0, 4000.0]
+## Nennhoehe der ERSTEN Zone. Nur noch fuer Rueckwaertsrechnungen und Proben, die
+## eine grobe Schrittweite brauchen (z. B. "weit oberhalb" statt exakter Index).
+## Die tatsaechliche Hoehe je Zone steht in ZONE_HEIGHT_SPANS.
+const ZONE_HEIGHT_STEP := 8000.0
 ## Die gestalteten Schacht-Hintergruende gelten nur fuer die ersten beiden
 ## Stimmungen. Zone 1 (Reaktorschacht) laeuft bis 0.55 des Zonenindex und blendet
 ## dort aus; Zone 2 (Kuehlsektion) uebernimmt und blendet bis 1.55 aus. Oberhalb
@@ -204,23 +221,89 @@ const SHAFT_ZONE_FADE_START := 0.55
 const SHAFT_ZONE_FADE_END := 1.55
 ## Breite des weichen Uebergangs davor. Ohne diesen Verlauf waere der Wechsel
 ## eine sichtbare Stufe mitten im Flug.
-const ZONE_BLEND_RANGE := 3500.0
+##
+## MUSS kleiner als ZONE_HEIGHT_STEP bleiben: `zone_index_at` klemmt
+## `blend = minf(ZONE_BLEND_RANGE, step)`. Bei blend >= step gaebe es kein
+## Plateau mehr (siehe Kommentar an ZONE_HEIGHT_STEP). Am 17.09.2026 zusammen mit
+## der Zonenhöhe von 3500 auf 1200 gestaucht, damit der Anteil gleich bleibt.
+const ZONE_BLEND_RANGE := 1200.0
+
+## Untere Kante jeder Zone in Weltpixeln. Aus ZONE_HEIGHT_SPANS abgeleitet, damit
+## beide Darstellungen niemals auseinanderlaufen koennen.
+static func zone_floor(zone: int) -> float:
+	var total := 0.0
+	for i in range(clampi(zone, 0, ZONE_HEIGHT_SPANS.size())):
+		total += ZONE_HEIGHT_SPANS[i]
+	return total
+
+## Gesamthoehe des gestalteten Schachts: dort ist der Index gedeckelt.
+static func zone_total_height() -> float:
+	return zone_floor(ZONE_HEIGHT_SPANS.size())
+
+## Oberkante der Zone, in der diese Hoehe liegt, plus die Hoehe der Zone selbst.
+static func zone_extent_at(height: float) -> Vector2:
+	var climbed := maxf(0.0, height)
+	var floor_y := 0.0
+	for i in range(ZONE_HEIGHT_SPANS.size()):
+		var span: float = ZONE_HEIGHT_SPANS[i]
+		if climbed < floor_y + span or i == ZONE_HEIGHT_SPANS.size() - 1:
+			return Vector2(floor_y, span)
+		floor_y += span
+	return Vector2(floor_y, ZONE_HEIGHT_SPANS[ZONE_HEIGHT_SPANS.size() - 1])
+
+## Hoehe, an der ein gegebener Zonenindex erreicht wird. Die UMKEHRUNG von
+## `zone_index_at` — Proben brauchen sie, um eine gewuenschte Zone exakt
+## anzufahren, statt Pixelzahlen zu raten, die nur zufaellig stimmen.
+##
+## Achtung auf den Uebergangsbereich: ein ganzzahliger Index liegt genau an der
+## Unterkante seiner Zone, ein gebrochener Teil t liegt `blend * t` darueber.
+static func zone_height_for_index(index: float) -> float:
+	var clamped := clampf(index, 0.0, float(ZONE_HEIGHT_SPANS.size() - 1))
+	var base := int(floor(clamped))
+	var frac := clamped - float(base)
+	var floor_y := zone_floor(base)
+	if frac <= 0.0:
+		return floor_y
+	var span: float = ZONE_HEIGHT_SPANS[clampi(base, 0, ZONE_HEIGHT_SPANS.size() - 1)]
+	var blend := minf(ZONE_BLEND_RANGE, span)
+	# Das Plateau laeuft bis `span - blend`, danach beginnt der Uebergang.
+	return floor_y + (span - blend) + blend * frac
 
 ## Zonenindex als Fliesskommazahl: die Nachkommastellen beschreiben, wie weit
 ## der Uebergang zur naechsten Stimmung fortgeschritten ist.
+##
+## Die Zonen duerfen UNTERSCHIEDLICH hoch sein (ZONE_HEIGHT_SPANS). Deshalb wird
+## die Zone erst per Schleife gesucht und dann INNERHALB ihrer eigenen Hoehe
+## gerechnet — nicht mehr mit einer festen Schrittweite.
 static func zone_index_at(height: float) -> float:
 	var climbed := maxf(0.0, height)
-	var step := ZONE_HEIGHT_STEP
-	if step <= 0.0:
+	var count := ZONE_HEIGHT_SPANS.size()
+	if count == 0:
 		return 0.0
-	if climbed >= step * float(ZONE_BACKGROUNDS.size() - 1):
-		return float(ZONE_BACKGROUNDS.size() - 1)
-	var base: float = floor(climbed / step)
-	var within: float = climbed - base * step
-	var blend := minf(ZONE_BLEND_RANGE, step)
-	if within <= step - blend:
-		return base
-	return base + (within - (step - blend)) / blend
+	# Kein separater Deckel-Check: die LETZTE Zone gibt weiter unten immer ihren
+	# eigenen Index zurueck und bildet damit selbst den Deckel. Ein zusaetzlicher
+	# Fruehausstieg war verhaltensneutral — die Mutationsprobe hat das entlarvt
+	# (Mutation "Deckel verschoben" blieb gruen, weil sie nichts aendert).
+	var floor_y := 0.0
+	for i in range(count):
+		var span: float = ZONE_HEIGHT_SPANS[i]
+		if span <= 0.0:
+			continue
+		# Die LETZTE Zone hat keinen Nachfolger: in ihr gibt es keinen Uebergang.
+		# Wird trotzdem einer gerechnet, liefert die Funktion Werte ueber dem
+		# Deckel (gemessen 4.13 bei 22957 px) und faellt danach wieder auf 4.0
+		# zurueck — der Index lief also rueckwaerts. Die letzte Zone bleibt
+		# deshalb ueber ihre ganze Hoehe bei ihrem Index.
+		if i == count - 1:
+			return float(i)
+		if climbed < floor_y + span:
+			var within: float = climbed - floor_y
+			var blend := minf(ZONE_BLEND_RANGE, span)
+			if within <= span - blend:
+				return float(i)
+			return float(i) + (within - (span - blend)) / blend
+		floor_y += span
+	return float(count - 1)
 
 ## Mischfarbe der Zone fuer eine erreichte Hoehe.
 static func zone_color(palette: Array, height: float) -> Color:
