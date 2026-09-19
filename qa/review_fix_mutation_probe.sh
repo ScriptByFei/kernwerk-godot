@@ -223,6 +223,31 @@ if mutate "$DIVE" \
 	fi
 fi
 
+echo "Befund 11 (Optik): die Rueckmeldung haengt nicht am Dive"
+# Ohne diese Kopplung bliebe die Aura dauerhaft sichtbar oder dauerhaft aus.
+if mutate "$JUMPER" \
+	"	if not _dive_active:
+		return 1.0" \
+	"	if false:
+		return 1.0"; then
+	check_mutation "Aura auch ohne Dive gestreckt" tests/dive_test.gd \
+		"und die Aura ist ungestreckt"
+fi
+
+echo
+echo "Befund 12 (Optik): Deckkraft ohne Dive nicht null"
+if mutate "$JUMPER" \
+	"func dive_glow_alpha() -> float:
+	if not _dive_active:
+		return 0.0" \
+	"func dive_glow_alpha() -> float:
+	if false:
+		return 0.0"; then
+	check_mutation "Aura bleibt ohne Dive sichtbar" tests/dive_test.gd \
+		"nach dem Dive ist die Aura wieder weg"
+fi
+
+echo
 echo "Befund 10 (Review 4): Fensterstart nicht interpoliert"
 # `rise` und die waagerechte Netto-Verschiebung rechnen wieder gegen die
 # abgelaufene Randprobe, obwohl die Strecken beschnitten sind.
@@ -239,7 +264,7 @@ fi
 
 echo
 if [ "$failures" -eq 0 ]; then
-	echo "ERGEBNIS: alle 10 Mutationen erkannt"
+	echo "ERGEBNIS: alle 12 Mutationen erkannt"
 	exit 0
 fi
 echo "ERGEBNIS: $failures Mutation(en) ueberlebt"

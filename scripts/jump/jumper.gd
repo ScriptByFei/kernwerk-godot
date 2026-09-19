@@ -92,6 +92,12 @@ func _process(delta: float) -> void:
 	if _overload_remaining > 0.0:
 		_overload_remaining = maxf(0.0, _overload_remaining - delta)
 		_feedback_visual.queue_redraw()
+	if _dive_active:
+		# Die Spur haengt an der Fallgeschwindigkeit und muss deshalb mit dem
+		# Tempo mitwachsen. Ohne dieses Redraw bliebe sie auf dem Stand des
+		# Ausloesens stehen — sie saehe aus wie ein kurzer Stoss statt wie ein
+		# beschleunigter Sturz.
+		_feedback_visual.queue_redraw()
 	if _impact_remaining > 0.0:
 		_impact_remaining = maxf(0.0, _impact_remaining - delta)
 		_feedback_visual.queue_redraw()
@@ -169,6 +175,27 @@ func current_gravity() -> float:
 ## Dive laeuft gerade? Nur fuer Pruefungen und QA.
 func is_diving() -> bool:
 	return _dive_active
+
+## Anteil der Hoechstgeschwindigkeit, den der laufende Dive erreicht hat.
+func dive_speed_ratio() -> float:
+	return clampf(absf(velocity.y) / maxf(1.0, JumpConfig.DIVE_MAX_FALL_SPEED), 0.0, 1.0)
+
+## Streckung der Dive-Aura: 1.0 = rund (kein Dive), groesser = nach oben gezogen.
+##
+## Bewusst eine eigene Funktion und nicht direkt in `_draw_contact_light`
+## gerechnet: die Zeichnung ist headless nicht pruefbar, diese Kopplung schon.
+## Ohne sie koennte die Rueckmeldung unbemerkt vom Dive-Zustand abfallen, und
+## niemand wuerde es merken, weil Bilder niemand automatisch prueft.
+func dive_glow_stretch() -> float:
+	if not _dive_active:
+		return 1.0
+	return 1.0 + (JumpConfig.DIVE_GLOW_STRETCH - 1.0) * dive_speed_ratio()
+
+## Deckkraft der Dive-Aura. 0.0 ausserhalb eines Dives.
+func dive_glow_alpha() -> float:
+	if not _dive_active:
+		return 0.0
+	return JumpConfig.DIVE_GLOW_ALPHA * (0.35 + 0.65 * dive_speed_ratio())
 
 ## Ist ein Dive in DIESEM Sprung noch moeglich? Nur fuer Pruefungen und QA.
 func dive_available() -> bool:
@@ -378,6 +405,49 @@ func _draw_contact_light() -> void:
 		_feedback_visual.draw_set_transform(Vector2(0.0, JumpConfig.JUMPER_SIZE.y * 0.5), 0.0, Vector2(1.0, JumpConfig.OVERLOAD_RING_FLATTEN))
 		_feedback_visual.draw_circle(Vector2.ZERO, JumpConfig.OVERLOAD_AURA_RADIUS, aura)
 		_feedback_visual.draw_arc(Vector2.ZERO, JumpConfig.OVERLOAD_RING_RADIUS, 0.0, TAU, JumpConfig.LANDING_RING_SEGMENTS, flight_ring, JumpConfig.OVERLOAD_RING_WIDTH)
+		_feedback_visual.draw_set_transform(Vector2.ZERO)
+	# --- Dive-Rueckmeldung ---------------------------------------------------
+	# Der Dive ist bisher nur an der Geschwindigkeit zu spueren. Diese Darstellung
+	# gibt ihm eine sichtbare Sprache in derselben Formensprache wie der
+	# Kontaktring: flache Ellipse am Fuesse-Punkt (dieselbe Verzerrung
+	# `LANDING_RING_FLATTEN`), weiche Aura, dazu eine nach oben ausduennende Spur
+	# als Richtungsanzeige. Bewusst KEIN Text und kein UI-Element: der
+	# Rueckmeldung fehlt sonst der Bezug zum Kern.
+	#
+	# Die Spur haengt an der TATSAECHLICHEN Fallgeschwindigkeit, nicht an einem
+	# Timer: sie waechst sichtbar, waehrend der Dive beschleunigt, und ist beim
+	# Aufprall am laengsten. Ohne DIVE_TRAIL_COLOR im Bild saehe der Dive aus wie
+	# ein normaler Sturz.
+	if _dive_active:
+		var speed_ratio := dive_speed_ratio()
+		var aura := JumpConfig.DIVE_FEEDBACK_COLOR
+		aura.a = JumpConfig.DIVE_AURA_ALPHA
+		_feedback_visual.draw_set_transform(Vector2(0.0, JumpConfig.JUMPER_SIZE.y * 0.5), 0.0, Vector2(1.0, JumpConfig.LANDING_RING_FLATTEN))
+		_feedback_visual.draw_circle(Vector2.ZERO, JumpConfig.DIVE_AURA_RADIUS, aura)
+		var ring := JumpConfig.DIVE_FEEDBACK_COLOR
+		ring.a = JumpConfig.DIVE_RING_ALPHA
+		_feedback_visual.draw_arc(Vector2.ZERO, JumpConfig.DIVE_RING_RADIUS, 0.0, TAU, JumpConfig.LANDING_RING_SEGMENTS, ring, JumpConfig.DIVE_RING_WIDTH)
+		_feedback_visual.draw_set_transform(Vector2.ZERO)
+		# Die Rueckmeldung ist eine nach oben GEZOGENE Aura, kein Linienbueschel.
+		#
+		# WARUM NICHT LINIEN: drei Entwuerfe mit duennen Strichen ueber dem Kern
+		# sind am gerenderten Bild gescheitert. Bei dieser Figurengroesse lesen
+		# sie sich als Stab oder Antenne, nicht als Bewegung — auch mit
+		# Duennerwerden und Ausblenden. Eine gezogene Flaeche hat keine
+		# Stabkante: sie ist dieselbe Ellipsensprache wie der flache Kontaktring,
+		# nur in die andere Richtung gestreckt ("nach unten gezogen").
+		#
+		# Die Streckung waechst mit dem Tempo. Damit ist die FORM selbst die
+		# Anzeige, und es gibt keine Kante, die als Gegenstand missverstanden
+		# werden kann.
+		var core := JumpConfig.REACTOR_CORE_POSITION
+		var stretch := dive_glow_stretch()
+		var glow := JumpConfig.DIVE_FEEDBACK_COLOR
+		glow.a = dive_glow_alpha()
+		# Der Ursprung liegt im Kern, die Verzerrung zieht die Aura nach oben.
+		_feedback_visual.draw_set_transform(
+			core, 0.0, Vector2(1.0 / sqrt(stretch), stretch))
+		_feedback_visual.draw_circle(Vector2.ZERO, JumpConfig.DIVE_GLOW_RADIUS, glow)
 		_feedback_visual.draw_set_transform(Vector2.ZERO)
 	if _impact_remaining <= 0.0:
 		return

@@ -26,7 +26,18 @@ func _run() -> void:
 	_check_swipe_detection()
 	_check_false_triggers()
 	await _check_live_dive()
+	await _check_dive_feedback_live()
 	_finish()
+
+## Baut ein Spiel und prueft die Kopplung der sichtbaren Rueckmeldung.
+func _check_dive_feedback_live() -> void:
+	var game := Game.new()
+	get_root().add_child(game)
+	await process_frame
+	await process_frame
+	check_dive_feedback(game)
+	game.free()
+	await process_frame
 
 ## --- Wisch-Erkennung: was zaehlt, was nicht --------------------------------
 func _check_swipe_detection() -> void:
@@ -550,6 +561,60 @@ func _swipe_down(game) -> void:
 
 func zig_y_last(detector) -> float:
 	return detector.measure()["rise"]
+
+## ---------------------------------------------------------------------------
+## SICHTBARE RUECKMELDUNG
+## ---------------------------------------------------------------------------
+## Die Zeichnung selbst ist headless nicht pruefbar — die KOPPLUNG an den
+## Dive-Zustand schon. Ohne diese Pruefungen koennte die Rueckmeldung vom Dive
+## abfallen, ohne dass es auffaellt: Bilder prueft niemand automatisch.
+func check_dive_feedback(game) -> void:
+	var jumper = game.jumper
+	jumper.set_physics_process(false)
+	jumper.set_process(false)
+
+	# 1. Kein Dive -> keine Rueckmeldung.
+	jumper._dive_active = false
+	jumper.velocity = Vector2(0.0, 900.0)
+	_check(is_equal_approx(jumper.dive_glow_alpha(), 0.0),
+		"ohne Dive gibt es keine Aura (%.3f)" % jumper.dive_glow_alpha())
+	_check(is_equal_approx(jumper.dive_glow_stretch(), 1.0),
+		"und die Aura ist ungestreckt (%.2f)" % jumper.dive_glow_stretch())
+
+	# 2. Dive langsam -> sichtbar, aber schwach und kaum gestreckt.
+	jumper._dive_active = true
+	jumper.velocity = Vector2(0.0, JumpConfig.DIVE_MIN_FALL_SPEED * 4.0)
+	var slow_alpha: float = jumper.dive_glow_alpha()
+	var slow_stretch: float = jumper.dive_glow_stretch()
+	_check(slow_alpha > 0.0, "ein Dive zeigt eine Aura (%.3f)" % slow_alpha)
+	_check(slow_stretch > 1.0, "und streckt sie nach oben (%.2f)" % slow_stretch)
+
+	# 3. Dive schnell -> deutlich staerker und laenger.
+	jumper.velocity = Vector2(0.0, JumpConfig.DIVE_MAX_FALL_SPEED)
+	var fast_alpha: float = jumper.dive_glow_alpha()
+	var fast_stretch: float = jumper.dive_glow_stretch()
+	_check(fast_stretch > slow_stretch,
+		"mit dem Tempo waechst die Streckung (%.2f gegen %.2f)" % [fast_stretch, slow_stretch])
+	_check(fast_alpha > slow_alpha,
+		"und die Deckkraft (%.3f gegen %.3f)" % [fast_alpha, slow_alpha])
+	_check(is_equal_approx(fast_stretch, JumpConfig.DIVE_GLOW_STRETCH),
+		"bei Hoechsttempo ist die Streckung genau der eingestellte Wert (%.2f)" % fast_stretch)
+
+	# 4. Nach der Landung wieder aus.
+	jumper._dive_active = false
+	jumper.velocity = Vector2(0.0, 900.0)
+	_check(is_equal_approx(jumper.dive_glow_alpha(), 0.0),
+		"nach dem Dive ist die Aura wieder weg (%.3f)" % jumper.dive_glow_alpha())
+
+	# 5. Der Zustand darf NICHT an der Richtung haengen: die Aura gehoert zum
+	#    laufenden Dive, nicht zum Vorzeichen der Geschwindigkeit.
+	jumper._dive_active = true
+	jumper.velocity = Vector2(0.0, -JumpConfig.DIVE_MAX_FALL_SPEED)
+	_check(jumper.dive_glow_alpha() > 0.0,
+		"die Aura haengt am Dive-Zustand, nicht am Vorzeichen (%.3f)"
+			% jumper.dive_glow_alpha())
+	jumper._dive_active = false
+	jumper.velocity = Vector2.ZERO
 
 func _check(ok: bool, label: String) -> void:
 	checks += 1

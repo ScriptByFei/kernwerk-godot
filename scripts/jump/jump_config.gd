@@ -104,6 +104,43 @@ static func pace_gravity(charges: int, overload: bool, perfect_boost := false) -
 const DIVE_GRAVITY_FACTOR := 3.2
 const DIVE_MAX_FALL_SPEED := 5200.0
 const DIVE_MIN_FALL_SPEED := 30.0
+
+## --- Dive-Rueckmeldung (Optik) ----------------------------------------------
+## Der Dive war bis hierher nur an der Geschwindigkeit zu SPUEREN. Diese Werte
+## geben ihm eine sichtbare Sprache, die zur bestehenden Formensprache passt:
+## derselbe flache Ring am Fuesse-Punkt wie beim Kontakt, dazu eine nach oben
+## ausduennende Schwanzspur als Richtungsanzeige ("es geht abwaerts").
+##
+## Alles wird in `_draw_contact_light` gezeichnet — kein zusaetzlicher Knoten,
+## keine Textur, kein UI-Element. Farbe aus der bestehenden Palette.
+const DIVE_FEEDBACK_COLOR := Color(1.0, 0.72, 0.34)
+## Nach oben gezogene Aura: Grundradius und maximale Streckung.
+##
+## Die Werte sind am gerenderten Bild abgestimmt, nicht am Schreibtisch: der
+## erste Versuch (Radius 70, Streckung 2,9, Deckkraft 0,30) ergab einen grossen
+## braunen Fleck, der das Bild beherrschte und wie ein Renderfehler aussah
+## (Begutachtung der Tafel, docs/assets/screenshots/dive_feedback/tafel.png).
+## Der zweite Versuch (Radius 50, Streckung 2,1, Deckkraft 0,17) war zu leise:
+## bei normaler Bildgroesse war kaum noch etwas zu sehen. Die Werte hier sind
+## der mittlere Stand — deutlich sichtbar, ohne das Bild zu beherrschen. Etwas
+## gesaettigtere Farbe, damit die Aura ueber dem dunklen Hintergrund nicht
+## braun ausbleicht.
+##
+## Die Streckung waechst mit dem Tempo (`DIVE_GLOW_STRETCH` bei voller
+## Fallgeschwindigkeit). Eine gezogene Flaeche hat keine Stabkante — im
+## Unterschied zu duennen Linien, die am gerenderten Bild als Antenne gelesen
+## wurden (siehe die gescheiterten Entwuerfe in docs/assets/screenshots/
+## dive_feedback/).
+const DIVE_GLOW_RADIUS := 56.0
+const DIVE_GLOW_STRETCH := 2.5
+const DIVE_GLOW_ALPHA := 0.24
+## Ring am Fuesse-Punkt: Radius, Deckkraft und Strichstaerke.
+const DIVE_RING_RADIUS := 62.0
+const DIVE_RING_ALPHA := 0.85
+const DIVE_RING_WIDTH := 3.0
+## Weiche Aura um den Kern.
+const DIVE_AURA_RADIUS := 96.0
+const DIVE_AURA_ALPHA := 0.13
 ## Wisch-Erkennung. Alle drei Werte sind noetig; jeder schuetzt gegen eine andere
 ## Fehlausloesung (siehe `dive_input.gd`).
 ##
