@@ -22,6 +22,8 @@ func _init() -> void:
 func _run() -> void:
 	_check_windows()
 	if failures == 0:
+		_check_zone3_crossblend()
+		_check_zone3_geometry()
 		_check_zone4_gate()
 		_check_zone5_gate()
 		_check_crossblend()
@@ -45,16 +47,106 @@ func _check_windows() -> void:
 		"beide Fenster enden an derselben Stelle")
 	_check(is_equal_approx(ShaftBackground.Z5_FADE_IN_END, 4.0),
 		"Zone 5 ist bei 4.0 voll — hoeher deckelt der Zonenindex")
-	# Die Luecke fuer Zone 3: dort ist keine der beiden neuen Schichten tragend.
-	var free_from := JumpConfig.zone_index_at(0.0)
-	_check(free_from >= 0.0, "Zonenindex ist nicht negativ")
-	_check(ShaftBackground.zone4_opacity_for_zone(2.2) == 0.0, "bei 2.2 ist Zone 4 noch aus")
-	_check(ShaftBackground.zone5_opacity_for_zone(2.2) == 0.0, "bei 2.2 ist Zone 5 noch aus")
+	# Zone 3 schliesst die frueher freie Luecke [1.55, 2.55]. Ihre Fenster sind
+	# an BEIDE Nachbarn gespiegelt: ein, wo die Kuehlsektion ausblendet; aus, wo
+	# Zone 4 einblendet. Damit traegt auch hier an jeder Stelle genau eine
+	# Schicht, und die flache Zonenfarbe steht nirgends allein.
+	_check(is_equal_approx(ShaftBackground.Z3_FADE_IN_START, ShaftBackground.COOLING_FADE_OUT_START),
+		"Zone 3 blendet ein, wo die Kuehlsektion auszublenden beginnt")
+	_check(is_equal_approx(ShaftBackground.Z3_FADE_IN_END, ShaftBackground.COOLING_FADE_OUT_END),
+		"Zone 3 ist voll, wenn die Kuehlsektion weg ist")
+	_check(is_equal_approx(ShaftBackground.Z3_FADE_OUT_START, ShaftBackground.Z4_FADE_IN_START),
+		"Zone 3 blendet aus, wo Zone 4 einblendet")
+	_check(is_equal_approx(ShaftBackground.Z3_FADE_OUT_END, ShaftBackground.Z4_FADE_IN_END),
+		"beide Fenster enden an derselben Stelle")
+	# Die frueher freie Luecke ist jetzt von Zone 3 gefuellt.
+	_check(ShaftBackground.zone3_opacity_for_zone(1.5) == 0.0,
+		"vor ihrem Fenster ist Zone 3 aus")
+	_check(is_equal_approx(ShaftBackground.zone3_opacity_for_zone(2.0), 1.0),
+		"bei 2.0 ist Zone 3 voll — die Luecke ist geschlossen")
+	_check(is_equal_approx(ShaftBackground.zone3_opacity_for_zone(2.55), 1.0),
+		"sie laeuft bis 2.55 voll durch")
+	_check(ShaftBackground.zone3_opacity_for_zone(3.0) == 0.0,
+		"bei 3.0 ist sie aus (Zone 4 traegt)")
 	# Und Zone 5 laeuft oben nicht aus: der Index erreicht 4.0 als Grenze.
 	_check(ShaftBackground.zone5_opacity_for_zone(4.0) > 0.0,
 		"bei 4.0 ist Zone 5 noch sichtbar (sie blendet nicht aus)")
 	_check(is_equal_approx(ShaftBackground.zone5_opacity_for_zone(4.0), 1.0),
 		"bei 4.0 ist Zone 5 voll sichtbar")
+
+## Der Uebergang Zone 2 -> Zone 3 -> Zone 4. Wie bei der Kreuzblendung 4/5 gilt:
+## an jeder Stelle traegt mindestens eine Schicht, ihre Summe faellt nie ab, und
+## der Verlauf ist stetig. Das ist der eigentliche Zweck der gespiegelten Fenster
+## — ohne diese Pruefung waere ein Loch zwischen den Zonen unbemerkt geblieben.
+func _check_zone3_crossblend() -> void:
+	var covered := true
+	var gap := 0.0
+	var previous_total := -1.0
+	var steps := 30
+	for step in range(steps + 1):
+		var index := 1.40 + 1.70 * float(step) / float(steps)   # 1.40 .. 3.10
+		var total := (ShaftBackground.cooling_opacity_for_zone(index)
+			+ ShaftBackground.zone3_opacity_for_zone(index)
+			+ ShaftBackground.zone4_opacity_for_zone(index))
+		gap = maxf(gap, 1.0 - total)
+		if total < 0.99:
+			covered = false
+		if previous_total >= 0.0 and total < previous_total - 0.01:
+			_check(false, "die Gesamtdeckkraft faellt im Uebergang nicht ab (bei %.2f)" % index)
+		previous_total = total
+	_check(covered, "Zone 2 -> 3 -> 4 ist lueckenlos (groesste Luecke %.3f)" % gap)
+	# Stetigkeit mit HERGELEITETER Schranke, nicht geratener: Abtastschritt
+	# geteilt durch die kuerzeste Rampe im betrachteten Bereich.
+	var sample_step := 1.70 / float(steps)
+	var shortest_ramp: float = minf(
+		ShaftBackground.Z3_FADE_IN_END - ShaftBackground.Z3_FADE_IN_START,
+		ShaftBackground.Z3_FADE_OUT_END - ShaftBackground.Z3_FADE_OUT_START)
+	_check(shortest_ramp > 0.0, "die Zone-3-Rampen haben echte Breite")
+	var allowed := sample_step / shortest_ramp * 1.05
+	var max_step := 0.0
+	var previous := -1.0
+	for step in range(steps + 1):
+		var value := ShaftBackground.zone3_opacity_for_zone(1.40 + 1.70 * float(step) / float(steps))
+		if previous >= 0.0:
+			max_step = maxf(max_step, absf(value - previous))
+		previous = value
+	_check(max_step <= allowed,
+		"der Zone-3-Verlauf ist stetig (groesster Schritt %.3f, erlaubt %.3f)" % [max_step, allowed])
+
+## Die Zone-3-Wand folgt denselben Regeln wie die Kuehlsektion: gleiche Bauform,
+## links der Ruhezone, lueckenlos gestapelt, gleiche Parallax-Formel.
+func _check_zone3_geometry() -> void:
+	var top := -14000.0
+	var rect := Rect2(0.0, top, 1080.0, 2340.0)
+	var tiles := ShaftBackground.zone3_tile_rects(rect)
+	_check(tiles.size() >= 8, "Zone 3 liefert genug Kacheln (%d)" % tiles.size())
+	if tiles.is_empty():
+		return
+	# Lueckenlos und gleich hoch — sonst klafft beim Stapeln eine Ritze.
+	var seamless := true
+	for tile in tiles:
+		if not is_equal_approx(tile.size.y, ShaftBackground.Z3_TILE_SIZE.y):
+			seamless = false
+		if not is_equal_approx(tile.position.x, ShaftBackground.Z3_TILE_X):
+			seamless = false
+		if not is_equal_approx(tile.size.x, ShaftBackground.Z3_TILE_SIZE.x):
+			seamless = false
+	_check(seamless, "alle Kacheln sind gleich hoch und gleich breit")
+	# Sie decken den Ausschnitt wirklich ab.
+	_check(tiles[0].position.y <= rect.position.y, "die erste Kachel beginnt vor dem Ausschnitt")
+	_check(tiles[tiles.size() - 1].end.y >= rect.end.y, "die letzte Kachel reicht ueber den Ausschnitt hinaus")
+	# Die Kachel hat dieselbe Bauform wie die Kuehlsektion (250x320) und endet
+	# vor der Ruhezone (276 < 280).
+	var right_edge: float = ShaftBackground.Z3_TILE_X + ShaftBackground.Z3_TILE_SIZE.x
+	_check(right_edge < 280.0, "die Wand bleibt links der Ruhezone (Rand bei %.0f)" % right_edge)
+	_check(is_equal_approx(ShaftBackground.Z3_TILE_SIZE.y, 320.0),
+		"die Kachel ist 320 hoch wie die der Kuehlsektion")
+	# Gleiche Parallax-Formel: bei gleicher Kamera muessen die Kachel-Unterkanten
+	# von Zone 2 und Zone 3 uebereinstimmen, sonst laufen die Waende gegen-
+	# einander. Gemessen ueber die tatsaechliche Rechteckliste.
+	_check(ShaftBackground.zone3_tile_rects(rect)[0].position.y
+			== ShaftBackground.cooling_tile_rects(rect)[0].position.y,
+		"Zone 3 laeuft mit derselben Parallax wie die Kuehlsektion")
 
 func _check_zone4_gate() -> void:
 	_check(ShaftBackground.zone4_opacity_for_zone(0.0) == 0.0, "am Boden ist Zone 4 aus")

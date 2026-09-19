@@ -792,9 +792,13 @@ func _draw() -> void:
 	# (Zonenindex 0.75 bis 1.25) sind beide sichtbar, danach traegt sie allein.
 	ShaftBackground.draw_cooling(self, visible_rect, zone_index)
 	ShaftBackground.draw(self, visible_rect, zone_index, _background_time)
+	# Zone 3 (Hochspannung) liegt ueber der Kuehlsektion und unter Zone 4. Ihre
+	# Fenster sind an die Nachbarn gespiegelt: sie blendet ein, wo die
+	# Kuehlsektion ausblendet, und aus, wo Zone 4 einblendet. Die Luecke
+	# [1.55, 2.55], die hier bewusst freigehalten war, ist damit geschlossen.
+	ShaftBackground.draw_zone3(self, visible_rect, zone_index)
 	# Zone 4 (instabil) und Zone 5 (kritisch) liegen ueber der Zonenfarbe, aber
-	# unter den Schachtlinien und dem Spielinhalt. Zone 3 (Hochspannung) kommt
-	# spaeter in das offene Fenster [1.55, 2.55] — hier ist dafuer nichts zu tun.
+	# unter den Schachtlinien und dem Spielinhalt.
 	ShaftBackground.draw_zone4(self, visible_rect, zone_index, _background_time)
 	ShaftBackground.draw_zone5(self, visible_rect, zone_index, _background_time)
 	var shaft_color := JumpConfig.zone_color(JumpConfig.ZONE_SHAFT_COLORS, zone_height)

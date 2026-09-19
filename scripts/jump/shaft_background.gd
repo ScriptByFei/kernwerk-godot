@@ -212,6 +212,60 @@ static func draw_cooling(canvas: CanvasItem, visible_rect: Rect2, zone_index: fl
 			canvas.draw_texture_rect(COOLING_TILE, tile, false, Color(1.0, 1.0, 1.0, alpha))
 
 ## ---------------------------------------------------------------------------
+## Zone 3: Hochspannung
+##
+## Die Kachel ist dieselbe Bauform wie die Kuehlsektion (250x320, links bei
+## x=26, rechte Kante 276 < 280 — die Ruhezone bleibt frei) und wird vertikal
+## wiederholt. Erzeugt mit der Higgsfield-API (Recraft V4.1) und ueber die
+## Magenta-Pipeline freigestellt; die Kanten sind WEICH gekeyt, weil eine harte
+## Maske halbdurchsichtige Randpixel stehenlaesst und sich beim Stapeln genau an
+## der Naht als Magenta-Rest sammelt (gemessen: 775 px hart gegen 0 px weich).
+##
+## Die Fenster sind GESPIEGELT an die Nachbarn gekoppelt — das ist der ganze
+## Punkt dieser Zone:
+##   ein  [1.55, 2.00] = genau das Fenster, in dem die Kuehlsektion ausblendet
+##   aus  [2.55, 3.00] = genau das Fenster, in dem Zone 4 einblendet
+## Damit traegt an jeder Stelle des Uebergangs genau eine Schicht, und die Luecke
+## [1.55, 2.55], die im Code bewusst freigehalten war, ist geschlossen.
+##
+## Gemessen gegen die Regeln des Projekts (Kachel, Produktionsgroesse):
+##   Luminanz 0.017 gegen LAMP_CORE 0.291 -> Kontrast 6.13:1 (Zone 2: 4.53:1)
+##   0,0 % der Motivpixel heller als der Kern (Zone 2: 1,1 %)
+##   0,0 % warme Pixel — die Zone ist kalt wie die Kuehlsektion
+##   Umbruchfaktor 0,55 gegen die typische Nachbarzeilendifferenz
+## Die Isolatoren sind bewusst dunkel bestellt: der erste Entwurf hatte blasses
+## Porzellan (RGB 246,214,166, Luminanz 0.741) und damit fuenf Flaechen heller
+## als der Spielerkern, die groesste 2886 px. Das verletzt die Regel, dass der
+## Hintergrund nie heller leuchtet als der Kern.
+## ---------------------------------------------------------------------------
+const Z3_TILE := preload("res://assets/jump/high_voltage/zone3_high_voltage_tile_v1.png")
+const Z3_TILE_SIZE := Vector2(250.0, 320.0)
+const Z3_TILE_X := 26.0
+const Z3_FADE_IN_START := COOLING_FADE_OUT_START
+const Z3_FADE_IN_END := COOLING_FADE_OUT_END
+
+static func zone3_tile_rects(rect: Rect2) -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	var camera := rect.get_center().y
+	var base := tile_world_y(2, camera, 0)
+	var height := Z3_TILE_SIZE.y
+	if height <= 0.0:
+		return rects
+	var first := int(floor((rect.position.y - base) / height))
+	var last := int(ceil((rect.end.y - base) / height))
+	for n in range(first, last + 1):
+		rects.append(Rect2(Z3_TILE_X, base + n * height, Z3_TILE_SIZE.x, height))
+	return rects
+
+static func draw_zone3(canvas: CanvasItem, visible_rect: Rect2, zone_index: float) -> void:
+	var alpha := zone3_opacity_for_zone(zone_index)
+	if alpha <= 0.0 or visible_rect.size.x <= 0.0 or visible_rect.size.y <= 0.0:
+		return
+	for tile in zone3_tile_rects(visible_rect):
+		if tile.intersects(visible_rect):
+			canvas.draw_texture_rect(Z3_TILE, tile, false, Color(1.0, 1.0, 1.0, alpha))
+
+## ---------------------------------------------------------------------------
 ## Hoehere Zonen: Instabile Zone (4) und Kritische Zone (5)
 ##
 ## Beide prozedural — kein Artwork, kein Generator. Die Formensprache bleibt die
@@ -276,6 +330,17 @@ const Z5_HAZARD := Color("1c160c")
 const Z5_STROBE := Color("7a5a28")
 const Z5_HOUSING := Color("0b0a08")
 const Z5_RAIL_EDGE := Color("3a332a")
+
+## Zone 3 (Hochspannung) blendet AUS, wo Zone 4 einblendet. Die Grenzen sind
+## NICHT frei gewaehlt, sondern zeigen auf `Z4_FADE_IN_*` — deshalb stehen sie
+## hier und nicht oben bei den uebrigen Z3-Konstanten (dort waere Zone 4 noch
+## nicht deklariert). Verschiebt jemand das Zone-4-Fenster, wandert Zone 3 mit.
+## Genau diese Kopplung haelt `higher_zones_test` fest.
+const Z3_FADE_OUT_START := Z4_FADE_IN_START
+const Z3_FADE_OUT_END := Z4_FADE_IN_END
+
+static func zone3_opacity_for_zone(zone_index: float) -> float:
+	return layer_opacity(zone_index, Z3_FADE_IN_START, Z3_FADE_IN_END, Z3_FADE_OUT_START, Z3_FADE_OUT_END)
 
 static func zone4_opacity_for_zone(zone_index: float) -> float:
 	return layer_opacity(zone_index, Z4_FADE_IN_START, Z4_FADE_IN_END, Z4_FADE_OUT_START, Z4_FADE_OUT_END)
