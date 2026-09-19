@@ -7,8 +7,9 @@ extends RefCounted
 ## [ResonanceSystem]: damit ist die Erkennung headless pruefbar, und es gibt
 ## genau eine Quelle der Wahrheit fuer "wann ist das ein Dive".
 ##
-## Fuenf Bedingungen muessen GLEICHZEITIG erfuellt sein, und jede schuetzt gegen
-## eine andere Fehlausloesung:
+## Vier Bedingungen muessen GLEICHZEITIG erfuellt sein, und jede schuetzt gegen
+## eine andere Fehlausloesung (die Zeitgrenze unten kommt als fuenfte dazu, ist
+## aber kein eigener Waechter, sondern steckt im Zuschnitt des Fensters):
 ##
 ##  1. GENUG WEG NACH UNTEN (`min_distance`). Gezaehlt wird nur die tatsaechlich
 ##     nach unten fuehrende Strecke, mit Vorzeichen: ein Wisch nach OBEN ist kein
@@ -20,11 +21,14 @@ extends RefCounted
 ##     Bedingung 1 summiert nur abwaerts fuehrende Abschnitte und ist damit auch
 ##     durch senkrechtes Zittern erreichbar (60 runter, 59 zurueck, 20 runter =
 ##     80 px Strecke bei 21 px netto). Ein echter Flick endet weit unten.
-##  4. WENIG ZEIT: nur Bewegung der letzten `max_time` Sekunden zaehlt. Ein
-##     langsames Herunterziehen ist kein Wisch.
-##  5. SENKRECHTER VORSPRUNG (`dominance`): der Weg nach unten muss die
+##  4. SENKRECHTER VORSPRUNG (`dominance`): der Weg nach unten muss die
 ##     WAAGERECHTE NETTO-Verschiebung deutlich uebersteigen. OHNE diese
 ##     Bedingung loeste jedes normale Ziehen schraeg nach unten einen Dive aus.
+##
+## Die ZEITGRENZE: nur Bewegung der letzten `max_time` Sekunden zaehlt. Ein
+## langsames Herunterziehen ist kein Wisch. Sie steht nicht als eigener Zweig im
+## Code — `_prune(now - max_time)` schneidet das Fenster zu, aeltere Proben
+## fallen weg. Deshalb vier Waechter im Code, aber fuenf Regeln.
 ##
 ## WAAGERECHT WIRD DIE NETTO-VERSCHIEBUNG GEMESSEN, NICHT DER WEG.
 ##
@@ -63,8 +67,17 @@ const MAX_TIME := 0.30
 ## Wie oft der Weg nach unten den Weg nach rechts uebersteigen muss.
 ##
 ## Das ist eine WINKELGRENZE: bei 1,6 feuert ein Wisch bis rund 32 Grad
-## Abweichung von der Senkrechten (gerechnet: bei 80 px Abstieg sind bis 54 px
-## seitlich erlaubt, bei 150 px bis 98 px).
+## Abweichung von der Senkrechten (1/1,6 = tan(32,005 Grad)).
+##
+## Nachgerechnet am Detektor selbst: bei 80 px Abstieg feuert ein Zug bis 54 px
+## seitlich, bei 150 px bis 97,75 px, bei 120 px bis 79 px. Das sind mehr als
+## die 50/93,75/75 px, die `down / DOMINANCE` allein ergaebe — weil die
+## Rauschschwelle `JITTER_TOLERANCE` von der ROHEN Seitenverschiebung abgezogen
+## wird, bevor verglichen wird: `sideways = maxf(abs(raw) - 4, 0)`. Die
+## Bedingung ist also `down >= (raw - 4) * 1,6`, und damit liegt die Grenze bei
+## `down / 1,6 + 4` (80/1,6 + 4 = 54; 150/1,6 + 4 = 97,75). Ein flacher Liegen
+## gewordener Zug wird dadurch um 4 px groesserzuegig behandelt, unabhaengig von
+## der Laenge. Wer diese Zahlen aendert, muss diese Rechnung mitziehen.
 ##
 ## Warum das bewusst so bleibt: ein Dive soll ein Wisch nach UNTEN sein, und ein
 ## Daumen, der beim Steuern schraeg nach unten-rechts zieht, soll ihn nicht

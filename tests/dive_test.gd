@@ -36,6 +36,7 @@ func _check_dive_feedback_live() -> void:
 	await process_frame
 	await process_frame
 	check_dive_feedback(game)
+	check_dominance_boundary()
 	game.free()
 	await process_frame
 
@@ -568,6 +569,58 @@ func zig_y_last(detector) -> float:
 ## Die Zeichnung selbst ist headless nicht pruefbar — die KOPPLUNG an den
 ## Dive-Zustand schon. Ohne diese Pruefungen koennte die Rueckmeldung vom Dive
 ## abfallen, ohne dass es auffaellt: Bilder prueft niemand automatisch.
+## Die im Code dokumentierte Winkelgrenze muss zum tatsaechlichen Verhalten
+## passen. Hier wird sie aus dem Detektor selbst nachgerechnet — eine Zahl im
+## Kommentar, die niemand prueft, driftet.
+##
+## Die Grenze ist NICHT `down / DOMINANCE`, sondern `down / DOMINANCE + JITTER`,
+## weil der Detektor die Rauschschwelle von der ROHEN Seitenverschiebung
+## abzieht: `sideways = maxf(abs(raw) - JITTER_TOLERANCE, 0.0)`. Am Detektor
+## nachgemessen (Bisektion): 80 px -> 54,0, 150 px -> 97,75, 120 px -> 79,0.
+func check_dominance_boundary() -> void:
+	var dominance := JumpConfig.DIVE_SWIPE_DOMINANCE
+	var jitter := 4.0  # JITTER_TOLERANCE im Detektor
+	for down in [80.0, 120.0, 150.0]:
+		var boundary: float = down / dominance + jitter
+		# Genau auf der Grenze: feuert (Bedingung ist `>=`).
+		_check(_diagonal_fires(down, boundary - 0.5),
+			"bei %d px Abstieg feuert die Grenze %s px seitlich" % [
+				int(down), str(boundary - 0.5)])
+		# Ein knapper Pixel darueber: feuert nicht.
+		_check(not _diagonal_fires(down, boundary + 0.5),
+			"bei %d px Abstieg feuert %s px seitlich NICHT" % [
+				int(down), str(boundary + 0.5)])
+	# Die Zahlen, die der Kommentar nennt, muessen am Detektor stimmen.
+	_check(_diagonal_fires(80.0, 54.0), "die dokumentierten 54 px bei 80 px stimmen")
+	_check(not _diagonal_fires(80.0, 54.5), "54,5 px bei 80 px feuert schon nicht mehr")
+	_check(_diagonal_fires(150.0, 97.5), "die dokumentierten 97,75 px bei 150 px stimmen")
+	# Gegenprobe gegen die naive Rechnung ohne Rauschschwelle: 50 px bei 80 px
+	# Abstieg muesste nach `down / 1.6` die Grenze sein — tatsaechlich liegt sie
+	# 4 px hoeher. Der Unterschied ist echt und wird hier festgehalten.
+	_check(_diagonal_fires(80.0, 52.0),
+		"die Rauschschwelle weitet die Grenze ueber 50 px hinaus")
+	# Winkelangabe: 1/DOMINANCE = tan(32,005 Grad).
+	var deg32: float = tan(deg_to_rad(32.0))
+	_check(absf(deg32 - 1.0 / dominance) < 0.001,
+		"1/DOMINANCE entspricht gerundet 32 Grad")
+
+## Fuehrt einen geraden Zug nach unten mit gegebener Seitenverschiebung aus und
+## meldet, ob der Detektor ausloest. Nutzt einen eigenen Detektor, damit der
+## Zustand des Spiels nicht angetastet wird.
+##
+## WICHTIG: genau DREI Updates nach `begin`. Ein viertes liefert immer false,
+## weil ein ausgeloester Dive das Fenster leert (`_head = 0; _count = 0`) — ein
+## Test mit vier Updates misst dann konstant 0 und sieht aus wie eine zu
+## strikte Grenze.
+func _diagonal_fires(down: float, sideways: float) -> bool:
+	var detector := DiveInput.new()
+	var start := Vector2(500.0, 300.0)
+	detector.begin(start, 0.95)
+	detector.update(start, 1.0)
+	# Erst seitlich, dann senkrecht — netto ergibt das genau (sideways, down).
+	detector.update(start + Vector2(sideways, 0.0), 1.05)
+	return detector.update(start + Vector2(sideways, down), 1.10)
+
 func check_dive_feedback(game) -> void:
 	var jumper = game.jumper
 	jumper.set_physics_process(false)

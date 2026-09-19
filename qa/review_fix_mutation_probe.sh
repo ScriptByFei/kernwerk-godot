@@ -263,8 +263,25 @@ if mutate "$DIVE" \
 fi
 
 echo
+echo "Befund 13 (Review 5): die Rauschschwelle weitet die Dominanzgrenze"
+# Die dokumentierten Zahlen (54 px bei 80 px Abstieg) beruhen darauf, dass
+# `JITTER_TOLERANCE` von der ROHEN Verschiebung abgezogen wird. Wird die
+# Schwelle auf 0 gesetzt, gilt wieder die naive Rechnung `down / 1.6` = 50 px,
+# und die im Code dokumentierte Grenze wird falsch.
+#
+# WARUM DIESE MUTATION: ein Review hielt die Doku fuer falsch, weil er die
+# Rauschschwelle uebersehen hatte. Diese Mutation nagelt fest, dass die 4 px
+# Teil der Grenze sind und nicht Zierrat.
+if mutate "$DIVE" \
+	"const JITTER_TOLERANCE := 4.0" \
+	"const JITTER_TOLERANCE := 0.0"; then
+	check_mutation "Rauschschwelle als Teil der Grenze" tests/dive_test.gd \
+		"die Rauschschwelle weitet die Grenze ueber 50 px hinaus"
+fi
+
+echo
 if [ "$failures" -eq 0 ]; then
-	echo "ERGEBNIS: alle 12 Mutationen erkannt"
+	echo "ERGEBNIS: alle 13 Mutationen erkannt"
 	exit 0
 fi
 echo "ERGEBNIS: $failures Mutation(en) ueberlebt"
