@@ -226,33 +226,101 @@ func _check_cooling_gate() -> void:
 	# ginge jede Rampe durch.
 	_check(allowed < 0.5, "die Grenze ist scharf genug, um einen Sprung zu erkennen")
 
-## Die gestapelte Bank muss den sichtbaren Bereich lueckenlos decken.
+## Die Zonenmodule duerfen NICHT mehr als Tapete gelesen werden.
+##
+## Bis zum 19.09.2026 pruefte dieser Abschnitt, dass die 250x320-Kacheln
+## lueckenlos UNTEREINANDER gestapelt sind — also genau die Wiederholung, die
+## Timo jetzt abgelehnt hat. Die Pruefung ist deshalb umgedreht: sie haelt fest,
+## dass das Raster gross ist, dass es einen echten Leerraum gibt und dass
+## benachbarte Module sich unterscheiden. Eine lueckenlose Stapelung waere jetzt
+## ein FEHLER, kein Beweis.
 func _check_cooling_coverage() -> void:
 	var top := -12000.0
-	var bottom := top + 2342.0
-	var rect := Rect2(0.0, top, 1080.0, bottom - top)
-	var tiles := ShaftBackground.cooling_tile_rects(rect)
-	_check(tiles.size() >= 8, "es werden genug Kacheln gezeichnet (%d)" % tiles.size())
-	if tiles.is_empty():
+	var rect := Rect2(0.0, top, 1080.0, 2342.0)
+	var slots := ShaftBackground.section_slots(rect)
+	_check(slots.size() >= 4, "es werden genug Anlagenslots abgedeckt (%d)" % slots.size())
+	if slots.is_empty():
 		return
-	# Lueckenlos und ohne Ueberlappung: jede Kachel beginnt dort, wo die vorige
-	# endet. Beim Rohr war genau das die Fehlerklasse, die eine Pruefung braucht.
-	var seamless := true
-	var expected_height := ShaftBackground.COOLING_TILE_SIZE.y
-	for i in range(1, tiles.size()):
-		if not is_equal_approx(tiles[i].position.y, tiles[i - 1].end.y):
-			seamless = false
-		if not is_equal_approx(tiles[i].size.y, expected_height):
-			seamless = false
-	_check(seamless, "die Kacheln stossen lueckenlos aneinander")
-	# Sie decken den Bereich wirklich ab: Oberkante der ersten <= top, Unterkante
-	# der letzten >= bottom.
-	_check(tiles[0].position.y <= top, "die erste Kachel beginnt vor dem Ausschnitt")
-	_check(tiles[tiles.size() - 1].end.y >= bottom, "die letzte Kachel reicht ueber den Ausschnitt hinaus")
-	# Und sie steht links, wo der Schacht sein Rohr hatte — die Spielbahn in der
-	# Mitte bleibt frei.
-	var right_edge := ShaftBackground.COOLING_TILE_X + ShaftBackground.COOLING_TILE_SIZE.x
-	_check(right_edge < 280.0, "die Bank bleibt links der Ruhezone (Rand bei %.0f)" % right_edge)
+	# Das Raster ist gross: 760 Weltpixel je Modul, sechs Module je Periode.
+	_check(is_equal_approx(ShaftBackground.SECTION_MODULE, 760.0), "das Modulraster ist 760 hoch")
+	_check(ShaftBackground.SECTION_PERIOD >= 5, "die Kompositionsperiode umfasst mindestens 5 Module")
+	# Der alte Fehler in Zahlen: 320er Raster gegen 760er Raster.
+	var old_period: float = ShaftBackground.COOLING_TILE_SIZE.y
+	_check(ShaftBackground.SECTION_MODULE * ShaftBackground.SECTION_PERIOD > old_period * 10.0,
+		"die Wiederholung liegt mindestens zehnmal weiter auseinander als die alte Kachel (%.0f px)" % (ShaftBackground.SECTION_MODULE * ShaftBackground.SECTION_PERIOD))
+	# Das BANDRASTER folgt dem Modulraster: gleiche Hoehe, gleicher Abstand,
+	# gleiche Breite. Die Baender selbst duerfen Luecken haben (die Leerflaeche
+	# ist eingeplant) — nur der Takt muss stimmen.
+	var bands := ShaftBackground.section_band_rects(rect)
+	var uniform := true
+	for band in bands:
+		if not is_equal_approx(band.size.y, ShaftBackground.SECTION_BAND_HEIGHT):
+			uniform = false
+		if not is_equal_approx(band.size.x, 1080.0):
+			uniform = false
+	# Toleranz statt exakter Gleichheit: Rect2 speichert float32, und bei
+	# Weltkoordinaten um -12000 liegt die Aufloesung ueber der Standardtoleranz
+	# von `is_equal_approx`. Die Abweichung wird daher ausdruecklich mitgedruckt.
+	var worst_gap := 0.0
+	for i in range(1, bands.size()):
+		worst_gap = maxf(worst_gap, absf((bands[i].position.y - bands[i - 1].position.y) - ShaftBackground.SECTION_MODULE))
+	if worst_gap > 0.05:
+		uniform = false
+	_check(uniform, "das Bandraster folgt dem Modultakt (760 px, 320 hoch; groesste Abweichung %.4f)" % worst_gap)
+	_check(bands[0].position.y <= top, "das erste Band beginnt vor dem Ausschnitt")
+	_check(bands[bands.size() - 1].end.y >= rect.end.y, "das letzte Band reicht ueber den Ausschnitt hinaus")
+	# Es gibt echten Leerraum: mindestens ein Modul je Periode traegt kein
+	# Register. Ohne Leerflaeche wirkt die Wand wieder gemustert.
+	var empty_seen := false
+	var kinds := {}
+	for slot in range(ShaftBackground.SECTION_PERIOD):
+		kinds[ShaftBackground.zone2_module_kind(slot)] = true
+		if ShaftBackground.zone2_module_kind(slot) == 2 or ShaftBackground.zone2_module_kind(slot) == 3:
+			pass
+		if ShaftBackground.zone2_module_kind(slot) == 4:
+			empty_seen = true
+	_check(empty_seen, "es gibt ein Modul ohne Registerkoerper (Leerflaeche)")
+	_check(kinds.size() == ShaftBackground.SECTION_PERIOD, "die Module sind innerhalb einer Periode alle verschieden")
+	# Und die Modulfolge wiederholt sich erst nach der vollen Periode.
+	var repeats_early := false
+	for slot in range(-30, 30):
+		if ShaftBackground.zone2_module_kind(slot) != ShaftBackground.zone2_module_kind(slot + ShaftBackground.SECTION_PERIOD):
+			repeats_early = true
+	_check(not repeats_early, "die Modulfolge wiederholt sich exakt nach der Periode")
+	# Zone 3 hat eine EIGENE Folge, nicht dieselbe wie Zone 2: gleiche Bauform
+	# (dieselbe Zahl Module, dieselben Leerstellen), anderer Inhalt.
+	_check(ShaftBackground.zone3_module_kind(0) == ShaftBackground.zone2_module_kind(0),
+		"beide Zonen folgen derselben Taktung (dasselbe Bauwerk)")
+	# Gleiche Taktung, ANDERER Inhalt: die Module sitzen an denselben Stellen,
+	# aber nicht an denselben Hoehen. Eine Kopie waere keine eigene Zone.
+	var differing := false
+	for slot in range(ShaftBackground.SECTION_PERIOD):
+		var a := ShaftBackground.zone2_register_rect(slot, 0.0)
+		var b := ShaftBackground.zone3_frame_rect(slot, 0.0)
+		if not is_equal_approx(a.position.y, b.position.y) or not is_equal_approx(a.position.x, b.position.x):
+			differing = true
+	_check(differing, "Zone 3 sitzt an anderen Stellen als Zone 2 (eigene Module, keine Kopie)")
+	# Die Register bleiben links der Ruhezone — auch mit der neuen
+	# Querverschiebung, die bewusst nur nach LINKS laeuft.
+	var max_shift := 0.0
+	var min_shift := 0.0
+	for slot in range(-40, 40):
+		var shift := ShaftBackground.section_offset(slot)
+		max_shift = maxf(max_shift, shift)
+		min_shift = minf(min_shift, shift)
+		var edge: float = ShaftBackground.COOLING_TILE_X + shift + ShaftBackground.COOLING_TILE_SIZE.x
+		if edge > 280.0:
+			_check(false, "Registerkachel ragt in die Ruhezone (Rand %.1f bei Slot %d)" % [edge, slot])
+	_check(max_shift <= 0.0, "die Querverschiebung laeuft nur nach links (max %.1f)" % max_shift)
+	_check(min_shift < -1.0, "die Querverschiebung ist wirksam, nicht null (min %.1f)" % min_shift)
+	# Die rechten Gegenstuecke liegen alle ausserhalb der Ruhezone.
+	var width := 1080.0
+	var quiet_right: float = width * 0.5 + ShaftBackground.QUIET_HALF_WIDTH
+	for slot in range(-40, 40):
+		var machine := ShaftBackground.zone2_right_machine_rect(slot, 0.0)
+		if machine.position.x < quiet_right:
+			_check(false, "rechtes Zonengegenstueck ragt in die Ruhezone (x %.1f bei Slot %d)" % [machine.position.x, slot])
+	_check(true, "die rechten Gegenstuecke liegen ausserhalb der Ruhezone")
 
 ## Nur der Reaktorschacht wird gestaltet; die hoeheren Zonen bleiben unberuehrt.
 func _check_zone_gate() -> void:

@@ -113,40 +113,52 @@ func _check_zone3_crossblend() -> void:
 	_check(max_step <= allowed,
 		"der Zone-3-Verlauf ist stetig (groesster Schritt %.3f, erlaubt %.3f)" % [max_step, allowed])
 
-## Die Zone-3-Wand folgt denselben Regeln wie die Kuehlsektion: gleiche Bauform,
-## links der Ruhezone, lueckenlos gestapelt, gleiche Parallax-Formel.
+## Die Zone-3-Module folgen denselben Regeln wie die der Kuehlsektion: gleiche
+## Bauform, links der Ruhezone, gleiches Raster, gleiche Parallax — aber ein
+## EIGENES Muster. Bis zum 19.09.2026 pruefte dieser Abschnitt die lueckenlose
+## Stapelung der 250x320-Kachel; genau die ist jetzt abgeloest.
 func _check_zone3_geometry() -> void:
 	var top := -14000.0
 	var rect := Rect2(0.0, top, 1080.0, 2340.0)
-	var tiles := ShaftBackground.zone3_tile_rects(rect)
-	_check(tiles.size() >= 8, "Zone 3 liefert genug Kacheln (%d)" % tiles.size())
-	if tiles.is_empty():
+	var bands := ShaftBackground.zone3_tile_rects(rect)
+	_check(bands.size() >= 4, "Zone 3 liefert genug Baender (%d)" % bands.size())
+	if bands.is_empty():
 		return
-	# Lueckenlos und gleich hoch — sonst klafft beim Stapeln eine Ritze.
-	var seamless := true
-	for tile in tiles:
-		if not is_equal_approx(tile.size.y, ShaftBackground.Z3_TILE_SIZE.y):
-			seamless = false
-		if not is_equal_approx(tile.position.x, ShaftBackground.Z3_TILE_X):
-			seamless = false
-		if not is_equal_approx(tile.size.x, ShaftBackground.Z3_TILE_SIZE.x):
-			seamless = false
-	_check(seamless, "alle Kacheln sind gleich hoch und gleich breit")
-	# Sie decken den Ausschnitt wirklich ab.
-	_check(tiles[0].position.y <= rect.position.y, "die erste Kachel beginnt vor dem Ausschnitt")
-	_check(tiles[tiles.size() - 1].end.y >= rect.end.y, "die letzte Kachel reicht ueber den Ausschnitt hinaus")
-	# Die Kachel hat dieselbe Bauform wie die Kuehlsektion (250x320) und endet
-	# vor der Ruhezone (276 < 280).
+	# Gleiches Raster wie die Kuehlsektion — die Zonen sitzen auf DEMSELBEN
+	# Bauwerk, nicht auf zwei zufaellig aehnlichen.
+	var same_grid := true
+	for band in bands:
+		if not is_equal_approx(band.size.y, ShaftBackground.SECTION_BAND_HEIGHT):
+			same_grid = false
+		if not is_equal_approx(band.position.x, 0.0):
+			same_grid = false
+		if not is_equal_approx(band.size.x, 1080.0):
+			same_grid = false
+	_check(same_grid, "alle Baender haben dieselbe Hoehe und Breite")
+	_check(bands[0].position.y <= rect.position.y, "das erste Band beginnt vor dem Ausschnitt")
+	_check(bands[bands.size() - 1].end.y >= rect.end.y, "das letzte Band reicht ueber den Ausschnitt hinaus")
+	# Der Moduleinsatz bleibt links der Ruhezone (276 < 280) — auch mit der
+	# Querverschiebung, die bewusst nur nach links laeuft.
+	var worst_edge := 0.0
 	var right_edge: float = ShaftBackground.Z3_TILE_X + ShaftBackground.Z3_TILE_SIZE.x
 	_check(right_edge < 280.0, "die Wand bleibt links der Ruhezone (Rand bei %.0f)" % right_edge)
-	_check(is_equal_approx(ShaftBackground.Z3_TILE_SIZE.y, 320.0),
-		"die Kachel ist 320 hoch wie die der Kuehlsektion")
-	# Gleiche Parallax-Formel: bei gleicher Kamera muessen die Kachel-Unterkanten
-	# von Zone 2 und Zone 3 uebereinstimmen, sonst laufen die Waende gegen-
-	# einander. Gemessen ueber die tatsaechliche Rechteckliste.
+	for slot in range(-40, 40):
+		worst_edge = maxf(worst_edge, ShaftBackground.Z3_TILE_X + ShaftBackground.section_offset(slot) + ShaftBackground.Z3_TILE_SIZE.x)
+	_check(worst_edge < 280.0, "auch verschoben bleibt die Wand links der Ruhezone (Rand %.1f)" % worst_edge)
+	# Der Artwork-Koerper ist unveraendert 250x320 — es wird nichts skaliert.
+	_check(ShaftBackground.Z3_TILE_SIZE.is_equal_approx(Vector2(250.0, 320.0)),
+		"die Zone-3-Kachel bleibt 250x320 (keine Skalierung)")
+	_check(ShaftBackground.COOLING_TILE_SIZE.is_equal_approx(Vector2(250.0, 320.0)),
+		"die Kuehlkachel bleibt 250x320 (keine Skalierung)")
+	# Beide Zonen laufen mit DERSELBEN Parallaxformel: bei gleicher Kamera muessen
+	# die Bandoberkanten uebereinstimmen, sonst laufen die Waende gegeneinander.
 	_check(ShaftBackground.zone3_tile_rects(rect)[0].position.y
 			== ShaftBackground.cooling_tile_rects(rect)[0].position.y,
 		"Zone 3 laeuft mit derselben Parallax wie die Kuehlsektion")
+	# Gegenprobe, dass das Modulraster wirklich groesser ist als die Kachel:
+	# ohne diese Zahl waere "groessere Bloecke" nur eine Behauptung.
+	_check(ShaftBackground.SECTION_MODULE > ShaftBackground.Z3_TILE_SIZE.y * 2.0,
+		"das Modulraster ist deutlich groesser als eine Kachel (%.0f gegen %.0f)" % [ShaftBackground.SECTION_MODULE, ShaftBackground.Z3_TILE_SIZE.y])
 
 func _check_zone4_gate() -> void:
 	_check(ShaftBackground.zone4_opacity_for_zone(0.0) == 0.0, "am Boden ist Zone 4 aus")

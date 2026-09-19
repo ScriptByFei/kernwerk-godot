@@ -784,13 +784,24 @@ func _draw() -> void:
 	var zone_index: float = JumpConfig.zone_index_at(zone_height)
 	var zone_color := JumpConfig.zone_color(JumpConfig.ZONE_BACKGROUNDS, zone_height)
 	draw_rect(visible_rect, zone_color, true)
+	# Permanente Facility-Struktur ALLER Zonen: sie liegt ueber der flachen
+	# Zonenfarbe und unter allen Zonenmodulen, und laeuft von Zone 2 bis Zone 5
+	# durch. Damit sitzen die Zonen auf DERSELBEN Wand, statt jeweils eine neue
+	# mitzubringen. Sie liefert nur Architektur (Traeger, Wandfelder, Hohlraeume,
+	# Versorgungsachse, Fugen); die Zonen setzen ihre Technik darauf. Zone 1 bringt
+	# dieselbe Bauform selbst mit und bleibt unveraendert.
+	#
+	# ACHTUNG Reihenfolge: die Zonenfarbe ist ein DECKENDES Rechteck. Ein Aufruf
+	# VOR ihr waere wirkungslos — die Anlage waere vollstaendig verdeckt (im Bild
+	# nachgemessen: keine einzige Traegerkante sichtbar).
+	ShaftBackground.draw_facility(self, visible_rect, zone_index)
 	# Reaktorschacht als gestalteter Hintergrund. Er liegt zwischen Zonenfarbe
 	# und Schachtlinien, damit der Vordergrund (Plattformen, Kern) in jedem Fall
 	# darueber bleibt. Eigene Zeichenroutine, kein Node: kostet im Webexport
 	# nichts und laesst sich headless pruefen.
 	# Die Kuehlsektion liegt hinter dem Reaktorschacht: waehrend der Kreuzblendung
 	# (Zonenindex 0.75 bis 1.25) sind beide sichtbar, danach traegt sie allein.
-	ShaftBackground.draw_cooling(self, visible_rect, zone_index)
+	ShaftBackground.draw_cooling(self, visible_rect, zone_index, _background_time)
 	ShaftBackground.draw(self, visible_rect, zone_index, _background_time)
 	# Zone 3 (Hochspannung) liegt ueber der Kuehlsektion und unter Zone 4. Ihre
 	# Fenster sind an die Nachbarn gespiegelt: sie blendet ein, wo die
@@ -801,6 +812,14 @@ func _draw() -> void:
 	# unter den Schachtlinien und dem Spielinhalt.
 	ShaftBackground.draw_zone4(self, visible_rect, zone_index, _background_time)
 	ShaftBackground.draw_zone5(self, visible_rect, zone_index, _background_time)
+	# Zonenuebergaenge als ORT: Quertraeger, Wartungsschleuse, Schild und ein
+	# beginnendes Kabelbuendel in der Bucht, in der die Grenze liegt — zusaetzlich
+	# zur Kreuzblendung, nicht statt ihrer.
+	#
+	# Sie stehen ueber den Zonenmodulen, nicht darunter: als Teil der Anlage
+	# gehoeren sie vor die Technik der Zone (gemessen — unter den Modulen waren
+	# Querwand, Schleuse und Schild vollstaendig verdeckt).
+	ShaftBackground.draw_facility_transitions(self, visible_rect, zone_index)
 	var shaft_color := JumpConfig.zone_color(JumpConfig.ZONE_SHAFT_COLORS, zone_height)
 	# Die MITTLERE Linie liegt exakt hinter dem Reaktor. In voller Staerke liest
 	# sie sich wie eine Fuehrungsschiene, an der der Kern haengt, und sie bleibt

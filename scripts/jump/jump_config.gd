@@ -222,10 +222,18 @@ const SHAFT_ZONE_FADE_END := 1.55
 ## Breite des weichen Uebergangs davor. Ohne diesen Verlauf waere der Wechsel
 ## eine sichtbare Stufe mitten im Flug.
 ##
-## MUSS kleiner als ZONE_HEIGHT_STEP bleiben: `zone_index_at` klemmt
-## `blend = minf(ZONE_BLEND_RANGE, step)`. Bei blend >= step gaebe es kein
+## MUSS kleiner als die Zonenspanne bleiben: `zone_index_at` klemmt
+## `blend = minf(ZONE_BLEND_RANGE, span)`. Bei blend >= span gaebe es kein
 ## Plateau mehr (siehe Kommentar an ZONE_HEIGHT_STEP). Am 17.09.2026 zusammen mit
 ## der Zonenhöhe von 3500 auf 1200 gestaucht, damit der Anteil gleich bleibt.
+##
+## Die Fenster der gestalteten Schichten liegen damit an den ZONENGRENZEN: der
+## Index (i+1.0) faellt genau auf die Grenze zwischen Zone i und i+1, die
+## Blendfenster enden also exakt dort. Das ist bewusst so und wurde nachgeprueft
+## — ein laengerer Verlauf waere der falsche Hebel fuer den Zonenwechsel (Tim
+## will einen ORT passieren, keinen langsameren Alpha-Verlauf). Dafuer sind die
+## Uebergangsabschnitte der Facility-Struktur da
+## (`ShaftBackground.draw_facility_transitions`).
 const ZONE_BLEND_RANGE := 1200.0
 
 ## Untere Kante jeder Zone in Weltpixeln. Aus ZONE_HEIGHT_SPANS abgeleitet, damit
@@ -306,10 +314,17 @@ static func zone_index_at(height: float) -> float:
 	return float(count - 1)
 
 ## Mischfarbe der Zone fuer eine erreichte Hoehe.
+##
+## `zone_index_at` beschreibt bereits einen symmetrischen Verlauf um die
+## Zonengrenze: bei 0.5 ist der Uebergang halb, bei 1.0 ist er ganz durch (die
+## Zonengrenze liegt also in der Mitte der Rampe). Deshalb wird hier nur noch
+## gelesen, was der Index sagt — keine zweite, abweichende Rampe darueber.
 static func zone_color(palette: Array, height: float) -> Color:
 	var index := zone_index_at(height)
 	var lower := clampi(int(floor(index)), 0, palette.size() - 1)
 	var upper := mini(lower + 1, palette.size() - 1)
+	if upper == lower:
+		return palette[lower] as Color
 	return (palette[lower] as Color).lerp(palette[upper] as Color, clampf(index - float(lower), 0.0, 1.0))
 
 const PLATFORM_BODY_COLOR := Color("233b46")

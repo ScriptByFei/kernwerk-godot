@@ -182,34 +182,284 @@ static func tile_pick(layer: int, index: int, slot: int, count: int) -> int:
 	value ^= value >> 11
 	return absi(value) % count
 
-## Rechtecke der gestapelten Kondensatorbank. Gemeinsame Quelle fuer Zeichnen UND
-## Pruefung — beim Rohr hatte ich zwei Stellen, von denen eine den Riegel umging;
-## die Positionen entstehen deshalb hier an genau einer Stelle.
+## ---------------------------------------------------------------------------
+## Zonenmodule auf dem Anlagenraster
+## ---------------------------------------------------------------------------
 ##
-## Gleiche Parallax-Formel wie die nahe Ebene (`tile_world_y`), damit die Bank
-## beim Scrollen exakt mit dem uebrigen Schacht laeuft und nicht wandert.
-static func cooling_tile_rects(rect: Rect2) -> Array[Rect2]:
-	var rects: Array[Rect2] = []
-	var camera := rect.get_center().y
-	var base := tile_world_y(2, camera, 0)
-	var height := COOLING_TILE_SIZE.y
-	if height <= 0.0:
-		return rects
-	var first := int(floor((rect.position.y - base) / height))
-	var last := int(ceil((rect.end.y - base) / height))
-	for n in range(first, last + 1):
-		rects.append(Rect2(COOLING_TILE_X, base + n * height, COOLING_TILE_SIZE.x, height))
-	return rects
+## Zone 2 und Zone 3 haben ihre Artworks bis hierher als 250x320 grosse Zellen
+## ENDLOS gleichmaessig gestapelt (ein `for n in range(first, last+1)` ueber
+## `tile_world_y(2, camera, 0) + n*320`). Im laufenden Spiel liest sich das als
+## Tapete: die Wiederholung liegt unter einer Sekunde.
+##
+## Jetzt sind die Artworks MODULE in groesseren Kompositionsbloecken:
+##   - Raster: dieselben 760 px wie die Facility-Struktur, gleicher Weltindex
+##     (`slot`) und dieselbe Parallaxformel wie bisher (`tile_world_y(2, ...)`).
+##     Damit laufen die Zonenmodule weiterhin exakt mit der uebrigen Wand, aber
+##     die Wiederholung liegt bei 6 * 760 = 4560 Weltpixeln statt bei 320.
+##   - Jeder Slot hat eine eigene ANORDNUNG (Kind), eigene Hoehenlage, eigene
+##     Querverschiebung und rechts ein eigenes Gegenstueck. Es wird nichts
+##     gespiegelt: eine Spiegelung waere sofort als solche zu erkennen.
+##   - Leerflaechen sind eingeplant (Kind LEER). Eine Wand ohne Luecken wirkt
+##     wieder gemustert, egal wie unregelmaessig die Module sitzen.
+const SECTION_MODULE := FM_BAY
+const SECTION_PERIOD := 6
+## Der Registerkachel-Koerper bleibt 250x320 (unveraendert), er wird nur nicht
+## mehr endlos gestapelt.
+const SECTION_BAND_HEIGHT := 320.0
+## Querverschiebung je Modul. Nach LINKS begrenzt, damit die rechte Kante des
+## Modulfelds die Ruhezone sicher nicht erreicht (26 + 250 = 276 < 280).
+static func section_offset(slot: int) -> float:
+	return -tile_value(2, slot, 21) * 22.0
 
-## Zeichnet die Kuehlsektion hinter den bestehenden Schacht. Eigene Schicht, damit
-## die Zonenkreuzblendung unabhaengig von Zone 1 steuerbar ist.
-static func draw_cooling(canvas: CanvasItem, visible_rect: Rect2, zone_index: float) -> void:
+## Sichtbare Anlagenslots des Modulrasters. Gemeinsame Quelle fuer Zeichnung UND
+## Pruefung.
+static func section_slots(rect: Rect2) -> Array[int]:
+	var out: Array[int] = []
+	var camera := rect.get_center().y
+	var first := int(floor((rect.position.y - scroll_offset(2, camera)) / SECTION_MODULE)) - 1
+	var last := int(ceil((rect.end.y - scroll_offset(2, camera)) / SECTION_MODULE)) + 1
+	for slot in range(first, last + 1):
+		out.append(slot)
+	return out
+
+## Weltposition der Oberkante eines Zonenmoduls.
+##
+## Wie bei der Facility-Struktur NICHT `tile_world_y(2, ...)`: das benutzt die
+## Kachelhoehe der nahen Ebene (900), waehrend das Modulraster 760 hoch ist. Die
+## Parallax-ZAHL bleibt die der nahen Ebene (0.62) — die Zonenmodule sitzen im
+## selben Tiefenraum wie vorher, nur auf dem groesseren Raster.
+static func section_top(camera: float, slot: int) -> float:
+	return float(slot) * SECTION_MODULE + scroll_offset(2, camera)
+
+## Die Bandzeilen der Zonenmodule. Traegt weiterhin beide alten Namen, weil
+## Proben darauf zeigen: Zone 2 und Zone 3 teilen sich dasselbe Raster, ihre
+## ersten Baender liegen also zwangslaeufig auf derselben Hoehe.
+static func section_band_rects(rect: Rect2) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var camera := rect.get_center().y
+	for slot in section_slots(rect):
+		out.append(Rect2(0.0, section_top(camera, slot), 1080.0, SECTION_BAND_HEIGHT))
+	return out
+
+## Zone 2: Kuehlsektion als Modulfolge.
+##  0 Registerband unten + zwei Kuehlleitungen
+##  1 grosse Kuehlleitung mit Knie + Ventil, rechts ein Maschinengehaeuse
+##  2 LEER — die Wand zeigt sich (Ruheflaeche)
+##  3 Registerband hoeher gesetzt, rechts eine zweite Leitung
+##  4 Wartungssteg mit Gelaender
+##  5 Registerband + kurze Leitungsstichleitung, rechts ein Verteiler
+static func zone2_module_kind(slot: int) -> int:
+	return posmod(slot, SECTION_PERIOD)
+
+static func zone2_register_rect(slot: int, top: float) -> Rect2:
+	var kind := zone2_module_kind(slot)
+	var y: float = top + (96.0 if kind != 3 else 336.0)
+	return Rect2(COOLING_TILE_X + section_offset(slot), y, COOLING_TILE_SIZE.x, COOLING_TILE_SIZE.y)
+
+## Kuehlleitungen: breite, kalte Roehren mit heller Aussenkante.
+static func zone2_pipe_rect(slot: int, top: float) -> Rect2:
+	var x: float = 96.0 + section_offset(slot) * 0.5
+	return Rect2(x, top + 40.0, 74.0, 470.0)
+
+static func zone2_right_machine_rect(slot: int, top: float) -> Rect2:
+	return Rect2(930.0 + section_offset(slot) * 0.5, top + 130.0, 118.0, 260.0)
+
+## Zone 3: Hochspannung als eigene Modulfolge.
+##  0 Kabelkanalwand (lange Halter + Kabel)
+##  1 Isolatorenstapel auf Stahlrahmen
+##  2 Transformator-/Verteilermodul (grosses Gehaeuse mit Kuehlrippen)
+##  3 LEER
+##  4 technische Stromfuehrung (breite Sammelschienen)
+##  5 Kabelkanal + kurze Schiene
+static func zone3_module_kind(slot: int) -> int:
+	return posmod(slot, SECTION_PERIOD)
+
+static func zone3_frame_rect(slot: int, top: float) -> Rect2:
+	return Rect2(Z3_TILE_X + section_offset(slot), top + 80.0, Z3_TILE_SIZE.x, Z3_TILE_SIZE.y)
+
+static func zone3_machine_rect(slot: int, top: float) -> Rect2:
+	return Rect2(930.0 + section_offset(slot) * 0.5, top + 150.0, 118.0, 250.0)
+
+static func cooling_tile_rects(rect: Rect2) -> Array[Rect2]:
+	return section_band_rects(rect)
+
+static func zone3_tile_rects(rect: Rect2) -> Array[Rect2]:
+	return section_band_rects(rect)
+
+## Kalte Kondensationsschwaden der Kuehlsektion: hoechstens einer je Bild, in
+## einem festen Modul, ausserhalb der Ruhezone.
+static func cooling_steam_rect(rect: Rect2, time: float) -> Dictionary:
+	var camera := rect.get_center().y
+	var empty := {}
+	for slot in section_slots(rect):
+		if posmod(slot, SECTION_PERIOD) != 1:
+			continue
+		var phase := fposmod(time * 0.6 + float(posmod(slot, 5)) * 0.4, 1.0)
+		var y: float = section_top(camera, slot) + 300.0 - phase * 90.0
+		var r := Rect2(84.0, y, 210.0, 150.0)
+		if not r.intersects(rect):
+			continue
+		return {"rect": r, "strength": sin(phase * PI) * 0.06}
+	return empty
+
+static func draw_cooling(canvas: CanvasItem, visible_rect: Rect2, zone_index: float, time: float = 0.0) -> void:
 	var alpha := cooling_opacity_for_zone(zone_index)
 	if alpha <= 0.0 or visible_rect.size.x <= 0.0 or visible_rect.size.y <= 0.0:
 		return
-	for tile in cooling_tile_rects(visible_rect):
-		if tile.intersects(visible_rect):
-			canvas.draw_texture_rect(COOLING_TILE, tile, false, Color(1.0, 1.0, 1.0, alpha))
+	if zone45_disabled or sections_disabled:
+		return
+	var camera := visible_rect.get_center().y
+	for slot in section_slots(visible_rect):
+		var top := section_top(camera, slot)
+		var kind := zone2_module_kind(slot)
+		# Registerkoerper (Artwork) — sitzt in den meisten, aber nicht allen Modulen.
+		if kind != 4:
+			var band := zone2_register_rect(slot, top)
+			if band.intersects(visible_rect):
+				canvas.draw_texture_rect(COOLING_TILE, band, false, Color(1.0, 1.0, 1.0, alpha))
+		match kind:
+			0, 5:
+				_draw_zone2_pipe(canvas, zone2_pipe_rect(slot, top), visible_rect, alpha)
+				_draw_zone2_valve(canvas, Vector2(COOLING_TILE_X + 96.0 + section_offset(slot), top + 560.0), alpha)
+			4:
+				_draw_zone2_deck(canvas, Rect2(COOLING_TILE_X, top + 250.0, SECTION_BAND_HEIGHT + 130.0, 70.0), alpha)
+			1:
+				_draw_zone2_pipe(canvas, zone2_pipe_rect(slot, top), visible_rect, alpha)
+				_draw_zone2_elbow(canvas, slot, top, alpha)
+				_draw_zone2_machine(canvas, zone2_right_machine_rect(slot, top), alpha)
+			3:
+				var machine := zone2_right_machine_rect(slot, top)
+				_draw_zone2_machine(canvas, Rect2(machine.position + Vector2(0.0, 120.0), machine.size), alpha)
+	# Kalte Kondensation: ein Schwaden, fest im Modul verankert.
+	var steam := cooling_steam_rect(visible_rect, time)
+	if not steam.is_empty():
+		canvas.draw_rect(steam.rect, _fade(Color("8fb4bd"), alpha * float(steam.strength)))
+
+## Flansche der Kuehlleitung. Ebenfalls gemeinsame Quelle fuer Zeichnung und
+## Pruefung — sonst wiederholt sich genau dieselbe Blindheit.
+static func zone2_pipe_flanges(pipe: Rect2) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for flange in range(4):
+		var y: float = pipe.position.y + 60.0 + float(flange) * 118.0
+		out.append(Rect2(pipe.position.x - 5.0, y, pipe.size.x + 10.0, 16.0))
+	return out
+
+static func _draw_zone2_pipe(canvas: CanvasItem, pipe: Rect2, visible_rect: Rect2, alpha: float) -> void:
+	if not pipe.intersects(visible_rect):
+		return
+	canvas.draw_rect(pipe, _fade(Color("050c10"), alpha))
+	canvas.draw_rect(Rect2(pipe.position.x + 6.0, pipe.position.y, 16.0, pipe.size.y), _fade(Color("16262d"), alpha))
+	canvas.draw_rect(Rect2(pipe.position.x + 58.0, pipe.position.y, 5.0, pipe.size.y), _fade(Color("3f5d68"), alpha))
+	for flange in zone2_pipe_flanges(pipe):
+		canvas.draw_rect(flange, _fade(Color("0d1a20"), alpha))
+
+static func _draw_zone2_elbow(canvas: CanvasItem, slot: int, top: float, alpha: float) -> void:
+	var x: float = 200.0 + section_offset(slot) * 0.5
+	canvas.draw_colored_polygon(PackedVector2Array([
+		Vector2(x, top + 210.0), Vector2(x + 62.0, top + 210.0),
+		Vector2(x + 62.0, top + 320.0), Vector2(x - 20.0, top + 320.0),
+	]), _fade(Color("050c10"), alpha))
+	canvas.draw_rect(Rect2(x, top + 210.0, 6.0, 110.0), _fade(Color("3f5d68"), alpha))
+
+static func _draw_zone2_valve(canvas: CanvasItem, center: Vector2, alpha: float) -> void:
+	var points := PackedVector2Array()
+	for i in range(8):
+		points.append(center + Vector2.from_angle(float(i) * TAU / 8.0) * 30.0)
+	_draw_convex(canvas, points, _fade(Color("22333a"), alpha))
+	for i in range(8):
+		points[i] = center + Vector2.from_angle(float(i) * TAU / 8.0) * 21.0
+	_draw_convex(canvas, points, _fade(Color("03080b"), alpha))
+	canvas.draw_line(center - Vector2(18.0, 18.0), center + Vector2(18.0, 18.0), _fade(Color("46677e"), alpha), 5.0)
+	canvas.draw_line(center - Vector2(18.0, -18.0), center + Vector2(18.0, -18.0), _fade(Color("46677e"), alpha), 5.0)
+
+## Wartungssteg der Kuehlsektion: grosse Formen, kein Kleinteil.
+static func _draw_zone2_deck(canvas: CanvasItem, deck: Rect2, alpha: float) -> void:
+	var p := deck.position
+	canvas.draw_rect(Rect2(p, Vector2(deck.size.x, 18.0)), _fade(Color("04090c"), alpha))
+	canvas.draw_rect(Rect2(p, Vector2(deck.size.x, 5.0)), _fade(Color("2c4750"), alpha))
+	canvas.draw_rect(Rect2(p + Vector2(0.0, 44.0), Vector2(deck.size.x, 5.0)), _fade(Color("22383f"), alpha))
+	for post in range(4):
+		canvas.draw_rect(Rect2(p + Vector2(18.0 + float(post) * 120.0, 5.0), Vector2(6.0, 44.0)), _fade(Color("22383f"), alpha))
+
+## Lamellen des rechten Maschinengehaeuses. GEMEINSAME QUELLE fuer Zeichnung UND
+## Pruefung: die Pruefung, die nur das Gehaeuse-Rechteck kannte, war blind gegen
+## ein leeres Gehaeuse — die Mutationsprobe hat genau das aufgedeckt.
+static func zone2_machine_fins(body: Rect2) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for fin in range(5):
+		out.append(Rect2(body.position + Vector2(10.0, 26.0 + float(fin) * 42.0), Vector2(body.size.x - 20.0, 14.0)))
+	return out
+
+## Rechtes Gegenstueck: ein Maschinengehaeuse mit kalten Lamellen. KEINE
+## Spiegelung des linken Moduls — andere Bauform, andere Hoehe, andere Teilung.
+static func _draw_zone2_machine(canvas: CanvasItem, body: Rect2, alpha: float) -> void:
+	canvas.draw_rect(body.grow(6.0), _fade(Color("020508"), alpha))
+	canvas.draw_rect(body, _fade(Color("0a1319"), alpha))
+	for fin in zone2_machine_fins(body):
+		canvas.draw_rect(fin, _fade(Color("04090c"), alpha))
+	canvas.draw_rect(Rect2(body.position.x, body.position.y, body.size.x, 5.0), _fade(Color("46677e"), alpha))
+	canvas.draw_rect(Rect2(body.position.x + 12.0, body.end.y - 44.0, 40.0, 30.0), _fade(Color("2c4750"), alpha))
+
+## Zone 3 (Hochspannung) auf demselben Raster, eigene Modulfolge.
+static func draw_zone3(canvas: CanvasItem, visible_rect: Rect2, zone_index: float) -> void:
+	var alpha := zone3_opacity_for_zone(zone_index)
+	if alpha <= 0.0 or visible_rect.size.x <= 0.0 or visible_rect.size.y <= 0.0:
+		return
+	if zone45_disabled or sections_disabled:
+		return
+	var camera := visible_rect.get_center().y
+	for slot in section_slots(visible_rect):
+		var top := section_top(camera, slot)
+		var kind := zone3_module_kind(slot)
+		var frame := zone3_frame_rect(slot, top)
+		if kind != 3 and frame.intersects(visible_rect):
+			canvas.draw_texture_rect(Z3_TILE, frame, false, Color(1.0, 1.0, 1.0, alpha))
+		match kind:
+			0, 5:
+				_draw_zone3_cable_run(canvas, frame, alpha)
+			1:
+				_draw_zone3_insulators(canvas, slot, top, alpha)
+				_draw_zone3_machine(canvas, zone3_machine_rect(slot, top), alpha)
+			2:
+				_draw_zone3_machine(canvas, Rect2(Z3_TILE_X + section_offset(slot), top + 130.0, Z3_TILE_SIZE.x, Z3_TILE_SIZE.y), alpha)
+				_draw_zone3_busbar(canvas, slot, top, alpha)
+			4:
+				_draw_zone3_busbar(canvas, slot, top, alpha)
+
+static func _draw_zone3_cable_run(canvas: CanvasItem, frame: Rect2, alpha: float) -> void:
+	for tray in range(3):
+		var y: float = frame.position.y + 60.0 + float(tray) * 96.0
+		canvas.draw_rect(Rect2(frame.position.x - 10.0, y, frame.size.x + 20.0, 20.0), _fade(Color("03060c"), alpha))
+		canvas.draw_rect(Rect2(frame.position.x - 10.0, y, frame.size.x + 20.0, 4.0), _fade(Color("2a3a52"), alpha))
+		for clamp in range(4):
+			canvas.draw_rect(Rect2(frame.position.x + 4.0 + float(clamp) * 62.0, y - 6.0, 10.0, 32.0), _fade(Color("0b141f"), alpha))
+
+## Isolatorenstapel: dunkle Keramikscheiben auf einem Stahlrahmen. Bewusst
+## dunkel — helles Porzellan waere heller als der Spielerkern.
+static func _draw_zone3_insulators(canvas: CanvasItem, slot: int, top: float, alpha: float) -> void:
+	var x: float = 150.0 + section_offset(slot) * 0.5
+	canvas.draw_rect(Rect2(x - 8.0, top + 90.0, 26.0, 460.0), _fade(Color("0b141f"), alpha))
+	canvas.draw_rect(Rect2(x - 8.0, top + 90.0, 5.0, 460.0), _fade(Color("2a3a52"), alpha))
+	for disc in range(6):
+		var y: float = top + 130.0 + float(disc) * 66.0
+		canvas.draw_rect(Rect2(x - 26.0, y, 62.0, 12.0), _fade(Color("141d2b"), alpha))
+		canvas.draw_rect(Rect2(x - 18.0, y + 12.0, 46.0, 8.0), _fade(Color("070d16"), alpha))
+
+static func _draw_zone3_machine(canvas: CanvasItem, body: Rect2, alpha: float) -> void:
+	canvas.draw_rect(body.grow(6.0), _fade(Color("02040a"), alpha))
+	canvas.draw_rect(body, _fade(Color("0a101c"), alpha))
+	canvas.draw_rect(Rect2(body.position.x, body.position.y, body.size.x, 5.0), _fade(Color("2a3a52"), alpha))
+	for rib in range(4):
+		canvas.draw_rect(Rect2(body.position + Vector2(12.0, 30.0 + float(rib) * 50.0), Vector2(body.size.x - 24.0, 16.0)), _fade(Color("03060c"), alpha))
+	canvas.draw_rect(Rect2(body.position + Vector2(14.0, body.size.y - 56.0), Vector2(34.0, 40.0)), _fade(Color("141d2b"), alpha))
+
+static func _draw_zone3_busbar(canvas: CanvasItem, slot: int, top: float, alpha: float) -> void:
+	var x: float = 120.0 + section_offset(slot) * 0.5
+	for bar in range(3):
+		var y: float = top + 180.0 + float(bar) * 120.0
+		canvas.draw_rect(Rect2(x, y, 180.0, 26.0), _fade(Color("0b141f"), alpha))
+		canvas.draw_rect(Rect2(x, y, 180.0, 5.0), _fade(Color("2a3a52"), alpha))
+		canvas.draw_rect(Rect2(x + 40.0, y + 26.0, 14.0, 60.0), _fade(Color("03060c"), alpha))
 
 ## ---------------------------------------------------------------------------
 ## Zone 3: Hochspannung
@@ -243,27 +493,6 @@ const Z3_TILE_SIZE := Vector2(250.0, 320.0)
 const Z3_TILE_X := 26.0
 const Z3_FADE_IN_START := COOLING_FADE_OUT_START
 const Z3_FADE_IN_END := COOLING_FADE_OUT_END
-
-static func zone3_tile_rects(rect: Rect2) -> Array[Rect2]:
-	var rects: Array[Rect2] = []
-	var camera := rect.get_center().y
-	var base := tile_world_y(2, camera, 0)
-	var height := Z3_TILE_SIZE.y
-	if height <= 0.0:
-		return rects
-	var first := int(floor((rect.position.y - base) / height))
-	var last := int(ceil((rect.end.y - base) / height))
-	for n in range(first, last + 1):
-		rects.append(Rect2(Z3_TILE_X, base + n * height, Z3_TILE_SIZE.x, height))
-	return rects
-
-static func draw_zone3(canvas: CanvasItem, visible_rect: Rect2, zone_index: float) -> void:
-	var alpha := zone3_opacity_for_zone(zone_index)
-	if alpha <= 0.0 or visible_rect.size.x <= 0.0 or visible_rect.size.y <= 0.0:
-		return
-	for tile in zone3_tile_rects(visible_rect):
-		if tile.intersects(visible_rect):
-			canvas.draw_texture_rect(Z3_TILE, tile, false, Color(1.0, 1.0, 1.0, alpha))
 
 ## ---------------------------------------------------------------------------
 ## Hoehere Zonen: Instabile Zone (4) und Kritische Zone (5)
@@ -423,9 +652,37 @@ static func zone45_accents() -> Dictionary:
 		"Z5_RAIL_EDGE": Z5_RAIL_EDGE,
 	}
 
+## Farbklassen der PERMANENTEN Anlage, gleiche Aufteilung wie bei Zone 4/5 und
+## aus demselben Grund: die harte 1.81-Regel schuetzt FLAECHEN in der Ruhezone,
+## nicht duenne Kanten und Lichtakzente. Waeren die Lichtkanten des Traegers als
+## Flaeche eingeordnet, muessten sie auf einen Wert abgedunkelt werden, der die
+## Kante unsichtbar macht — genau der Fehler, der die Randlaternen des Schachts
+## seit jeher als "Regelbruch" gemeldet haette.
+static func facility_surfaces() -> Dictionary:
+	return {
+		"FM_FAR_BLACK": FM_FAR_BLACK,
+		"FM_WALL": FM_WALL,
+		"FM_PANEL": FM_PANEL,
+		"FM_SEAM": FM_SEAM,
+		"FM_GIRDER": FM_GIRDER,
+		"FM_HOLLOW": FM_HOLLOW,
+		"FM_DUCT": FM_DUCT,
+	}
+
+static func facility_accents() -> Dictionary:
+	return {
+		"FM_GIRDER_LIT": FM_GIRDER_LIT,
+		"FM_DUCT_LIT": FM_DUCT_LIT,
+	}
+
 ## QA-Gegenprobe: schaltet Zeichnung UND Deckkraft der neuen Zonen ab. Wird nur
 ## von qa/zone45_cost_sweep.gd gesetzt — die Produktion liest es nie.
 static var zone45_disabled := false
+## Eigener Schalter fuer die Zonenmodule auf dem Anlagenraster (Zone 2/3), damit
+## eine Kostenmessung ihre Wirkung von der der Zone-4/5-Schichten trennen kann.
+## Eine Messung, die nur EINEN gemeinsamen Schalter kennt, kann nicht sagen,
+## welche Schicht die Last verursacht.
+static var sections_disabled := false
 
 ## Der Spielerkern als Messlatte fuer Akzente. `LAMP_CORE` wurde eigens auf
 ## d97b2a abgesenkt, weil die Randlaternen vorher heller waren als der Kern.
@@ -556,6 +813,327 @@ static func draw_zone5(canvas: CanvasItem, visible_rect: Rect2, zone_index: floa
 	var rail := zone4_rail_span(visible_rect.size.x)
 	canvas.draw_rect(Rect2(rail.x, visible_rect.position.y, rail.y - rail.x, visible_rect.size.y), _fade(Z5_PLATE_DEEP, alpha))
 	canvas.draw_rect(Rect2(rail.x, visible_rect.position.y, 4.0, visible_rect.size.y), _fade(Z5_RAIL_EDGE, alpha))
+
+## ---------------------------------------------------------------------------
+## Permanente Facility-Struktur — die gemeinsame Schachtarchitektur ALLER Zonen
+## ---------------------------------------------------------------------------
+##
+## Bis hierher hatte jede Zone ihre eigene gestaltete Wand (Zone 1 Schacht, Zone 2
+## Kuehlregister, Zone 3 Hochspannung, Zone 4/5 eigene Plattenfelder). Fuer sich
+## genommen war jede richtig — zusammen las sich der Aufstieg aber wie ein Wechsel
+## des Hintergrundbilds, nicht wie ein Weg durch EIN Bauwerk.
+##
+## Diese Schicht liegt deshalb GANZ HINTEN (vor der Zonenfarbe, hinter allen
+## Zonenmodulen) und laeuft ueber alle fuenf Zonen durch. Sie liefert nur die
+## Architektur: aeussere Stahlkonstruktion, dunkle Wandfelder, tiefe schwarze
+## Hohlraeume, vertikale Versorgungsachse, wiederkehrende Wandfugen und
+## gelegentliche Quertraeger. Die Zonen setzen ihre Technik darauf.
+##
+## Raster: 760 px, EXAKT das Raster der Fernwand des Reaktorschachts
+## (`layer_tile_height(0) == 760`), und Slot s == Weltindex des Moduls. Ein
+## Quertraeger der Anlage faellt damit mit einer Schachtfuge zusammen, statt
+## irgendwo dazwischen zu liegen.
+##
+## Parallax: DIESELBE Formel wie die Fernwand (`tile_world_y(0, ...)`), damit die
+## Anlage beim Scrollen exakt mit dem uebrigen Bauwerk laeuft. Ein eigenes Raster
+## mit eigener Parallax waere genau der Fehler, den die Zone-2/3-Kacheln schon
+## haben (siehe unten).
+const FM_BAY := 760.0
+const FM_FAR_BLACK := Color("010204")
+const FM_WALL := Color("0a1016")
+const FM_PANEL := Color("0b1218")
+const FM_SEAM := Color("05090d")
+const FM_GIRDER := Color("101820")
+const FM_GIRDER_LIT := Color("39434b")
+const FM_HOLLOW := Color("03050a")
+const FM_DUCT := Color("020507")
+const FM_DUCT_LIT := Color("46525c")
+## Quertraeger: nur an diesen Slots, an denselben Stellen in jeder Zone.
+const FM_CROSSING_SLOTS := [4, 11]
+## Service-Sektion: Halter, Kabelpaket und eine schmale Maschinenachse links.
+const FM_SERVICE_SLOTS := [2, 9]
+## Einblendfenster. Es liegt VOLLSTAENDIG im Uebergang Zone 1 -> Zone 2
+## (Index 0.55 .. 1.0): der Reaktorschacht der Zone 1 bleibt damit unveraendert,
+## und wenn die Kuehlsektion voll traegt, traegt die Anlage ebenfalls voll.
+## Die Anlage faengt bei der Ankunft in Zone 2 an zu tragen. Der Reaktorschacht
+## der Zone 1 bringt dieselbe Bauform selbst mit (Stahltuer, Paneelfelder,
+## Traegerachsen 0.09/0.20/0.80/0.91) — deshalb ist der Boden bewusst NICHT
+## ueberzogen, sonst gaebe es dort zwei konkurrierende Wandstrukturen.
+## Kein Ausblenden nach oben: die Anlage laeuft bis Zone 5 durch.
+const FM_FADE_RAMP := 0.45
+
+static func facility_opacity_for_zone(zone_index: float) -> float:
+	if zone_index <= ZONE_FADE_START:
+		return 0.0
+	if zone_index >= ZONE_FADE_START + FM_FADE_RAMP:
+		return 1.0
+	return (zone_index - ZONE_FADE_START) / FM_FADE_RAMP
+
+## Linke Kante des Wandfelds: halbe Randzone, damit die Traeger in GERAETEPIXELN
+## dick genug bleiben (430 px Fenster -> Faktor 0,398; 16 Weltpixel = 6,4 px).
+static func facility_left_edge(width: float) -> float:
+	return (width * 0.5 - QUIET_HALF_WIDTH) * 0.5
+
+## Aussenkante der Anlage (0 .. Breite mit Symmetrie).
+static func facility_outer_span(width: float) -> Vector2:
+	var left := facility_left_edge(width)
+	return Vector2(left, width - left)
+
+## Wandfeld zwischen den Traegern.
+static func facility_wall_span(width: float) -> Vector2:
+	var left := facility_left_edge(width)
+	return Vector2(left + 26.0, width - left - 26.0)
+
+## Vertikale Versorgungsachse rechts. Sie liegt AUSSERHALB der Ruhezone
+## (linke Kante 852 > 800) und laeuft durch alle fuenf Zonen. Sie ist das
+## rechteseitige Gegenstueck zur linken Wand: keine Spiegelung, sondern eine
+## eigene Bauform (Kanal mit Lichtkante und Fuge).
+static func facility_right_axis(width: float) -> float:
+	return width - 228.0
+
+static func facility_right_duct(width: float) -> Rect2:
+	var x := facility_right_axis(width)
+	return Rect2(x, 0.0, 56.0, FM_BAY)
+
+## Rechtes Wandfeld: zwischen Ruhezone und Aussenachse. Es traegt die Paneelfelder
+## und die rechten Hohlraeume — ohne dieses Feld waere die rechte Seite eine
+## leere Flaeche (im Bild nachgemessen: dort war nichts als Schwarz).
+static func facility_right_field(width: float) -> Vector2:
+	var left := facility_left_edge(width)
+	return Vector2(width * 0.5 + QUIET_HALF_WIDTH + 6.0, width - left - 26.0)
+
+## Maschinenachse der Service-Sektion. Muss ausserhalb der Ruhezone liegen —
+## x=300 lag mit 150 Breite bis 450 und damit IN der Spielbahn (gemessen beim
+## ersten Testlauf).
+static func facility_service_axis() -> float:
+	return 34.0
+
+## Weltposition der Oberkante eines Anlagenslots.
+##
+## NICHT `tile_world_y(0, ...)` benutzen: das rechnet mit der KACHELHOEHE der
+## jeweiligen Ebene (760/640/900). Das Anlagenraster ist aber 760 hoch, mit
+## eigener Parallaxformel — sonst laufen Raster und Zeichnung um 140 px je Slot
+## auseinander (gemessen), und die Baender liegen nicht mehr auf den Slots.
+static func facility_slot_top(camera: float, slot: int) -> float:
+	return float(slot) * FM_BAY + scroll_offset(0, camera)
+
+static func facility_crossing(slot: int) -> bool:
+	return FM_CROSSING_SLOTS.has(posmod(slot, 12))
+
+static func facility_service(slot: int) -> bool:
+	return FM_SERVICE_SLOTS.has(posmod(slot, 12))
+
+static func facility_bay_rect(width: float, camera: float, slot: int) -> Rect2:
+	return Rect2(0.0, facility_slot_top(camera, slot), width, FM_BAY)
+
+## Sichtbare Slots des Anlagenrasters. Gemeinsame Quelle fuer Zeichnung UND
+## Pruefung — beim Rohr hatte ich zwei Stellen, von denen eine den Riegel umging.
+static func facility_slots(rect: Rect2) -> Array[int]:
+	var out: Array[int] = []
+	var camera := rect.get_center().y
+	var first := int(floor((rect.position.y - scroll_offset(0, camera)) / FM_BAY)) - 1
+	var last := int(ceil((rect.end.y - scroll_offset(0, camera)) / FM_BAY)) + 1
+	for slot in range(first, last + 1):
+		out.append(slot)
+	return out
+
+## Tiefe schwarze Hohlraeume: schraege Kammern am Rand, zwischen den Traegern.
+## Sie sind die senkrechte Gliederung der Anlage und in jeder Zone dieselben.
+static func facility_hollow_quads(width: float, camera: float, slot: int) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var left := facility_left_edge(width)
+	var top := facility_slot_top(camera, slot)
+	var lean: float = 26.0 if posmod(slot, 2) == 0 else -26.0
+	var right_field := facility_right_field(width)
+	for side in [0, 1]:
+		var dir_in: float = 1.0 if side == 0 else -1.0
+		var x_outer: float = left + 34.0 if side == 0 else right_field.y - 14.0
+		for row in range(3):
+			# Der Riegel ist die EINZIGE Absicherung, und er ist LIVE: die Tiefe
+			# ist mit 90..230 px so gewaehlt, dass die rechte Kammer ohne ihn bis
+			# x=676 liefe — also quer durch die Spielbahn. Die erste Fassung hatte
+			# nur 20..52 px Tiefe und erreichte die Ruhezone ohnehin nie; der
+			# Riegel war toter Code, die Mutationsprobe hat ihn entlarvt.
+			var t: float = 90.0 + float(row) * 70.0
+			var x_in: float = x_outer + t * dir_in
+			if minf(x_in, x_outer) <= width * 0.5 + QUIET_HALF_WIDTH:
+				continue
+			var y_top: float = top + 60.0 + float(row) * 230.0
+			var y_bottom: float = y_top + 150.0
+			out.append(PackedVector2Array([
+				Vector2(x_outer, y_top),
+				Vector2(x_in, y_top + lean),
+				Vector2(x_in, y_bottom + lean),
+				Vector2(x_outer, y_bottom),
+			]))
+	return out
+
+## Paneelfelder der Wand. Gleiche Lage und Breite wie im Reaktorschacht
+## (`panel_field_span`/`_draw_far_layer`), damit die Zonen auf DERSELBEN Wand
+## sitzen. Drei Felder je Bucht, 210 hoch: keine Mini-Details.
+static func facility_panel_rects(width: float, camera: float, slot: int) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var top := facility_slot_top(camera, slot)
+	var left := facility_left_edge(width)
+	var right_field := facility_right_field(width)
+	# Zwei Wandfelder, je zwei Spalten mit dunkler Fuge dazwischen und drei
+	# Platten uebereinander. Die Fugen sind die Gliederung: die Platten selbst
+	# sind fast so dunkel wie die Wand, gelesen wird die Rasterung.
+	var fields := [Vector2(left + 26.0, left + 134.0), right_field]
+	for field in fields:
+		for col in range(2):
+			var x: float = field.x + float(col) * 58.0
+			var w: float = field.y - field.x if col == 0 else field.y - (field.x + 58.0)
+			w = minf(w, 50.0)
+			if w <= 8.0:
+				continue
+			for row in range(3):
+				out.append(Rect2(x, top + 8.0 + float(row) * 250.0, w, 236.0))
+	return out
+
+## Traegerlaeufe einer Bucht: die zwei durchgehenden Aussenachsen, dazu je nach
+## Slot ein Quertraeger ueber die volle Breite oder eine schmale Maschinenachse.
+## Der Quertraeger darf die Ruhezone queren — er ist die Segmentkante des
+## Bauwerks, keine gesetzte Einzelheit. Genau wie die waagerechte Bandfuge im
+## Reaktorschacht, die aus demselben Grund ueber die volle Breite laeuft.
+static func facility_girder_runs(width: float, camera: float, slot: int) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var left := facility_left_edge(width)
+	var top := facility_slot_top(camera, slot)
+	out.append(Rect2(left, top, 16.0, FM_BAY))
+	out.append(Rect2(width - left - 16.0, top, 16.0, FM_BAY))
+	# Querfuge auf halber Bucht: die waagerechte Gliederung der Wand.
+	out.append(Rect2(left, top + 380.0, width - 2.0 * left, 8.0))
+	if facility_crossing(slot):
+		out.append(Rect2(left, top + FM_BAY - 30.0, width - 2.0 * left, 30.0))
+	if facility_service(slot):
+		out.append(Rect2(facility_service_axis(), top, 120.0, FM_BAY))
+	return out
+
+static func facility_duct_rects(width: float, camera: float, slot: int) -> Array[Rect2]:
+	return [Rect2(facility_right_axis(width), facility_slot_top(camera, slot), 64.0, FM_BAY)]
+
+## Sichtbare Uebergangsabschnitte: die Bucht, in der eine Zonengrenze liegt.
+##
+## Die Ankerung ist der subtile Teil. Inhalt der Fernschicht wandert nur mit dem
+## Anteil p der Kamerabewegung (`layer_parallax(0) = 0.22`). Wird der Abschnitt
+## einfach an die Weltkoordinate der Grenze gesetzt, ist er beim Grenzuebertritt
+## laengst aus dem Bild gelaufen — gemessen: null sichtbare Uebergaenge bei den
+## Grenzen 1 bis 3 (nur die letzte lag zufaellig im Ausschnitt). Die Lage wird
+## deshalb aus dem Anteil p hergeleitet, so dass der Abschnitt genau dann in der
+## Bildmitte steht, wenn die Grenze den oberen Bildrand erreicht — also beim
+## Eintritt in die neue Zone.
+##
+## Der Slot ist damit eine reine Funktion der Grenze (kein Kamera-Einfluss): er
+## springt beim Scrollen nicht zwischen zwei Zellen hin und her.
+##
+## Ebene: die NAHE (0.62), nicht die Fernwand. In der Fernwand liegen alle vier
+## Grenzen wegen der Stauchung nur rund einen Slot auseinander — gemessen waren
+## bei einer Grenze alle VIER Uebergaenge gleichzeitig im Bild, der Uebergang
+## also ueberall. In der nahen Ebene liegen sie ~3 Slots auseinander, und der
+## Abschnitt steht genau dann im Bild, wenn die Grenze ueberschritten wird.
+static func facility_transition_slot(boundary: float, view_height: float) -> int:
+	var center := -JumpConfig.zone_height_for_index(boundary) + view_height * 0.5
+	return int(round(layer_parallax(2) * center / FM_BAY))
+
+## Weltoberkante der Bucht, in der ein Uebergang liegt. Nutzt dasselbe Raster wie
+## die Zonenmodule (nahe Ebene), damit Uebergangsbauwerk und Technik nicht
+## gegeneinander laufen.
+static func facility_transition_bay_rect(width: float, rect: Rect2, boundary: float) -> Rect2:
+	return Rect2(0.0, section_top(rect.get_center().y, facility_transition_slot(boundary, rect.size.y)), width, FM_BAY)
+
+static func facility_transition_bays(rect: Rect2) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var camera := rect.get_center().y
+	for boundary in [1.0, 2.0, 3.0, 4.0]:
+		var slot := facility_transition_slot(boundary, rect.size.y)
+		var bay := facility_transition_bay_rect(rect.size.x, rect, boundary)
+		if not bay.intersects(rect):
+			continue
+		out.append({"slot": slot, "boundary": boundary, "bay": bay})
+	return out
+
+## Zeichnet den Uebergangsabschnitt: Quertraeger, Wartungsschleuse, technisches
+## Schild und ein beginnendes Kabelbuendel. Damit ist der Zonenwechsel ein Ort,
+## den man passiert — nicht nur ein Alpha-Verlauf.
+static func draw_facility_transitions(canvas: CanvasItem, visible_rect: Rect2, zone_index: float) -> void:
+	if zone45_disabled or sections_disabled:
+		return
+	var alpha := facility_opacity_for_zone(zone_index)
+	if alpha <= 0.0 or visible_rect.size.x <= 0.0 or visible_rect.size.y <= 0.0:
+		return
+	var width := 1080.0
+	for entry in facility_transition_bays(visible_rect):
+		var bay: Rect2 = entry.bay
+		var boundary: float = entry.boundary
+		var span := facility_outer_span(width)
+		# Grosser Quertraeger ueber die volle Breite.
+		canvas.draw_rect(Rect2(span.x, bay.position.y, span.y - span.x, 34.0), _fade(FM_GIRDER, alpha))
+		canvas.draw_rect(Rect2(span.x, bay.position.y, span.y - span.x, 5.0), _fade(FM_GIRDER_LIT, alpha))
+		# Wartungsschleuse links, im Wandfeld — ausserhalb der Ruhezone.
+		var door := Rect2(span.x + 24.0, bay.position.y + 70.0, 210.0, 520.0)
+		canvas.draw_rect(door, _fade(DOOR_PANEL, alpha))
+		canvas.draw_rect(Rect2(door.position.x + door.size.x * 0.5 - 4.0, door.position.y, 8.0, door.size.y), _fade(DOOR_PANEL_DEEP, alpha))
+		for dir in [-1.0, 1.0]:
+			var x_from: float = door.position.x + door.size.x * 0.5 + dir * (door.size.x * 0.5 - 24.0)
+			canvas.draw_colored_polygon(_diagonal_quad(
+				Vector2(x_from, door.position.y + 60.0),
+				Vector2(x_from - dir * (door.size.x - 48.0), door.end.y - 60.0),
+				8.0), _fade(DOOR_BRACE, alpha))
+		# Technisches Schild: die Farbe des NEUEN Bereichs, sehr dunkel.
+		var next_zone := clampi(int(boundary), 0, JumpConfig.ZONE_SHAFT_COLORS.size() - 1)
+		var sign_color: Color = JumpConfig.ZONE_SHAFT_COLORS[next_zone]
+		var sign := Rect2(door.position.x + 34.0, door.end.y + 26.0, 142.0, 30.0)
+		canvas.draw_rect(sign, _fade(DOOR_PANEL_DEEP, alpha))
+		canvas.draw_rect(Rect2(sign.position.x + 6.0, sign.position.y + 8.0, sign.size.x - 12.0, 14.0), _fade(sign_color, alpha))
+		# Kabelbuendel beginnt: drei Straenge ueber die Buchtbreite.
+		for cable in range(3):
+			var cy: float = bay.end.y - 96.0 + float(cable) * 14.0
+			canvas.draw_line(Vector2(span.x + 18.0, cy), Vector2(span.y - 18.0, cy), _fade(FM_SEAM, alpha), 6.0)
+
+## Die Anlage selbst: eine sehr dunkle Grundflaeche, Wandfelder, Traeger,
+## Hohlraeume, die vertikale Versorgungsachse und die Wandfugen. Sie liefert
+## NUR Architektur — kein warmes Licht, keine zonenspezifische Technik.
+static func draw_facility(canvas: CanvasItem, visible_rect: Rect2, zone_index: float) -> void:
+	if zone45_disabled or sections_disabled:
+		return
+	var alpha := facility_opacity_for_zone(zone_index)
+	if alpha <= 0.0 or visible_rect.size.x <= 0.0 or visible_rect.size.y <= 0.0:
+		return
+	var width := 1080.0
+	var camera := visible_rect.get_center().y
+	for slot in facility_slots(visible_rect):
+		var bay := facility_bay_rect(width, camera, slot)
+		if not bay.intersects(visible_rect):
+			continue
+		var top := bay.position.y
+		var span := facility_outer_span(width)
+		var wall := facility_wall_span(width)
+		# Grund: tiefes Schwarz aussen, geschlossene Wand innen.
+		canvas.draw_rect(Rect2(0.0, top, width, FM_BAY), _fade(FM_FAR_BLACK, alpha))
+		canvas.draw_rect(Rect2(wall.x, top, wall.y - wall.x, FM_BAY), _fade(FM_WALL, alpha))
+		for panel in facility_panel_rects(width, camera, slot):
+			canvas.draw_rect(panel, _fade(FM_PANEL, alpha))
+		# Vertikale Versorgungsachse rechts — laeuft durch alle fuenf Zonen.
+		for duct in facility_duct_rects(width, camera, slot):
+			canvas.draw_rect(duct.grow(6.0), _fade(FM_SEAM, alpha))
+			canvas.draw_rect(duct, _fade(FM_DUCT, alpha))
+			canvas.draw_rect(Rect2(duct.position.x + 8.0, duct.position.y, 19.0, duct.size.y), _fade(FM_DUCT_LIT, alpha))
+			canvas.draw_rect(Rect2(duct.position.x + 36.0, duct.position.y, 7.0, duct.size.y), _fade(FM_SEAM, alpha))
+		# Traeger. Die Aussenachsen bekommen eine Lichtkante nach innen — das ist
+		# der Unterschied zwischen "Balken" und "Farbflaeche".
+		for run in facility_girder_runs(width, camera, slot):
+			canvas.draw_rect(run, _fade(FM_GIRDER, alpha))
+		canvas.draw_rect(Rect2(span.x + 16.0, top, 5.0, FM_BAY), _fade(FM_GIRDER_LIT, alpha))
+		canvas.draw_rect(Rect2(span.y - 21.0, top, 5.0, FM_BAY), _fade(FM_GIRDER_LIT, alpha))
+		# Hohlraeume zuletzt: sie sind die Tiefe, nicht die Flaeche.
+		for quad in facility_hollow_quads(width, camera, slot):
+			canvas.draw_colored_polygon(quad, _fade(FM_HOLLOW, alpha))
+		if facility_service(slot):
+			var axis := facility_service_axis()
+			canvas.draw_rect(Rect2(axis, top + 150.0, 130.0, 18.0), _fade(FM_GIRDER, alpha))
+			canvas.draw_rect(Rect2(axis, top + 150.0, 130.0, 4.0), _fade(FM_GIRDER_LIT, alpha))
+			canvas.draw_rect(Rect2(axis + 30.0, top + 300.0, 74.0, 92.0), _fade(FM_SEAM, alpha))
 
 static func draw(canvas: CanvasItem, visible_rect: Rect2, zone_index: float, time: float) -> void:
 	var alpha := opacity_for_zone(zone_index)
