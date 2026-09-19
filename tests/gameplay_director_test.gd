@@ -155,19 +155,41 @@ func _check_pace_ladder() -> void:
 
 	# Deckel: kein erreichbarer Absprung darf gekappt werden, sonst flacht der
 	# Deckel die Leiter ab, statt Unfaelle zu verhindern.
-	var top_charge := JumpConfig.pace_bounce(JumpConfig.RESONANCE_MAX_CHARGES, false) * JumpConfig.LANDING_BOUNCE_MULTIPLIERS[2]
+	# Der hoechste ERREICHBARE normale Absprung: schnellste Stufe MIT Boost.
+	# Ohne den Boost im Zaehler waere der Deckel-Test blind fuer genau den
+	# Zustand, den er schuetzen soll.
+	var top_charge := JumpConfig.pace_bounce(JumpConfig.RESONANCE_MAX_CHARGES, false, true) * JumpConfig.LANDING_BOUNCE_MULTIPLIERS[2]
 	_check(top_charge <= JumpConfig.MAX_BOUNCE_SPEED,
-		"hoechster normaler Absprung passt unter den Deckel (%.0f <= %.0f)" % [top_charge, JumpConfig.MAX_BOUNCE_SPEED])
+		"hoechster normaler Absprung inkl. PERFECT-Boost passt unter den Deckel (%.0f <= %.0f)" % [top_charge, JumpConfig.MAX_BOUNCE_SPEED])
+	var top_plain := JumpConfig.pace_bounce(JumpConfig.RESONANCE_MAX_CHARGES, false, false)
+	_check(top_plain < top_charge, "der Boost ist wirksam (%.0f gegen %.0f)" % [top_plain, top_charge])
 	var top_overload := JumpConfig.pace_bounce(0, true) * JumpConfig.LANDING_BOUNCE_MULTIPLIERS[2]
 	_check(top_overload <= JumpConfig.MAX_BOUNCE_SPEED,
 		"hoechster Overload passt unter den Deckel (%.0f <= %.0f)" % [top_overload, JumpConfig.MAX_BOUNCE_SPEED])
 
-	# Fairness am schwersten erreichbaren Punkt: die hoechste Stufe hat den
-	# groessten Abstand und muss trotzdem mit Reserve erreichbar sein.
+	# Fairness am schwersten erreichbaren Punkt. Wichtig: gerechnet wird gegen den
+	# GROESSTEN Abstand, den IRGENDEINE Form auf der hoechsten Stufe verlangen
+	# kann — nicht gegen den Mittelwert. Mit formabhaengigen Abstaenden waere eine
+	# Pruefung gegen den Grundwert blind fuer genau die Form, die zu hoch greift.
 	var hardest_gap := JumpConfig.PLATFORM_VERTICAL_GAP + JumpConfig.MAX_DIFFICULTY * JumpConfig.DIFFICULTY_VERTICAL_BONUS
+	var worst_kind := Patterns.Kind.ZIGZAG
+	for kind in Patterns.Kind.values():
+		if Patterns.gap_factor_for(kind) > Patterns.gap_factor_for(worst_kind):
+			worst_kind = kind
+	hardest_gap *= Patterns.gap_factor_for(worst_kind)
 	var hardest_apex := JumpConfig.pace_bounce(0, false) * JumpConfig.pace_bounce(0, false) / (2.0 * JumpConfig.pace_gravity(0, false))
 	_check(hardest_apex - hardest_gap > 100.0,
-		"auch die ruhige Stufe schafft den weitesten Abstand mit Reserve (%.0f px ueber %.0f px)" % [hardest_apex, hardest_gap])
+		"auch die ruhigste Stufe schafft den weitesten Formabstand mit Reserve (%.0f px ueber %.0f px, Form %d)"
+			% [hardest_apex, hardest_gap, worst_kind])
+	# Und dieselbe Rechnung fuer die SCHNELLSTE Stufe, denn dort fliegt der
+	# Spieler: der Boost wirkt genau dort.
+	var fastest_apex := JumpConfig.pace_bounce(JumpConfig.RESONANCE_MAX_CHARGES, false) * JumpConfig.pace_bounce(JumpConfig.RESONANCE_MAX_CHARGES, false) / (2.0 * JumpConfig.pace_gravity(JumpConfig.RESONANCE_MAX_CHARGES, false))
+	_check(fastest_apex - hardest_gap > 100.0,
+		"auch die schnellste Stufe schafft den weitesten Formabstand (%.0f px ueber %.0f px)" % [fastest_apex, hardest_gap])
+	# Und mit dem PERFECT-Boost obendrauf, denn er ist der schnellste Zustand.
+	var boosted_apex := JumpConfig.pace_bounce(JumpConfig.RESONANCE_MAX_CHARGES, false, true) * JumpConfig.pace_bounce(JumpConfig.RESONANCE_MAX_CHARGES, false, true) / (2.0 * JumpConfig.pace_gravity(JumpConfig.RESONANCE_MAX_CHARGES, false, true))
+	_check(boosted_apex - hardest_gap > 100.0,
+		"auch mit PERFECT-Boost bleibt der weiteste Abstand schaffbar (%.0f px ueber %.0f px)" % [boosted_apex, hardest_gap])
 
 ## --- Punkt 3: Patterns -------------------------------------------------------
 
@@ -185,7 +207,6 @@ func _check_pattern_fairness() -> void:
 			root.add_child(world)
 			var director := PlatformDirector.new(seed_value)
 			director.initialize(world, JumpConfig.PLATFORM_LAYOUT)
-			var gap := director.get_vertical_gap(difficulty)
 			# Die vorgegebenen Startledges tragen die Abstaende ihrer eigenen
 			# Gestaltung; geprueft wird nur die GENERIERTE Route. Erkannt werden
 			# sie an ihren Positionen — ueber den Index zu gehen waere falsch,
@@ -209,19 +230,28 @@ func _check_pattern_fairness() -> void:
 						violations += 1
 				for index in range(1, route.size()):
 					checked_steps += 1
-					if absf(route[index - 1].y - route[index].y - gap) > 0.01:
+					# Der senkrechte Abstand ist NICHT mehr eine Konstante: jede
+					# Form hat ihren eigenen Rhythmus (`gap_factor_for`). Geprueft
+					# wird gegen das BAND aller Formen auf dieser Stufe — ein
+					# Abstand ausserhalb waere ein Hinweis auf einen Fehler, ein
+					# Abstand innerhalb ist per Konstruktion erlaubt.
+					var gap := route[index - 1].y - route[index].y
+					var low: float = director.get_pattern_gap(Patterns.Kind.PRECISION_RUSH, difficulty)
+					var high: float = director.get_pattern_gap(Patterns.Kind.CLIMB, difficulty)
+					if gap < low - 0.01 or gap > high + 0.01:
 						height_violations += 1
-			lengths_seen[director._pattern_length] = true
-			kinds_seen[director.current_pattern()] = true
+				lengths_seen[director._pattern_length] = true
+				kinds_seen[director.current_pattern()] = true
 			world.queue_free()
 	_check(violations == 0, "keine Sprosse faellt aus dem Schacht (%d von %d geprueft)" % [violations, checked_steps])
-	_check(height_violations == 0, "der senkrechte Abstand bleibt exakt beim Schwierigkeitswert (%d Abweichungen)" % height_violations)
+	_check(height_violations == 0,
+		"der senkrechte Abstand liegt bei JEDER Sprosse im Band der Formen (%d Abweichungen von %d)" % [height_violations, checked_steps])
 	# Die Laengen muessen im geforderten Band liegen.
 	var lengths_ok := true
 	for length in lengths_seen:
 		if length < Patterns.MIN_LENGTH or length > Patterns.MAX_LENGTH:
 			lengths_ok = false
-	_check(lengths_ok, "Sequenzlaengen liegen im Band 4-6 (gesehen: %s)" % str(lengths_seen.keys()))
+	_check(lengths_ok, "Sequenzlaengen liegen im Band 3-6 (gesehen: %s)" % str(lengths_seen.keys()))
 
 ## Jede Form muss eine erkennbare Signatur haben — sonst waere sie nur ein
 ## anderer Name fuer denselben Zufall.
@@ -233,24 +263,24 @@ func _check_pattern_shapes() -> void:
 	# CLIMB zieht in EINE Richtung: alle Vorzeichen gleich.
 	var climb_signs := {}
 	for index in range(5):
-		climb_signs[signf(Patterns.step_offset(Patterns.Kind.CLIMB, index, 5, 540.0, step, 1.0, min_x, max_x))] = true
+		climb_signs[signf(Patterns.step_offset(Patterns.Kind.CLIMB, index, 5, 540.0, 540.0, step, 1.0, min_x, max_x))] = true
 	_check(climb_signs.size() == 1 or (climb_signs.has(0.0) and climb_signs.size() == 2),
 		"Climb zieht durchgehend in eine Richtung (%s)" % str(climb_signs.keys()))
 
 	# ZIGZAG pendelt: beide Vorzeichen kommen vor.
 	var zig_signs := {}
 	for index in range(4):
-		zig_signs[signf(Patterns.step_offset(Patterns.Kind.ZIGZAG, index, 4, 540.0, step, 1.0, min_x, max_x))] = true
+		zig_signs[signf(Patterns.step_offset(Patterns.Kind.ZIGZAG, index, 4, 540.0, 540.0, step, 1.0, min_x, max_x))] = true
 	_check(zig_signs.has(1.0) and zig_signs.has(-1.0), "Zigzag pendelt in beide Richtungen")
 
 	# PRECISION_RUSH ist eng: kleiner Schritt als CROSS.
-	var precision := absf(Patterns.step_offset(Patterns.Kind.PRECISION_RUSH, 0, 4, 540.0, step, 1.0, min_x, max_x))
-	var cross := absf(Patterns.step_offset(Patterns.Kind.CROSS, 0, 4, 540.0, step, 1.0, min_x, max_x))
+	var precision := absf(Patterns.step_offset(Patterns.Kind.PRECISION_RUSH, 0, 4, 540.0, 540.0, step, 1.0, min_x, max_x))
+	var cross := absf(Patterns.step_offset(Patterns.Kind.CROSS, 0, 4, 540.0, 540.0, step, 1.0, min_x, max_x))
 	_check(precision < cross, "Precision Rush ist enger als Cross (%.0f < %.0f)" % [precision, cross])
 
 	# RECOVERY ist die ruhigste Form — nach einer engen Folge braucht der Spieler
 	# eine Erholung, sonst waere die Schwierigkeit eine Dauerbelastung.
-	var recovery := absf(Patterns.step_offset(Patterns.Kind.RECOVERY, 0, 4, 540.0, step, 1.0, min_x, max_x))
+	var recovery := absf(Patterns.step_offset(Patterns.Kind.RECOVERY, 0, 4, 540.0, 540.0, step, 1.0, min_x, max_x))
 	_check(recovery < precision, "Recovery ist ruhiger als jede andere Form (%.0f < %.0f)" % [recovery, precision])
 
 	# Die Belastbarkeit: KEINE Form darf mehr Schritt verlangen, als der Spieler
@@ -261,14 +291,14 @@ func _check_pattern_shapes() -> void:
 	for kind in Patterns.Kind.values():
 		for index in range(6):
 			for start in [min_x, 540.0, max_x]:
-				var offset := absf(Patterns.step_offset(kind, index, 6, start, step, 1.0, min_x, max_x))
+				var offset := absf(Patterns.step_offset(kind, index, 6, start, start, step, 1.0, min_x, max_x))
 				max_magnitude = maxf(max_magnitude, offset)
 	_check(max_magnitude <= step + 0.01,
 		"keine Form verlangt mehr als einen Schritt (groesster %.0f bei erlaubten %.0f)" % [max_magnitude, step])
 
 	# Gegen die Wand gedrueckt muss die Form umkehren, nicht stapeln: der Schritt
 	# bleibt gerichtet, statt auf null zu fallen.
-	var pushed := Patterns.step_offset(Patterns.Kind.CLIMB, 0, 6, max_x, step, 1.0, min_x, max_x)
+	var pushed := Patterns.step_offset(Patterns.Kind.CLIMB, 0, 6, max_x, max_x, step, 1.0, min_x, max_x)
 	_check(absf(pushed) > 0.5, "an der Schachtwand kehrt die Form um, statt zu stapeln (Schritt %.0f)" % pushed)
 
 	# Und die Formwahl muss mit der Schwierigkeit wirklich anders werden.

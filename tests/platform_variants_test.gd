@@ -14,6 +14,12 @@ func _run() -> void:
 		_finish()
 		return
 	probe.free()
+	# `seen` wird ueber ALLE Seeds gesammelt, nicht je Seed geprueft: seit dem
+	# Gameplay-Umbau kommen die Varianten nur noch aus ihrer Form, und die enge
+	# Schanze gehoert allein zum Precision Rush. Der erscheint nicht in jedem
+	# einzelnen Seed — die Aussage "es gibt alle drei Varianten" ist eine
+	# Eigenschaft des Generators, nicht eines einzelnen Laufs.
+	var seen := {}
 	for seed_value in range(12):
 		var world := Node2D.new()
 		root.add_child(world)
@@ -21,7 +27,6 @@ func _run() -> void:
 		director.initialize(world, JumpConfig.PLATFORM_LAYOUT)
 		for p in director._active_platforms:
 			_check(p.get("variant") == 0, "initial ledges remain standard")
-		var seen := {}
 		var replay := []
 		for step in range(40):
 			director.maintain(-step * 350.0, -step * 350.0 + 1920.0, step % 6)
@@ -32,15 +37,19 @@ func _run() -> void:
 				_check(p.position.x - p.platform_size.x * 0.5 >= 0.0 and p.position.x + p.platform_size.x * 0.5 <= 1080.0, "full platform stays inside shaft")
 			replay.append(_snapshot(director))
 			_check(director.active_platform_count <= JumpConfig.MAX_ACTIVE_PLATFORMS, "bounded population")
-		# Vier Varianten seit Phase 5: Standard, schmal, Resonanzfokus und die
-		# riskante Abzweigung der Routenwahl.
-		for expected_variant in [0, 1, 2]:
-			_check(seen.has(expected_variant), "route variant %d occurs" % expected_variant)
 		director.initialize(world, JumpConfig.PLATFORM_LAYOUT)
 		for step in range(40):
 			director.maintain(-step * 350.0, -step * 350.0 + 1920.0, step % 6)
 			_check(replay[step] == _snapshot(director), "seed replay includes variant and width")
 		world.free()
+	# Vier Varianten seit Phase 5: Standard, schmal, Resonanzfokus und die
+	# riskante Abzweigung der Routenwahl. Seit dem Gameplay-Umbau traegt jede
+	# Variante eine Form: die enge nur der Precision Rush, der Resonanzfokus nur
+	# die Risikowahl. Eine Variante, die in KEINEM Seed vorkommt, waere ein toter
+	# Zweig — genau das prueft diese Schleife.
+	for expected_variant in [0, 1, 2, 3]:
+		_check(seen.has(expected_variant),
+			"route variant %d occurs (gesehen: %s)" % [expected_variant, str(seen.keys())])
 	var normal := JumpPlatform.new()
 	var focus := JumpPlatform.new()
 	focus.call("configure_variant", 2)

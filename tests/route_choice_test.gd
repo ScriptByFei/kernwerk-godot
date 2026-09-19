@@ -49,7 +49,12 @@ func _run() -> void:
 					continue
 				known[platform] = true
 				order.append(platform)
-				created[platform] = {"variant": platform.variant, "difficulty": difficulty, "position": platform.position, "authored": false}
+				# Das Schrittmass gilt BEI DER ERZEUGUNG der Sprosse. Seit dem
+				# Gameplay-Umbau laeuft ein Pattern mit dem Mass weiter, das beim
+				# Start der Sequenz galt — eine spätere, strengere Stufe darf
+				# alte Sprossen also nicht verurteilen. Deshalb wird das Mass der
+				# laufenden Sequenz mitgeschrieben, nicht das Argument des Aufrufs.
+				created[platform] = {"variant": platform.variant, "difficulty": director.pattern_difficulty(), "step": platform.pattern_step, "position": platform.position, "authored": false}
 				if platform.variant == JumpPlatform.Variant.RISKY:
 					risky_seen += 1
 			_check(director.active_platform_count <= JumpConfig.MAX_ACTIVE_PLATFORMS, "Plattformzahl bleibt gedeckelt")
@@ -66,7 +71,10 @@ func _run() -> void:
 				route_predecessor = position
 				continue
 			var generated := not bool(info["authored"])
-			var limit: float = _step_for(int(info["difficulty"]))
+			# Das Schrittmass kommt von der SPROSSE: es gilt das Mass, das beim
+			# Start ihrer Sequenz galt. `difficulty` aus dem Aufruf waere falsch,
+			# sobald eine Sequenz ueber mehrere `maintain()`-Aufrufe laeuft.
+			var limit: float = float(info["step"]) if info.has("step") else _step_for(int(info["difficulty"]))
 			var hop: float = absf(position.x - route_predecessor.x)
 			if platform.variant == JumpPlatform.Variant.RISKY:
 				branches_seen += 1

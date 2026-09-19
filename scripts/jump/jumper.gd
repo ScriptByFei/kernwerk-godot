@@ -23,6 +23,13 @@ var _feedback_visual: Node2D
 ## liegen im ResonanceSystem, damit es genau eine Quelle der Wahrheit gibt.
 var _resonance_ratio := 0.0
 var _overload_remaining := 0.0
+## Dive-Zustand. `_dive_available` wird bei JEDEM Absprung neu gesetzt (einmal
+## pro Sprung), `_dive_active` bei der Landung geloescht.
+var _dive_active := false
+var _dive_available := false
+## Zaehlt ausgeloeste Dives. Nur fuer QA — ohne diesen Zaehler laesst sich
+## "hoechstens einmal je Sprung" von aussen nicht belegen.
+var dive_count := 0
 
 func charge_light_alpha() -> float:
 	if _overload_remaining > 0.0:
@@ -136,14 +143,88 @@ func _physics_process(delta: float) -> void:
 				_resolve_landing(platform, false, contact_center.x)
 				break
 
+## ---------------------------------------------------------------------------
+## DIVE: aktive Beeinflussung des Landungszeitpunkts
+## ---------------------------------------------------------------------------
+##
+## Einmal pro Sprung, nur in der FALLPHASE, ausgeloest durch einen schnellen
+## Wisch nach unten (siehe `dive_input.gd`). Der Reaktor beschleunigt deutlich
+## nach unten; waagerecht bleibt er steuerbar. Die Werte stehen in `JumpConfig`
+## bei den uebrigen Spielwerten.
+##
+## Warum KEIN sinnvoller Tempo-Deckel fuer Dive: die Steuerung nach unten ist der
+## Zweck, und ein gedeckeltes Tempo waere kein Dive. Die waagerechte Lenkung ist
+## ohnehin eigenstaendig begrenzt (`MAX_HORIZONTAL_SPEED`), und der Aufprall nutzt
+## dieselbe Landung wie jeder andere Sturz — es gibt keinen neuen Absturzpfad.
+
 ## Gravitation der laufenden Stufe. Die Tempoleiter skaliert Gravitation und
 ## Absprungkraft GEMEINSAM, damit hoeheres Tempo nicht auch hoehere Spruenge
 ## bedeutet. Vor dem ersten Absprung gilt die ruhige Stufe.
 func current_gravity() -> float:
-	return JumpConfig.pace_gravity(_held_charges(), _pending_overload)
+	var gravity := JumpConfig.pace_gravity(_held_charges(), _pending_overload, _perfect_boost_flight)
+	if _dive_active:
+		gravity *= JumpConfig.DIVE_GRAVITY_FACTOR
+	return gravity
+
+## Dive laeuft gerade? Nur fuer Pruefungen und QA.
+func is_diving() -> bool:
+	return _dive_active
+
+## Ist ein Dive in DIESEM Sprung noch moeglich? Nur fuer Pruefungen und QA.
+func dive_available() -> bool:
+	return _dive_available and velocity.y > JumpConfig.DIVE_MIN_FALL_SPEED
+
+## Loest den Dive aus. Liefert false, wenn er nicht erlaubt ist — die
+## Entscheidung liegt hier und nicht in der Eingabe, damit es genau eine
+## Regelstelle gibt.
+func try_dive() -> bool:
+	if not _dive_available:
+		return false
+	if velocity.y <= JumpConfig.DIVE_MIN_FALL_SPEED:
+		# Noch im Aufstieg (oder im Scheitel): kein Dive. Der Spieler soll den
+		# Landungszeitpunkt beeinflussen, nicht den Absprung.
+		return false
+	_dive_available = false
+	_dive_active = true
+	dive_count += 1
+	# Der Kick ist der spuerbare Teil: die Gravitation allein braucht einen
+	# Moment, bis sie wirkt.
+	velocity.y = maxf(velocity.y, JumpConfig.DIVE_MIN_FALL_SPEED * 4.0)
+	if _feedback_visual != null:
+		_feedback_visual.queue_redraw()
+	return true
+
+## Der PERFECT-Boost gilt fuer GENAU DEN NAECHSTEN Absprung.
+##
+## Es gibt ZWEI Flags, und das ist kein Zufall:
+##   `_perfect_boost_armed`  — scharf gestellt von der Landung, verbraucht beim
+##                             naechsten Absprung.
+##   `_perfect_boost_flight` — scharf WAEHREND dieses einen Fluges.
+##
+## Warum zwei: Kraft und Gravitation lesen den Boost zu VERSCHIEDENEN Zeitpunkten.
+## Die Kraft liest ihn im Absprung, die Gravitation in JEDEM Tick danach. Ein
+## einziges Flag, das beim Absprung geloescht wird, laesst die Gravitation
+## ungeboostet weiterlaufen — der Sprung wird dann HOEHER statt schneller
+## (gemessen: Scheitel +23 %, Flugdauer +11 %, also das Gegenteil des Ziels).
+var _perfect_boost_armed := false
+var _perfect_boost_flight := false
+
+## Scharfer PERFECT-Boost? Nur fuer Pruefungen und QA.
+func perfect_boost_armed() -> bool:
+	return _perfect_boost_armed
+
+## Wird von der Landung gesetzt. Bewusst KEIN Stapeln und kein Timer: der Wert
+## faellt genau beim naechsten Absprung, unabhaengig davon, wie lange der Flug
+## dauert.
+func arm_perfect_boost() -> void:
+	_perfect_boost_armed = true
 
 func apply_gravity(delta: float) -> void:
 	velocity.y += current_gravity() * delta
+	if _dive_active and velocity.y > JumpConfig.DIVE_MAX_FALL_SPEED:
+		# Nur der Dive wird gedeckelt: ohne Deckel koennte ein sehr spaeter Dive
+		# den Kern in einem einzigen Tick durch eine Plattform tragen.
+		velocity.y = JumpConfig.DIVE_MAX_FALL_SPEED
 
 func set_horizontal_intent(intent: float) -> void:
 	has_horizontal_target = false
@@ -202,9 +283,16 @@ func _resolve_landing(platform: JumpPlatform, is_overload: bool, contact_center_
 		platform.trigger_impact(last_landing_quality, contact_center_x)
 		bonus = platform.claim_landing_bonus(last_landing_quality)
 	landing_count += 1
+	# Die Landung beendet den Dive; der naechste Absprung gibt ihn neu frei.
+	_dive_active = false
 	_impact_remaining = JumpConfig.LANDING_EFFECT_DURATIONS[last_landing_quality]
 	if _feedback_visual != null:
 		_feedback_visual.queue_redraw()
+	# Der PERFECT-Boost wird HIER scharf gemacht, also von der Landung, die ihn
+	# verdient hat. Er gilt fuer den Absprung, der gleich folgt — und nur fuer
+	# ihn: `_apply_bounce` loescht ihn im selben Tick nach dem Auslesen.
+	if last_landing_quality == JumpConfig.LandingQuality.PERFECT:
+		_perfect_boost_armed = true
 	# Erst die Landung verbuchen (laedt die Resonanz), dann mit dem Ergebnis
 	# abspringen. So wirkt ein Overload im selben Physik-Tick wie die Landung,
 	# die ihn ausgeloest hat.
@@ -221,18 +309,34 @@ func _resolve_landing(platform: JumpPlatform, is_overload: bool, contact_center_
 func start_initial_bounce() -> void:
 	# Der Startabsprung laeuft immer auf der ruhigen Stufe: der Spieler hat noch
 	# nichts geleistet, ein schnellerer erster Sprung waere nicht verdient.
+	_dive_active = false
+	_dive_available = true
+	_perfect_boost_flight = false
 	velocity.y = -JumpConfig.pace_bounce(0, false)
 	_bounce_sequence = [&"jump"]
 	_play_next_bounce_animation()
 	bounced.emit()
 
 func _apply_bounce(is_overload: bool) -> void:
+	# Ein Dive ist genau EINMAL je Sprung moeglich: jeder Absprung gibt ihn
+	# zurueck, und er ist erst wieder verfuegbar, wenn der Kern faellt
+	# (`try_dive` prueft die Fallrichtung).
+	_dive_active = false
+	_dive_available = true
 	_pending_overload = is_overload
 	_overload_remaining = JumpConfig.RESONANCE_OVERLOAD_DISPLAY_TIME if is_overload else 0.0
-	# Die Tempoleiter steckt in `pace_bounce` (Faktor UND Ladungsaufschlag).
-	# Hier kommt nur noch die Landequalitaet dazu, danach greift die Kappung.
+	# Die Tempoleiter steckt in `pace_bounce` (Faktor UND Ladungsaufschlag), dazu
+	# der PERFECT-Boost dieses Absprungs. Danach greift die Kappung.
 	var charges := int(round(_resonance_ratio * JumpConfig.RESONANCE_MAX_CHARGES))
-	var bounce_speed := JumpConfig.pace_bounce(charges, is_overload)
+	var boost := _perfect_boost_armed
+	# Verbrauchen, BEVOR die Kraft berechnet wird: der Booster gilt fuer genau
+	# diesen einen Absprung. Ein Overload verbraucht ihn mit — die Kraft kommt
+	# dann ohnehin aus OVERLOAD_BOUNCE_SPEED, und ein aufgesparter Boost nach
+	# einem Overload waere ein Dauerzustand, den es nicht geben soll.
+	_perfect_boost_armed = false
+	# Den Boost fuer den FLUG sichtbar machen — die Gravitation liest ihn hier.
+	_perfect_boost_flight = boost
+	var bounce_speed := JumpConfig.pace_bounce(charges, is_overload, boost)
 	velocity.y = -minf(bounce_speed * JumpConfig.LANDING_BOUNCE_MULTIPLIERS[last_landing_quality], JumpConfig.MAX_BOUNCE_SPEED)
 	_bounce_sequence = [&"land", &"jump"]
 	_play_next_bounce_animation()
@@ -243,6 +347,10 @@ func _apply_bounce(is_overload: bool) -> void:
 func shutdown() -> void:
 	_overload_remaining = 0.0
 	_resonance_ratio = 0.0
+	_dive_active = false
+	_dive_available = false
+	_perfect_boost_armed = false
+	_perfect_boost_flight = false
 	set_physics_process(false)
 	set_process(false)
 	clear_horizontal_target()

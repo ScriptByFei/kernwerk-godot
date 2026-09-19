@@ -97,8 +97,25 @@ func _test_platform_director_difficulty() -> void:
 	# ohne dass sich an den Abstaenden etwas geaendert haette.
 	var base_gap := _main_route_gap(base_director)
 	var hard_gap := _main_route_gap(hard_director)
-	_check(base_gap == JumpConfig.PLATFORM_VERTICAL_GAP, "difficulty zero keeps the base vertical gap")
-	_check(hard_gap == JumpConfig.PLATFORM_VERTICAL_GAP + 2.0 * JumpConfig.DIFFICULTY_VERTICAL_BONUS, "difficulty adds the configured vertical bonus")
+	# Seit dem Gameplay-Umbau ist der Abstand NICHT mehr eine Konstante: jede
+	# Form hat ihren eigenen Faktor (`gap_factor_for`). Geprueft wird deshalb das
+	# BAND der Formen auf der jeweiligen Stufe — und dass die Stufe den
+	# GRUNDWERT wirklich anhebt, also das ganze Band nach oben wandert.
+	var base_low := JumpConfig.PLATFORM_VERTICAL_GAP * _min_gap_factor()
+	var base_high := JumpConfig.PLATFORM_VERTICAL_GAP * _max_gap_factor()
+	_check(base_gap >= base_low - 0.01 and base_gap <= base_high + 0.01,
+		"Stufe 0 bleibt im Band ihrer Formen (%.0f in %.0f..%.0f)" % [base_gap, base_low, base_high])
+	var hard_base := JumpConfig.PLATFORM_VERTICAL_GAP + 2.0 * JumpConfig.DIFFICULTY_VERTICAL_BONUS
+	_check(hard_gap >= hard_base * _min_gap_factor() - 0.01 and hard_gap <= hard_base * _max_gap_factor() + 0.01,
+		"Stufe 2 liegt im angehobenen Band (%.0f in %.0f..%.0f)" % [hard_gap, hard_base * _min_gap_factor(), hard_base * _max_gap_factor()])
+	# Ein Vergleich zweier EINZELmessungen ist hier nicht mehr aussagekraeftig:
+	# jede Messung faellt auf die Form, die zufaellig gerade lief (gemessen 294
+	# gegen 300, obwohl die Stufe den Grundwert anhebt). Verglichen werden
+	# deshalb die BAENDER — das ist die Eigenschaft, die die Stufe steuert.
+	var base_center := JumpConfig.PLATFORM_VERTICAL_GAP * 0.5 * (_min_gap_factor() + _max_gap_factor())
+	var hard_center := hard_base * 0.5 * (_min_gap_factor() + _max_gap_factor())
+	_check(hard_center > base_center,
+		"die hoehere Stufe hebt den ganzen Rhythmus an (Bandmitte %.0f > %.0f)" % [hard_center, base_center])
 	_check(
 		absf(hard_director.active_positions[7].x - hard_director.active_positions[6].x) <= JumpConfig.PLATFORM_MAX_HORIZONTAL_STEP + 2.0 * JumpConfig.DIFFICULTY_HORIZONTAL_BONUS,
 		"difficulty expands the horizontal transition limit"
@@ -126,3 +143,19 @@ func _check(condition: bool, description: String) -> void:
 		return
 	failures += 1
 	print("  ✗ " + description)
+
+## Kleinster/groesster Formfaktor. Aus der Tabelle gelesen, nicht abgeschrieben —
+## sonst driftet die Pruefung von der Produktion weg, sobald jemand eine Form
+## nachjustiert.
+func _min_gap_factor() -> float:
+	var worst := INF
+	for kind in PlatformPatterns.Kind.values():
+		worst = minf(worst, PlatformPatterns.gap_factor_for(kind))
+	return worst
+
+
+func _max_gap_factor() -> float:
+	var worst := 0.0
+	for kind in PlatformPatterns.Kind.values():
+		worst = maxf(worst, PlatformPatterns.gap_factor_for(kind))
+	return worst

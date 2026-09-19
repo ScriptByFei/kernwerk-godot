@@ -6,6 +6,19 @@ enum Variant { STANDARD, NARROW, RESONANCE_FOCUS, RISKY }
 const NARROW_WIDTH := 200.0
 const FOCUS_RESONANCE_RATIO := 0.44
 var variant := Variant.STANDARD
+## Form-Index, unter der diese Sprosse entstanden ist (`PlatformPatterns.Kind`).
+## Sie ist die EIGENTLICHE Quelle der Identitaet: die Variante und der
+## senkrechte Abstand einer Sprosse haengen an der Form, die sie erzeugt hat —
+## nicht an der Form, die zufaellig gerade laeuft, wenn man nachsieht. Ohne
+## dieses Feld ist eine Pruefung "traegt jede Erholungs-Sprosse eine
+## Standardplattform?" nicht messbar: ein `maintain()`-Aufruf kann mehrere
+## Sprossen ueber eine Patterngrenze hinweg erzeugen.
+var pattern_kind := -1
+## Erlaubtes Schrittmass BEI DER ERZEUGUNG dieser Sprosse. Gleicher Grund wie
+## `pattern_kind`: ein laufendes Pattern behaelt das Mass seines Starts, eine
+## spaetere strengere Stufe darf alte Sprossen also nicht verurteilen. Ohne
+## dieses Feld muss eine Pruefung das Mass raten und meldet falsche Fehler.
+var pattern_step := 0.0
 
 # Configure before adding to the tree, so the collider has the visible size.
 func configure_variant(kind: Variant) -> void:

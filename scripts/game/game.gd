@@ -12,6 +12,7 @@ enum Phase {
 
 const ContactSound = preload("res://scripts/jump/contact_sound.gd")
 const Ambience = preload("res://scripts/jump/ambience_player.gd")
+const DiveInput = preload("res://scripts/jump/dive_input.gd")
 ## Authored contact overrides are optional; default contacts use cached PCM.
 @export var normal_landing_sound: AudioStream
 @export var resonance_landing_sound: AudioStream
@@ -67,6 +68,10 @@ var _current_menu: StartMenu
 var _held_pointers: Dictionary = {}
 var _blocked_pointers: Dictionary = {}
 var _drag_pointer := ""
+## Dive-Erkennung: ein schneller Wisch nach unten loest den Dive aus. Sie liegt
+## neben der Steuerung, nicht darin — die Steuerung bleibt unveraendert, der
+## Wisch wird nur ZUSAETZLICH ausgewertet.
+var dive_input: DiveInput
 var _keyboard_blocked := false
 var pause_button: PauseButton
 var pause_menu: PauseMenu
@@ -100,6 +105,7 @@ func _ready() -> void:
 	ambience = Ambience.new()
 	ambience.attach(self)
 	resonance = ResonanceSystem.new()
+	dive_input = DiveInput.new()
 	score_store = BestScoreStore.new()
 	run_record = RunRecord.new(score_store)
 	run_stats = RunStats.new()
@@ -665,6 +671,8 @@ func _on_start_menu_exiting(menu: StartMenu) -> void:
 func _reset_controls() -> void:
 	is_dragging = false
 	_drag_pointer = ""
+	if dive_input != null:
+		dive_input.reset()
 	_blocked_pointers = _held_pointers.duplicate()
 	_keyboard_blocked = Input.is_action_pressed("move_left") or Input.is_action_pressed("move_right")
 	if is_instance_valid(jumper):
@@ -728,26 +736,85 @@ func _unhandled_input(event: InputEvent) -> void:
 			_drag_pointer = "mouse"
 			is_dragging = true
 			_set_horizontal_target(event.position)
+			_begin_dive_tracking(event.position)
 		elif _drag_pointer == "mouse":
 			_drag_pointer = ""
 			is_dragging = false
 			jumper.clear_horizontal_target()
+			_end_dive_tracking()
 	elif event is InputEventMouseMotion and is_dragging and _drag_pointer == "mouse":
 		_set_horizontal_target(event.position)
+		_update_dive_tracking(event.position)
 	elif event is InputEventScreenTouch:
 		if event.pressed:
 			_drag_pointer = "touch:%d" % event.index
 			is_dragging = true
 			_set_horizontal_target(event.position)
+			_begin_dive_tracking(event.position)
 		elif _drag_pointer == "touch:%d" % event.index:
 			_drag_pointer = ""
 			is_dragging = false
 			jumper.clear_horizontal_target()
+			_end_dive_tracking()
 	elif event is InputEventScreenDrag and is_dragging and _drag_pointer == "touch:%d" % event.index:
 		_set_horizontal_target(event.position)
+		_update_dive_tracking(event.position)
 	elif event is InputEventKey:
 		if not _keyboard_blocked:
 			_set_keyboard_intent()
+
+## --- Dive-Eingabe ------------------------------------------------------------
+##
+## Der Wisch wird NEBEN der Steuerung ausgewertet: die Steuerung bekommt jedes
+## Ereignis unveraendert weiter, hier wird nur zusaetzlich geprueft, ob es ein
+## Dive ist. Ein Dive-Ereignis schluckt die Steuerung also nicht.
+##
+## Die Zeitbasis ist die Prozesszeit der Engine, nicht die Wanduhr: so ist die
+## Erkennung unabhaengig von der Bildrate und in Tests reproduzierbar.
+func _begin_dive_tracking(position: Vector2) -> void:
+	if dive_input == null:
+		return
+	dive_input.begin(position, _dive_now())
+
+func _end_dive_tracking() -> void:
+	if dive_input != null:
+		dive_input.end()
+
+func _dive_now() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+## WICHTIG: `InputEvent.position` kommt BEREITS in Design-Pixeln an — es darf
+## NICHT umgerechnet werden.
+##
+## Eine Umrechnung von Fenster- auf Design-Pixel stand hier und war ein echter
+## Fehler: sie hat die Wisch-Schwelle ein zweites Mal gestreckt. Gemessen auf
+## einem 430 breiten Fenster (Viewport 1080 breit, Faktor 2,51): aus den
+## geforderten 80 Design-Pixeln wurden rund 29 — ein 35-Pixel-Zucken loeste
+## damit einen Dive aus, obwohl die Mindeststrecke das verhindern soll.
+##
+## Belegt mit `qa/input_room_probe.gd`: 200 gesendete Fensterpixel kamen als
+## 533,3 an (Faktor 2,667). Die Ereignisposition ist also schon im Spielraum.
+## Die Funktion bleibt als benannter Hinweis stehen, damit die Umrechnung nicht
+## spaeter "hilfreich" wieder eingebaut wird.
+func _window_to_design(position: Vector2) -> Vector2:
+	return position
+
+func _update_dive_tracking(position: Vector2) -> void:
+	if dive_input == null:
+		return
+	# Die Schwellwerte kommen aus `JumpConfig`, nicht aus den Vorgabewerten der
+	# Erkennung: sonst gaebe es zwei Zahlenpaare, und die eingestellten Werte
+	# waeren wirkungslos.
+	if not dive_input.update(position, _dive_now(),
+			JumpConfig.DIVE_SWIPE_MIN_DISTANCE,
+			JumpConfig.DIVE_SWIPE_MAX_TIME,
+			JumpConfig.DIVE_SWIPE_DOMINANCE):
+		return
+	if _phase != Phase.PLAYING or is_game_over or jumper == null:
+		return
+	# Die Regel entscheidet der Jumper selbst (`try_dive`): nur in der Fallphase,
+	# nur einmal je Sprung. Hier steht nur die Verdrahtung.
+	jumper.try_dive()
 
 func _is_start_tap(event: InputEvent) -> bool:
 	return (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \

@@ -28,8 +28,9 @@ const OVERLOAD_BOUNCE_SPEED := 4144.0
 const OVERLOAD_GRAVITY := 11180.0
 ## Deckel aller Absprungkraefte. Er muss ueber dem groessten tatsaechlich
 ## erreichbaren Wert liegen, sonst flacht er die Tempoleiter ab, statt Unfaelle
-## zu verhindern: Overload + PERFECT ergibt 4144 * 1.05 = 4351, der Deckel laesst
-## also 49 px/s Luft. Die alte Grenze 1960 haette hier jede Overload gekappt.
+## zu verhindern. Groesster erreichbarer Wert ist der Overload (4144) — der
+## PERFECT-Boost greift dort nicht (siehe `pace_bounce`). Die alte Grenze 1960
+## haette jede Overload gekappt.
 const MAX_BOUNCE_SPEED := 4400.0
 ## Tempoleiter der Resonanzladungen, relativ zur Basisstufe (Index = Ladungen).
 ##
@@ -38,13 +39,39 @@ const MAX_BOUNCE_SPEED := 4400.0
 ## Telefon nicht mehr steuerbar, weniger waere nicht spuerbar.
 const RESONANCE_PACE_FACTORS := [0.88, 1.0, 1.16, 1.16]
 
-## Absprungkraft der aktuellen Stufe, einschliesslich Ladungsaufschlag.
-static func pace_bounce(charges: int, overload: bool) -> float:
+## Tempo-Boost der PERFECT-Landung. Er gilt fuer GENAU DEN NAECHSTEN Absprung und
+## ist danach verbraucht — kein Dauerzustand, kein Stapeln.
+##
+## Er wird wie die Tempoleiter ueber einen FAKTOR auf Kraft UND Gravitation
+## gelegt (Kraft * k, Gravitation * k^2). Damit bleibt der Scheitel exakt gleich
+## (v^2/(2g)) und nur die Flugzeit sinkt um ~1/k. Ein reiner Kraftaufschlag
+## haette den Sprung hoeher gemacht — die Landung waere "schneller", aber auch
+## weiter, und die Route nicht mehr dieselbe.
+##
+## 1.11 liegt in der geforderten Spanne 10-12 %: die Flugdauer sinkt um ~10 %.
+const PERFECT_PACE_BOOST := 1.11
+
+## Absprungkraft der aktuellen Stufe, einschliesslich Ladungsaufschlag und
+## PERFECT-Boost.
+##
+## OVERLOAD IST VOM BOOST AUSGENOMMEN — bewusste Entscheidung, kein Versehen.
+## Der Grund ist gerechnet, nicht geschaetzt: 4144 * 1.11 = 4600 liegt ueber
+## MAX_BOUNCE_SPEED (4400). Die Kraft wuerde also gekappt, die Gravitation aber
+## voll mit 1.11^2 skaliert. Der Scheitel faellt damit von 768 auf 703 px — die
+## PERFECT-Landung wuerde den Overload um 8,5 % NIEDRIGER machen. Eine Belohnung,
+## die den Sprung schlechter macht, ist keine.
+##
+## Der Spieler wird dabei nicht um seine Belohnung gebracht: der Overload selbst
+## ist die Belohnung der PERFECT-Kette, und die Resonanzladung kommt unabhaengig
+## davon in jedem Fall.
+static func pace_bounce(charges: int, overload: bool, perfect_boost := false) -> float:
 	if overload:
 		return OVERLOAD_BOUNCE_SPEED
 	var index := clampi(charges, 0, RESONANCE_PACE_FACTORS.size() - 1)
-	var factor: float = RESONANCE_PACE_FACTORS[index]
-	return BASE_BOUNCE_SPEED * factor * (1.0 + resonance_bounce_bonus(charges))
+	var factor: float = RESONANCE_PACE_FACTORS[index] * (1.0 + resonance_bounce_bonus(charges))
+	if perfect_boost:
+		factor *= PERFECT_PACE_BOOST
+	return BASE_BOUNCE_SPEED * factor
 
 ## Gravitation der aktuellen Stufe. Sie waechst mit dem QUADRAT des Faktors,
 ## damit der Scheitel konstant bleibt (siehe Kommentar bei GRAVITY).
@@ -53,12 +80,48 @@ static func pace_bounce(charges: int, overload: bool) -> float:
 ## waechst der Scheitel mit dem Quadrat des Aufschlags — 3/3 sprang dadurch 5,7 %
 ## hoeher als 2/3. Mit dem Aufschlag auch in der Gravitation ist der Scheitel
 ## ueber ALLE Stufen identisch und der Aufschlag wirkt als reine Temposteigerung.
-static func pace_gravity(charges: int, overload: bool) -> float:
+## Dasselbe gilt fuer den PERFECT-Boost.
+static func pace_gravity(charges: int, overload: bool, perfect_boost := false) -> float:
 	if overload:
 		return OVERLOAD_GRAVITY
 	var index := clampi(charges, 0, RESONANCE_PACE_FACTORS.size() - 1)
 	var factor: float = RESONANCE_PACE_FACTORS[index] * (1.0 + resonance_bounce_bonus(charges))
+	if perfect_boost:
+		factor *= PERFECT_PACE_BOOST
 	return GRAVITY * factor * factor
+## Dive: aktive Beeinflussung des Landungszeitpunkts.
+##
+## Einmal pro Sprung, nur in der FALLPHASE. Die Gravitation wird mit einem
+## Faktor belegt (dieselbe Bauform wie die Tempoleiter, nur viel kraeftiger) und
+## die Fallgeschwindigkeit gedeckelt, damit ein sehr spaeter Dive den Kern nicht
+## in einem Tick durch eine Plattform traegt.
+##
+##   DIVE_GRAVITY_FACTOR 3.2  — spuerbar, aber kein Sturz
+##   DIVE_MAX_FALL_SPEED 5200 — Deckel NUR im Dive
+##   DIVE_MIN_FALL_SPEED  30  — der Kern muss wirklich fallen; im Scheitel waere
+##                              der Dive nicht als Beschleunigung spuerbar und
+##                              wuerde den Absprung beeinflussen
+const DIVE_GRAVITY_FACTOR := 3.2
+const DIVE_MAX_FALL_SPEED := 5200.0
+const DIVE_MIN_FALL_SPEED := 30.0
+## Wisch-Erkennung. Alle drei Werte sind noetig; jeder schuetzt gegen eine andere
+## Fehlausloesung (siehe `dive_input.gd`).
+##
+##   MIN_DISTANCE 80 DESIGN-Pixel — ein Zucken beim Umzielen ist kein Wisch.
+##     ACHTUNG Koordinatenraum: `InputEvent.position` kommt in Design-Pixeln an
+##     (Viewport 1080 breit), NICHT in Fensterpixeln. Auf einem 405 breiten
+##     Fenster ist das der Faktor 2,667. Gemessen, nicht angenommen:
+##     `qa/input_room_probe.gd`. Ein in Fensterpixeln gedachter Wert waere hier
+##     um diesen Faktor zu klein und wuerde zu frueh ausloesen.
+##   MAX_TIME 0.30 s — langsames Herunterziehen ist kein Wisch
+##   DOMINANCE 1.6   — der WEG nach unten muss den Weg nach rechts deutlich
+##                     uebersteigen. Es zaehlt der aufsummierte Weg, nicht die
+##                     Verschiebung: sonst loest ein Umzielen mit
+##                     Richtungswechsel aus (siehe `dive_input.gd`).
+const DIVE_SWIPE_MIN_DISTANCE := 80.0
+const DIVE_SWIPE_MAX_TIME := 0.30
+const DIVE_SWIPE_DOMINANCE := 1.6
+
 const MAX_HORIZONTAL_SPEED := 1100.0
 const HORIZONTAL_ACCELERATION := 10500.0
 const HORIZONTAL_DRAG := 12000.0
@@ -79,7 +142,16 @@ enum LandingQuality { NORMAL, RESONANCE, PERFECT }
 # echter NORMAL-Bereich mit eigenem Impact-Feedback sichtbar bleibt.
 const PERFECT_CENTER_RATIO := 0.24
 const RESONANCE_CENTER_RATIO := 0.38
-const LANDING_BOUNCE_MULTIPLIERS := [1.0, 1.025, 1.05]
+const LANDING_BOUNCE_MULTIPLIERS := [1.0, 1.025, 1.0]
+## Warum PERFECT hier jetzt 1.0 ist (vorher 1.05):
+##
+## Der PERFECT-Vorteil ist von "etwas hoeher" auf "spuerbar schneller" umgestellt
+## (PERFECT_PACE_BOOST, Kraft UND Gravitation gemeinsam). Beide zusammen waeren
+## doppelt gezaehlt: 1,05 Kraft gegen 1,11^2 = 1,232 Gravitation waere immer noch
+## ein hoeherer Scheitel — die perfekte Landung haette die Route veraendert,
+## statt sie nur schneller zu machen. Die 5 % sind deshalb in den Boost
+## uebergegangen, nicht zusaetzlich dazugekommen. RESONANCE behaelt seine 2,5 %:
+## dort gibt es keinen Boost, die kleine Anhebung ist ihr ganzer Vorteil.
 # Resonanzladungen: die zentrale Kernmechanik. Jede RESONANCE- oder
 # PERFECT-Landung laedt +1. Bei RESONANCE_MAX_CHARGES ist OVERLOAD scharf, der
 # naechste Absprung nutzt OVERLOAD_BOUNCE_SPEED, danach steht die Resonanz

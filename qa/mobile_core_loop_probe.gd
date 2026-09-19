@@ -44,6 +44,13 @@ var _start_ms := 0
 var _last_charge := -1
 var _shots := 0
 var _descent_shots := 0
+## Dive-Fahrer: bei jedem Sprung wird in der Fallphase EIN echter Wisch nach
+## unten geschickt (KW_DIVE=1). Nur so laesst sich messen, was der Dive im
+## echten Spiel bewirkt — ein direkter Methodenaufruf wuerde die Eingabeebene
+## ueberspringen und genau die Fehlausloesung nicht pruefen.
+var _dive_enabled := false
+var _dived_this_jump := false
+var _dive_attempts := 0
 var _pending_shot := ""
 ## Scheitelhoehe des laufenden Flugs: die tatsaechlich erreichte Steighoehe aus
 ## der echten Physik. Nur so laesst sich pruefen, ob eine Sprosse erreichbar ist
@@ -86,6 +93,7 @@ func _run() -> void:
 	_max_shots = int(OS.get_environment("KW_MAX_SHOTS")) if OS.get_environment("KW_MAX_SHOTS") != "" else 12
 	_start_height = float(OS.get_environment("KW_START_HEIGHT")) if OS.get_environment("KW_START_HEIGHT") != "" else 0.0
 	_restart_after_death = OS.get_environment("KW_RESTART_AFTER_DEATH") == "1"
+	_dive_enabled = OS.get_environment("KW_DIVE") == "1"
 	_aim_offset = float(OS.get_environment("KW_AIM_OFFSET")) if OS.get_environment("KW_AIM_OFFSET") != "" else 0.0
 	_capture_every = float(OS.get_environment("KW_CAPTURE_EVERY")) if OS.get_environment("KW_CAPTURE_EVERY") != "" else 0.0
 	_rng.seed = _seed + 7
@@ -208,6 +216,7 @@ func _run() -> void:
 			break
 
 		_steer(now_ms)
+		_dive_tick()
 		if _jumper.global_position.y < _apex_y:
 			_apex_y = _jumper.global_position.y
 		if frame_index % 4 == 0:
@@ -298,6 +307,7 @@ func _next_platform():
 	return best
 
 func _on_landed(platform, quality, bonus) -> void:
+	_dived_this_jump = false
 	var now_ms := Time.get_ticks_msec()
 	_landing_count += 1
 	if platform != null and is_instance_valid(platform):
@@ -440,6 +450,43 @@ func _press(world_x: float) -> void:
 	_held = true
 	_last_drag_ms = Time.get_ticks_msec()
 
+## Ein echter Wisch nach unten ueber die Eingabepipeline: Aufsetzen, Ziehen nach
+## unten, Loslassen. Die y-Position wird in FENSTERpixeln nach unten versetzt —
+## genau das erzeugt ein Daumen auf dem Telefon.
+##
+## Danach wird der Finger wieder aufgesetzt, damit die waagerechte Steuerung
+## weiterlaeuft: der Spieler laesst den Daumen nach einem Dive nicht los.
+func _dive_swipe() -> void:
+	var base := _world_to_window(_target_x)
+	var press := InputEventScreenTouch.new()
+	press.index = 0
+	press.pressed = true
+	press.position = base
+	Input.parse_input_event(press)
+	var drag := InputEventScreenDrag.new()
+	drag.index = 0
+	drag.position = Vector2(base.x, base.y + 140.0)
+	Input.parse_input_event(drag)
+	var release := InputEventScreenTouch.new()
+	release.index = 0
+	release.pressed = false
+	release.position = Vector2(base.x, base.y + 140.0)
+	Input.parse_input_event(release)
+	Input.flush_buffered_events()
+	# Finger zurueck auf die Steuerung.
+	_held = false
+	_press(_target_x)
+
+## In der Fallphase einmal je Sprung einen Dive versuchen.
+func _dive_tick() -> void:
+	if not _dive_enabled or _jumper == null or not is_instance_valid(_jumper):
+		return
+	if _dived_this_jump or _jumper.velocity.y <= 0.0:
+		return
+	_dived_this_jump = true
+	_dive_attempts += 1
+	_dive_swipe()
+
 func _drag(now_ms: float) -> void:
 	if not _held:
 		return
@@ -565,5 +612,6 @@ func _write_report() -> void:
 	print("died=%s landings=%d score=%d height=%d overloads=%d" % [
 		_game.is_game_over, _landings.size(), _game.score, _game.run_stats.height, _game.resonance.overload_count])
 	print("qualities=%s" % [qualities])
+	print("dive_attempts=%d dives_triggered=%d" % [_dive_attempts, _jumper.dive_count if _jumper != null else -1])
 	print("frame_ms=%s" % [_stats(_frames_ms)])
 	print("physics/s=%s" % [_stats(_physics_per_second)])
