@@ -89,6 +89,15 @@ def main():
         target = Path(output) / 'index.html'
         if not run('Web release export', base + ['--export-release', 'Web', str(target)], 180):
             return 1
+        # Godot re-encodes the splash from the imported texture, so the exported
+        # index.png is where its bytes live; the source asset cannot shrink it.
+        splash = target.with_name('index.png')
+        if splash.is_file():
+            shrinker = ROOT / 'tools' / 'make_splash.py'
+            if shrinker.is_file() and not run(
+                    'Splash shrink (index.png)',
+                    [sys.executable, str(shrinker), str(splash)], 120):
+                return 1
         for suffix in ['.html', '.js', '.wasm', '.pck']:
             artifact = target.with_suffix(suffix)
             if not artifact.is_file() or artifact.stat().st_size == 0:

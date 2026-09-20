@@ -90,6 +90,18 @@ jobs:
           relative_project_path: ./
           archive_output: false
 
+      # Godot re-encodes the splash from the imported texture, so the SOURCE asset
+      # cannot shrink the exported index.png — this step must run on the export,
+      # after the export and before publishing. The tool prints both byte counts
+      # and fails the job if quality drops below its bound.
+      - name: Shrink the visible load screen (index.png)
+        shell: bash
+        run: |
+          set -euo pipefail
+          splash="${{ steps.godot.outputs.build_directory }}/Web/index.png"
+          test -f "$splash" || { echo "index.png missing at $splash" >&2; exit 1; }
+          python3 tools/make_splash.py "$splash"
+
       - name: Publish gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
