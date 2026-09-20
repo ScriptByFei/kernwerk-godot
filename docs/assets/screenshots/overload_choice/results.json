@@ -1,0 +1,10 @@
+{
+  "empty_frame_changed_pixels": 0,
+  "outside_hud_changed_pixels": 0,
+  "ready_pulse_pixels": 255,
+  "ready_vs_armed_segment_pixels": 306,
+  "activation_impulse_pixels": 175,
+  "no_pulse_control_pixels": 0,
+  "no_impulse_control_pixels": 0,
+  "baseline_commit": "f87b4486ab8ae8489d50300d0fd634dafd1f4644"
+}

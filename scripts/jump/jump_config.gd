@@ -252,10 +252,17 @@ const RESONANCE_HUD_SEGMENT_GAP := 9.0
 const RESONANCE_HUD_ROW_OFFSET := 60.0
 const RESONANCE_HUD_OUTLINE_WIDTH := 2.0
 const RESONANCE_OVERLOAD_LABEL := "OVERLOAD"
-# Das Spiel springt automatisch beim Landen ab. 3/3 existiert deshalb nur einen
-# Physik-Tick lang und waere nie sichtbar (queue_redraw laeuft nach der Physik).
-# Waehrend des ueberladenen Flugs bleibt die Anzeige stehen: dort ist der
-# Overload tatsaechlich aktiv.
+# Der gespeicherte 3/3-Zustand. Der Pfeil steht als "^" (ASCII) im Text, weil der
+# Fallback-Font das Zeichen U+2191 zwar rastert, aber in der HUD-Groesse nur ein
+# paar Pixel Tinte traegt — als Hinweis zu unsicher.
+const RESONANCE_READY_LABEL := "READY ^"
+const RESONANCE_ARMED_LABEL := "ARMED"
+# Der Zustand wird als TEXT benannt, nicht nur als Symbol: eine Unterkante allein
+# war auf dem Telefon nicht zuverlaessig unterscheidbar (gemessen).
+const RESONANCE_ARMED_UNDERLINE_OFFSET := 6.0
+const RESONANCE_READY_PULSE_PERIOD := 1.6
+const RESONANCE_ARM_IMPULSE_TIME := 0.30
+# 3/3 bleibt gespeichert: die Anzeige gehoert sichtbar gehalten, nicht versteckt.
 const RESONANCE_OVERLOAD_DISPLAY_TIME := 0.6
 const LANDING_BONUSES_ENABLED := false
 const LANDING_SCORE_BONUSES := [0, 1, 3]

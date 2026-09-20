@@ -31,9 +31,10 @@ func _test_charge_rules() -> void:
 	_check(r.register_landing(JumpConfig.LandingQuality.PERFECT) == false, "PERFECT laedt ebenfalls, ohne Overload")
 	_check(r.charges == 2, "PERFECT gibt genau +1 Ladung")
 
-	# Dritte Ladung: Overload scharf, wird aber erst vom naechsten Absprung
-	# verbraucht — register_landing meldet das dem Aufrufer.
-	_check(r.register_landing(JumpConfig.LandingQuality.PERFECT) == true, "die dritte Landung loest OVERLOAD aus")
+	_check(not r.register_landing(JumpConfig.LandingQuality.PERFECT), "die dritte Landung speichert READY")
+	_check(r.charges == 3 and r.overload_count == 0, "READY bleibt gespeichert und ungezaehlt")
+	_check(r.arm_overload(), "Spieler armt gespeicherten Overload")
+	_check(r.register_landing(JumpConfig.LandingQuality.PERFECT), "naechster Absprung verbraucht ARMED")
 	_check(r.charges == 0, "nach dem Overload steht die Resonanz wieder auf 0")
 	_check(r.overload_count == 1, "der Overload wird gezaehlt")
 	_check(r.best_charges == 3, "der Bestwert haelt die volle Ladung fest")
@@ -82,9 +83,11 @@ func _test_overload_cycle() -> void:
 	_check(is_equal_approx(game.jumper._resonance_ratio, 2.0 / 3.0), "das Feedback folgt dem Ladungsstand")
 	var before_overload := game.resonance.overload_count
 
-	# Der dritte Absprung MUSS ueberladen sein und die Kraft sofort tragen.
 	_land(game.jumper, platform, 0.0)
-	_check(game.resonance.overload_count == before_overload + 1, "die dritte Landung loest den Overload aus")
+	_check(game.resonance.charges == 3 and not game.jumper._pending_overload, "dritter Absprung bleibt normal und speichert READY")
+	_check(game.try_arm_overload(), "Spieler armt Overload")
+	_land(game.jumper, platform, 0.0)
+	_check(game.resonance.overload_count == before_overload + 1, "naechste Landung verbraucht den gewaehlten Overload")
 	_check(game.resonance.charges == 0, "der Overload entlaedt die Resonanz")
 	_check(game._overload_display > 0.0, "die OVERLOAD-Anzeige wird gehalten")
 	var overload_speed := absf(game.jumper.velocity.y)
@@ -137,7 +140,10 @@ func _test_overload_survives_wrong_sequence() -> void:
 	r.overload_released.connect(func() -> void: overloads[0] += 1)
 	for quality in [JumpConfig.LandingQuality.RESONANCE, JumpConfig.LandingQuality.RESONANCE, JumpConfig.LandingQuality.RESONANCE]:
 		r.register_landing(quality)
-	_check(overloads[0] == 1, "drei RESONANCE-Landungen loesen genau einen Overload aus")
+	_check(overloads[0] == 0 and r.charges == 3, "drei RESONANCE-Landungen speichern ohne Verbrauch")
+	r.arm_overload()
+	r.register_landing(JumpConfig.LandingQuality.RESONANCE)
+	_check(overloads[0] == 1, "ARMED loest genau einen Overload aus")
 	_check(r.charges == 0, "und entladen die Resonanz")
 
 	# Nach einem Bruch braucht es wieder drei volle Landungen. Die Sequenz
@@ -151,7 +157,10 @@ func _test_overload_survives_wrong_sequence() -> void:
 	_check(r.charges == 2, "nach dem Bruch sind erst zwei Ladungen wieder aufgebaut")
 
 	r.register_landing(JumpConfig.LandingQuality.PERFECT)
-	_check(overloads[0] == 2, "die dritte volle Landung entlaedt den naechsten Overload")
+	_check(overloads[0] == 1 and r.charges == 3, "dritte volle Landung speichert erneut")
+	r.arm_overload()
+	r.register_landing(JumpConfig.LandingQuality.PERFECT)
+	_check(overloads[0] == 2, "naechster gewaehlt ueberladener Absprung entlaedt erneut")
 	_check(r.charges == 0, "die zweite volle Ladung entlaedt erneut")
 
 ## Das HUD zeigt genau RESONANCE_MAX_CHARGES Segmente in einer Zeile.

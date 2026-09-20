@@ -7,9 +7,9 @@ extends RefCounted
 ##   NORMAL     -> keine Ladung, alle Ladungen verfallen
 ##   RESONANCE  -> +1 Ladung
 ##   PERFECT    -> +1 Ladung
-## Bei [constant JumpConfig.RESONANCE_MAX_CHARGES] ist OVERLOAD scharf und der
-## naechste Absprung nutzt [constant JumpConfig.OVERLOAD_BOUNCE_SPEED]; danach
-## steht die Resonanz wieder auf 0.
+## Bei voller Ladung bleibt OVERLOAD READY gespeichert. Erst arm_overload()
+## macht ihn ARMED fuer den naechsten regulaeren Absprung. NORMAL loescht
+## READY und ARMED; nur ein tatsaechlich ueberladener Absprung zaehlt.
 ##
 ## Bewusst reine Zustandslogik: kein Rendering, keine Timer, keine Node- oder
 ## Szenenabhaengigkeit. Damit ist die Mechanik headless testbar und es gibt
@@ -30,6 +30,23 @@ var overload_count := 0
 ## braucht diesen Wert fuer die Punkte, weil [member charges] beim Overload
 ## bereits wieder auf 0 steht.
 var last_charge := 0
+var _overload_armed := false
+
+signal overload_armed()
+
+func is_overload_ready() -> bool:
+	return charges == max_charges() and not _overload_armed
+
+func is_overload_armed() -> bool:
+	return _overload_armed
+
+## Spielerentscheidung, ohne Entladung oder Einfluss auf den laufenden Flug.
+func arm_overload() -> bool:
+	if not is_overload_ready():
+		return false
+	_overload_armed = true
+	overload_armed.emit()
+	return true
 
 
 func max_charges() -> int:
@@ -50,10 +67,10 @@ func register_landing(quality: JumpConfig.LandingQuality) -> bool:
 	best_charges = maxi(best_charges, charges)
 	last_charge = charges
 	charges_changed.emit(charges)
-	if charges < max_charges():
+	if not _overload_armed:
 		return false
-	# Voll aufgeladen: Overload wird vom naechsten Absprung verbraucht und die
-	# Resonanz faellt danach auf 0 zurueck.
+	# Nur die vorherige Spielerentscheidung kann diesen Absprung ueberladen.
+	_overload_armed = false
 	overload_count += 1
 	charges = 0
 	charges_changed.emit(charges)
@@ -63,6 +80,7 @@ func register_landing(quality: JumpConfig.LandingQuality) -> bool:
 
 ## Setzt alle Ladungen zurueck (schlechte Landung, Neustart, Rundenende).
 func clear() -> void:
+	_overload_armed = false
 	if charges == 0:
 		return
 	charges = 0
@@ -71,6 +89,7 @@ func clear() -> void:
 
 ## Vollstaendiger Rundenreset inklusive Bestwert und Zaehler.
 func reset() -> void:
+	_overload_armed = false
 	charges = 0
 	best_charges = 0
 	overload_count = 0

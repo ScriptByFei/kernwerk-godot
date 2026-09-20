@@ -13,6 +13,7 @@ enum Phase {
 const ContactSound = preload("res://scripts/jump/contact_sound.gd")
 const Ambience = preload("res://scripts/jump/ambience_player.gd")
 const DiveInput = preload("res://scripts/jump/dive_input.gd")
+const OverloadInput = preload("res://scripts/jump/overload_input.gd")
 ## Authored contact overrides are optional; default contacts use cached PCM.
 @export var normal_landing_sound: AudioStream
 @export var resonance_landing_sound: AudioStream
@@ -24,8 +25,7 @@ var ambience: Ambience
 var _audio_unlocked := false
 var _death_tween: Tween
 var _landing_bonus := 0
-## Restlaufzeit der OVERLOAD-Anzeige. Das Spiel springt automatisch ab, deshalb
-## ist 3/3 nur einen Tick lang wahr; der ueberladene Flug haelt die Anzeige.
+## Restlaufzeit des verbrauchten Overload-Flugs; READY/ARMED liegen im System.
 var _overload_display := 0.0
 var resonance: ResonanceSystem
 ## Bestwert des laufenden Spiels, dauerhaft gespeichert (siehe RunRecord).
@@ -72,6 +72,7 @@ var _drag_pointer := ""
 ## neben der Steuerung, nicht darin — die Steuerung bleibt unveraendert, der
 ## Wisch wird nur ZUSAETZLICH ausgewertet.
 var dive_input: DiveInput
+var overload_input: OverloadInput
 var _keyboard_blocked := false
 var pause_button: PauseButton
 var pause_menu: PauseMenu
@@ -106,6 +107,7 @@ func _ready() -> void:
 	ambience.attach(self)
 	resonance = ResonanceSystem.new()
 	dive_input = DiveInput.new()
+	overload_input = OverloadInput.new()
 	score_store = BestScoreStore.new()
 	run_record = RunRecord.new(score_store)
 	run_stats = RunStats.new()
@@ -673,6 +675,8 @@ func _reset_controls() -> void:
 	_drag_pointer = ""
 	if dive_input != null:
 		dive_input.reset()
+	if overload_input != null:
+		overload_input.reset()
 	_blocked_pointers = _held_pointers.duplicate()
 	_keyboard_blocked = Input.is_action_pressed("move_left") or Input.is_action_pressed("move_right")
 	if is_instance_valid(jumper):
@@ -775,10 +779,13 @@ func _begin_dive_tracking(position: Vector2) -> void:
 	if dive_input == null:
 		return
 	dive_input.begin(position, _dive_now())
+	overload_input.begin(position, _dive_now())
 
 func _end_dive_tracking() -> void:
 	if dive_input != null:
 		dive_input.end()
+	if overload_input != null:
+		overload_input.end()
 
 func _dive_now() -> float:
 	return Time.get_ticks_msec() / 1000.0
@@ -800,21 +807,28 @@ func _window_to_design(position: Vector2) -> Vector2:
 	return position
 
 func _update_dive_tracking(position: Vector2) -> void:
-	if dive_input == null:
+	if dive_input == null or overload_input == null:
 		return
-	# Die Schwellwerte kommen aus `JumpConfig`, nicht aus den Vorgabewerten der
-	# Erkennung: sonst gaebe es zwei Zahlenpaare, und die eingestellten Werte
-	# waeren wirkungslos.
-	if not dive_input.update(position, _dive_now(),
+	if _phase != Phase.PLAYING or is_game_over or _is_paused or get_tree().paused or jumper == null:
+		return
+	var now := _dive_now()
+	if overload_input.update(position, now):
+		# Die Gegenrichtung beginnt am Ende dieses Flicks, nicht an alten Proben.
+		dive_input.begin(position, now)
+		try_arm_overload()
+		return
+	if dive_input.update(position, now,
 			JumpConfig.DIVE_SWIPE_MIN_DISTANCE,
 			JumpConfig.DIVE_SWIPE_MAX_TIME,
 			JumpConfig.DIVE_SWIPE_DOMINANCE):
-		return
-	if _phase != Phase.PLAYING or is_game_over or jumper == null:
-		return
-	# Die Regel entscheidet der Jumper selbst (`try_dive`): nur in der Fallphase,
-	# nur einmal je Sprung. Hier steht nur die Verdrahtung.
-	jumper.try_dive()
+		overload_input.begin(position, now)
+		jumper.try_dive()
+
+## Keine Kraftaenderung hier: erst der regulaere Landungs-Callback verbraucht.
+func try_arm_overload() -> bool:
+	if _phase != Phase.PLAYING or is_game_over or _is_paused or get_tree().paused or jumper == null:
+		return false
+	return resonance.arm_overload()
 
 func _is_start_tap(event: InputEvent) -> bool:
 	return (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \

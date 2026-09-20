@@ -34,21 +34,21 @@ var dive_count := 0
 func charge_light_alpha() -> float:
 	if _overload_remaining > 0.0:
 		return JumpConfig.OVERLOAD_LIGHT_ALPHA * (_overload_remaining / JumpConfig.RESONANCE_OVERLOAD_DISPLAY_TIME)
-	return JumpConfig.CHARGE_LIGHT_ALPHAS[_held_charges()]
+	return JumpConfig.CHARGE_LIGHT_ALPHAS[mini(_held_charges(), JumpConfig.CHARGE_LIGHT_ALPHAS.size() - 1)]
 
 func charge_light_radius() -> float:
 	if _overload_remaining > 0.0:
 		return JumpConfig.OVERLOAD_LIGHT_RADIUS
-	return JumpConfig.CHARGE_LIGHT_RADIUS[_held_charges()]
+	return JumpConfig.CHARGE_LIGHT_RADIUS[mini(_held_charges(), JumpConfig.CHARGE_LIGHT_RADIUS.size() - 1)]
 
-## Ladungsstand fuer die Darstellung. `_resonance_ratio` kommt aus dem Spiel und
-## ist genau charges / max_charges; daraus laesst sich der Index zurueckrechnen,
-## ohne dass der Jumper eine zweite Quelle der Wahrheit fuehrt.
+## Ladungsstand fuer Gravitation und Darstellung, aus charges / max_charges.
+## Gehaltene 3/3 duerfen physikalisch nicht auf 2 gekappt werden: die Kraft
+## liest ebenfalls 3. Nur die unveraenderte Lichtpalette deckelt ihren Index.
 func _held_charges() -> int:
 	var maximum := JumpConfig.RESONANCE_MAX_CHARGES
 	if maximum <= 1:
 		return 0
-	return clampi(roundi(_resonance_ratio * float(maximum)), 0, maximum - 1)
+	return clampi(roundi(_resonance_ratio * float(maximum)), 0, maximum)
 
 func charge_light_strength() -> float:
 	return charge_light_alpha()
@@ -298,8 +298,9 @@ func bounce_from(platform: JumpPlatform, is_overload: bool) -> bool:
 	_resolve_landing(platform, is_overload, global_position.x)
 	return true
 
-## Der Absprung traegt die verbrauchte Resonanzladung. Wird in `_apply_bounce`
-## gesetzt, BEVOR der Callback die Ladungen leert.
+## Der laufende Flug traegt den verbrauchten Overload. Der Callback verbucht
+## zuerst die Landung; `_apply_bounce` uebernimmt danach sein Ergebnis fuer
+## Kraft UND Gravitation, auch wenn die gespeicherten Ladungen schon leer sind.
 var _pending_overload := false
 
 func _resolve_landing(platform: JumpPlatform, is_overload: bool, contact_center_x: float) -> void:
