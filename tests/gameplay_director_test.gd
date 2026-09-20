@@ -384,3 +384,22 @@ func _check_difficulty_curve() -> void:
 	var hardest_gap := JumpConfig.PLATFORM_VERTICAL_GAP + gap_span
 	var apex := JumpConfig.pace_bounce(0, false) * JumpConfig.pace_bounce(0, false) / (2.0 * JumpConfig.pace_gravity(0, false))
 	_check(hardest_gap < apex, "der weiteste Abstand bleibt unter dem Scheitel (%.0f < %.0f)" % [hardest_gap, apex])
+	# OBERGRENZE, nicht nur Untergrenze: der Scheitel darf nur so hoch wachsen,
+	# dass die weiteste Sprosse noch bequem erreichbar ist. Ohne diese Schranke
+	# kann ein weicherer Bogen (kleinere Gravitation) unbemerkt jeden Sprung
+	# hoeher machen — die Reserve waechst dann mit, und die Untergrenze oben
+	# bleibt trotzdem gruen.
+	#
+	# Formuliert als ANTEIL des weitesten Abstands, nicht als Pixelzahl: eine
+	# Pixelzahl waere aus dem Ist-Wert abgeleitet und damit kein Kriterium.
+	# Absicht: der Sprung darf den weitesten Abstand um hoechstens die Haelfte
+	# ueberragen — darueber wird er schwebend und die Route verliert Spannung.
+	#
+	# Die Formel (v^2/2g) liegt rund 2,5 % ueber der echten Bahn (gemessen:
+	# 550 gegen 536 px bei 0/3), die Schranke ist damit konservativ.
+	var reserve := apex - hardest_gap
+	_check(reserve <= 0.5 * hardest_gap,
+		"die Reserve bleibt unter der Haelfte des weitesten Abstands (%+.0f <= %.0f px)" % [reserve, 0.5 * hardest_gap])
+	# Und sie muss spuerbar bleiben, nicht nur formal positiv.
+	_check(reserve >= 100.0,
+		"die Reserve auf der schwersten Stufe bleibt nutzbar (%+.0f px)" % reserve)

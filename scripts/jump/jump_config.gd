@@ -9,11 +9,30 @@ extends RefCounted
 ## damit unfairer. Mit g -> k^2*g und v -> k*v bleibt der Scheitel EXAKT gleich
 ## und nur die Flugdauer sinkt (t ~ 1/k). Schneller ohne hoeher ist genau das.
 ##
-## Basiswerte sind die alte Einstellung um Faktor 1.30 gestrafft: das mittlere
-## Tempo (1/3) fuehlt sich damit an wie das bisherige Spiel, die Stufen darum
-## herum sind neu.
-const GRAVITY := 3887.0
-const BASE_BOUNCE_SPEED := 2054.0
+## **Umstellung 20.09.2026: der ruhige Sprung ist WEICHER und LAENGER.** Timo
+## wollte "mehr Tempo, aber nicht so starke Gravitation". Das sind zwei Hebel,
+## und sie widersprechen sich, solange die Flugzeit (nicht der Scheitel) das
+## Tempo traegt:
+##
+##   - Schneller im Sinne von kuerzerer Flugzeit geht NUR ueber hoehere
+##     Gravitation (t = 2v/g) oder ueber eine kuerzere Strecke. Ein weicherer
+##     Bogen ist zwangslaeufig ein laengerer Bogen.
+##   - Tempo im Sinne von "kommt in Fahrt, baut auf" liegt deshalb NICHT hier,
+##     sondern in den LADUNGEN: `RESONANCE_PACE_FACTORS` spreizt die Leiter, und
+##     die Ladungen wachsen ueber einen geglueckten Lauf. Der Basiswert ist der
+##     RUHEZUSTAND (0/3), nicht das Spieltempo.
+##
+## Gewaehlt: Gravitation -15 %, Kraft so bemessen, dass der Scheitel sinkt.
+## Vorher 3887 / 2054 (Scheitel 526 px, Flug 0,98 s gemessen am echten Springer),
+## jetzt 3304 / 1906 (Scheitel ~493 px, Flug ~1,08 s). Der Springer hat damit
+## mehr Zeit im Bogen; die Landung bleibt ein sanfteres Abbremsen.
+##
+## Der Scheitel sinkt bewusst nur um ~6 %: er darf die weiteste Sprosse der
+## schwersten Stufe (370 px) nicht unterschreiten, und ein zu hoher Sprung waere
+## auf dem Telefon langsamer zu steuern. Als Test verankert, nicht nur hier
+## kommentiert (siehe `gameplay_director_test`).
+const GRAVITY := 3304.0
+const BASE_BOUNCE_SPEED := 1906.0
 # Third actual launch is perceptibly stronger than the second charged launch.
 # Base bounce and charge multipliers stay unchanged; all launches remain capped.
 const OVERLOAD_BOUNCE_SPEED := 4144.0
