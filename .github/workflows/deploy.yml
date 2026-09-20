@@ -100,6 +100,9 @@ jobs:
           set -euo pipefail
           splash="${{ steps.godot.outputs.build_directory }}/Web/index.png"
           test -f "$splash" || { echo "index.png missing at $splash" >&2; exit 1; }
+          # The runner image has no Pillow; the tool needs it. Pinned with an upper
+          # bound per the project's dependency policy.
+          python3 -m pip install --quiet --disable-pip-version-check "pillow>=11,<13"
           python3 tools/make_splash.py "$splash"
 
       - name: Publish gh-pages

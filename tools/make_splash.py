@@ -44,10 +44,16 @@ MAX_SIZE_RATIO = 0.65
 
 
 def _pillow():
+    """Return Pillow, or exit with a message that says what to do about it.
+
+    The CI runner has no Pillow by default, so this path is a real one — a bare
+    ImportError would leave the operator guessing which package is missing.
+    """
     try:
         from PIL import Image, ImageChops  # noqa: F401
     except ImportError:  # pragma: no cover - environment dependent
-        print("Pillow is required (pip install pillow)", file=sys.stderr)
+        print("FAIL: Pillow is required (python3 -m pip install 'pillow>=11,<13')",
+              file=sys.stderr)
         raise SystemExit(2)
     from PIL import Image, ImageChops
 
