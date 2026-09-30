@@ -14,7 +14,9 @@ const ContactSound = preload("res://scripts/jump/contact_sound.gd")
 const Ambience = preload("res://scripts/jump/ambience_player.gd")
 const DiveInput = preload("res://scripts/jump/dive_input.gd")
 const OverloadInput = preload("res://scripts/jump/overload_input.gd")
+const SkyBackground = preload("res://scripts/jump/sky_background.gd")
 ## Authored contact overrides are optional; default contacts use cached PCM.
+@export var cheerful_sky_enabled := true
 @export var normal_landing_sound: AudioStream
 @export var resonance_landing_sound: AudioStream
 @export var perfect_landing_sound: AudioStream
@@ -863,61 +865,28 @@ func _draw() -> void:
 	# Spieler-Score: sonst waere der Schacht eine Belohnungsanzeige.
 	var zone_height := _zone_height(visible_rect)
 	var zone_index: float = JumpConfig.zone_index_at(zone_height)
-	var zone_color := JumpConfig.zone_color(JumpConfig.ZONE_BACKGROUNDS, zone_height)
-	draw_rect(visible_rect, zone_color, true)
-	# Permanente Facility-Struktur ALLER Zonen: sie liegt ueber der flachen
-	# Zonenfarbe und unter allen Zonenmodulen, und laeuft von Zone 2 bis Zone 5
-	# durch. Damit sitzen die Zonen auf DERSELBEN Wand, statt jeweils eine neue
-	# mitzubringen. Sie liefert nur Architektur (Traeger, Wandfelder, Hohlraeume,
-	# Versorgungsachse, Fugen); die Zonen setzen ihre Technik darauf. Zone 1 bringt
-	# dieselbe Bauform selbst mit und bleibt unveraendert.
-	#
-	# ACHTUNG Reihenfolge: die Zonenfarbe ist ein DECKENDES Rechteck. Ein Aufruf
-	# VOR ihr waere wirkungslos — die Anlage waere vollstaendig verdeckt (im Bild
-	# nachgemessen: keine einzige Traegerkante sichtbar).
-	ShaftBackground.draw_facility(self, visible_rect, zone_index)
-	# Reaktorschacht als gestalteter Hintergrund. Er liegt zwischen Zonenfarbe
-	# und Schachtlinien, damit der Vordergrund (Plattformen, Kern) in jedem Fall
-	# darueber bleibt. Eigene Zeichenroutine, kein Node: kostet im Webexport
-	# nichts und laesst sich headless pruefen.
-	# Die Kuehlsektion liegt hinter dem Reaktorschacht: waehrend der Kreuzblendung
-	# (Zonenindex 0.75 bis 1.25) sind beide sichtbar, danach traegt sie allein.
-	ShaftBackground.draw_cooling(self, visible_rect, zone_index, _background_time)
-	ShaftBackground.draw(self, visible_rect, zone_index, _background_time)
-	# Zone 3 (Hochspannung) liegt ueber der Kuehlsektion und unter Zone 4. Ihre
-	# Fenster sind an die Nachbarn gespiegelt: sie blendet ein, wo die
-	# Kuehlsektion ausblendet, und aus, wo Zone 4 einblendet. Die Luecke
-	# [1.55, 2.55], die hier bewusst freigehalten war, ist damit geschlossen.
-	ShaftBackground.draw_zone3(self, visible_rect, zone_index)
-	# Zone 4 (instabil) und Zone 5 (kritisch) liegen ueber der Zonenfarbe, aber
-	# unter den Schachtlinien und dem Spielinhalt.
-	ShaftBackground.draw_zone4(self, visible_rect, zone_index, _background_time)
-	ShaftBackground.draw_zone5(self, visible_rect, zone_index, _background_time)
-	# Zonenuebergaenge als ORT: Quertraeger, Wartungsschleuse, Schild und ein
-	# beginnendes Kabelbuendel in der Bucht, in der die Grenze liegt — zusaetzlich
-	# zur Kreuzblendung, nicht statt ihrer.
-	#
-	# Sie stehen ueber den Zonenmodulen, nicht darunter: als Teil der Anlage
-	# gehoeren sie vor die Technik der Zone (gemessen — unter den Modulen waren
-	# Querwand, Schleuse und Schild vollstaendig verdeckt).
-	ShaftBackground.draw_facility_transitions(self, visible_rect, zone_index)
-	var shaft_color := JumpConfig.zone_color(JumpConfig.ZONE_SHAFT_COLORS, zone_height)
-	# Die MITTLERE Linie liegt exakt hinter dem Reaktor. In voller Staerke liest
-	# sie sich wie eine Fuehrungsschiene, an der der Kern haengt, und sie bleibt
-	# beim Zonenwechsel als einzige Kontur stehen. Deshalb deutlich schwaecher:
-	# sie gliedert die Flaeche, ohne die Spielbahn zu markieren. Die Randlinien
-	# behalten ihre Staerke — sie rahmen das Bild.
-	var center_shaft_color := Color(
-		shaft_color.r * JumpConfig.SHAFT_CENTER_DIM,
-		shaft_color.g * JumpConfig.SHAFT_CENTER_DIM,
-		shaft_color.b * JumpConfig.SHAFT_CENTER_DIM,
-		shaft_color.a)
-	for shaft_x in [120.0, 960.0]:
-		draw_line(Vector2(shaft_x, visible_rect.position.y), Vector2(shaft_x, visible_rect.end.y), shaft_color, 8.0)
-	# The facility supplies its own wall structure, not a central guide rail.
-	# Restore the legacy line continuously as the shaft artwork fades out.
-	center_shaft_color.a *= 1.0 - ShaftBackground.opacity_for_zone(zone_index)
-	draw_line(Vector2(540.0, visible_rect.position.y), Vector2(540.0, visible_rect.end.y), center_shaft_color, 8.0)
+	if cheerful_sky_enabled:
+		SkyBackground.draw(self, visible_rect, zone_index, _background_time)
+	else:
+		var zone_color := JumpConfig.zone_color(JumpConfig.ZONE_BACKGROUNDS, zone_height)
+		draw_rect(visible_rect, zone_color, true)
+		ShaftBackground.draw_facility(self, visible_rect, zone_index)
+		ShaftBackground.draw_cooling(self, visible_rect, zone_index, _background_time)
+		ShaftBackground.draw(self, visible_rect, zone_index, _background_time)
+		ShaftBackground.draw_zone3(self, visible_rect, zone_index)
+		ShaftBackground.draw_zone4(self, visible_rect, zone_index, _background_time)
+		ShaftBackground.draw_zone5(self, visible_rect, zone_index, _background_time)
+		ShaftBackground.draw_facility_transitions(self, visible_rect, zone_index)
+		var shaft_color := JumpConfig.zone_color(JumpConfig.ZONE_SHAFT_COLORS, zone_height)
+		var center_shaft_color := Color(
+			shaft_color.r * JumpConfig.SHAFT_CENTER_DIM,
+			shaft_color.g * JumpConfig.SHAFT_CENTER_DIM,
+			shaft_color.b * JumpConfig.SHAFT_CENTER_DIM,
+			shaft_color.a)
+		for shaft_x in [120.0, 960.0]:
+			draw_line(Vector2(shaft_x, visible_rect.position.y), Vector2(shaft_x, visible_rect.end.y), shaft_color, 8.0)
+		center_shaft_color.a *= 1.0 - ShaftBackground.opacity_for_zone(zone_index)
+		draw_line(Vector2(540.0, visible_rect.position.y), Vector2(540.0, visible_rect.end.y), center_shaft_color, 8.0)
 	if _phase == Phase.PLAYING:
 		# HUD liegt in einer eigenen CanvasLayer (ResonanceHud), damit
 		# vorbeiziehende Plattformen den Text nicht ueberdecken.
